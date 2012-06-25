@@ -69,7 +69,7 @@ XTERN bool explicit_inname;
 
 XTERN char *revision;
 
-XTERN bool debug;
+XTERN int debug;  /* debug flag with big indicating levels */
 
 XTERN char *gbuf;			/* general purpose buffer */
 XTERN size_t gbufsize;			/* allocated size of buf */

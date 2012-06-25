@@ -12,47 +12,66 @@ DEFS = -DHAVE_CONFIG_H
 #TOPDIR := $(CURDIR)
 TOPDIR :=.
 
-SRC_DIR := $(TOPDIR)/src
+SRCDIR := $(TOPDIR)/src
 INCLUDE_DIR := $(TOPDIR)/include
 
-CXXFLAGS =-Wall -fno-exceptions
+CXXFLAGS =-Wall -g -fno-exceptions
 CXXOPTIONS =-I$(INCLUDE_DIR)
 
-CSRC := $(wildcard $(SRC_DIR)/*.c)
-CCSRC := $(wildcard $(SRC_DIR)/*.cc)
+CSRC := $(wildcard $(SRCDIR)/*.c)
+CCSRC := $(wildcard $(SRCDIR)/*.cc)
 SRC := $(CSRC) $(CCSRC)
 
-COBJS := $(patsubst $(SRC_DIR)/%.c, $(SRC_DIR)/%.o, $(CSRC))
-CCOBJS := $(patsubst $(SRC_DIR)/%.cc, $(SRC_DIR)/%.o, $(CCSRC))
+COBJS := $(patsubst $(SRCDIR)/%.c, $(SRCDIR)/%.o, $(CSRC))
+CCOBJS := $(patsubst $(SRCDIR)/%.cc, $(SRCDIR)/%.o, $(CCSRC))
 OBJS := $(COBJS) $(CCOBJS)
 
-all: parser
+
+# make-dpend(source, obj, output)
+define make-depend
+	$(CC) $(CXXOPTIONS) $(CFLAGS) $(DEFS) -MM -MP -MT $2 -MF $3 $1
+endef
+
+
+all: parser depend
 
 parser: $(OBJS)
 	@echo Linking...
 	$(CXX) -o $@ $(CXXFLAGS) $(DEFS) $^
 
+-include .deps
+
 $(COBJS) : %.o : %.c
 	$(CC) -o $@ -c $(CXXOPTIONS) $(CXXFLAGS) $(DEFS) $<
+#	$(call make-depend, $<, $@, )
 
 $(CCOBJS) : %.o : %.cc
 	$(CC) -o $@ -c $(CXXOPTIONS) $(CXXFLAGS) $(DEFS) $<
+#	$(call make-depend, $<, $@, )
 
 depend: .deps
-	@echo Dependency built.
+	@echo Done
 
 .deps: $(SRC)
-	@echo Building dependency...
+	@echo Rebuilding dependency...
 	$(CC) $(CXXOPTIONS) $(CFLAGS) $(DEFS) -MM $^ >> .deps
 
--include .deps
+# FIXME:
+# simple hack here to preserve the obj prefix in the output dependency target.
+# this doesn't work if the source code layout becomes complicated.
+	
+	@mv .deps .deps.tmp
+	@sed -e 's|\(.*\)\.o:|$(SRCDIR)/\1.o:|' < .deps.tmp > .deps
+	@rm .deps.tmp
 
 clean:
-	-find . -type f -name "*.o" -exec rm {} \;
-	-rm .deps
+	@echo cleaning...
+	@-find . -type f -name "*.o" -exec rm {} \;
+	@-rm .deps
+	@echo done..
 
 debug:
-	@echo Source dir: $(SRC_DIR)
+	@echo Source dir: $(SRCDIR)
 	@echo Source files: $(SRC)
 	@echo Obj from c files: $(COBJS)
 	@echo Obj from cc files: $(CCOBJS)

@@ -17,12 +17,15 @@ static Hash_table *file_id_table;
 
 char *dupstr(const char *src)
 {
+    if (NULL == src) {
+        return NULL;
+    }
     return dupbuf(src, strlen(src) + 1); // assuming ending '\0'
 }
 
 char *dupbuf(const char *src, size_t size)
 {
-    if (0 == size) {
+    if (NULL == src || 0 == size) {
         return NULL;
     }
     char *dst = (char *) xmalloc(size);
@@ -32,17 +35,48 @@ char *dupbuf(const char *src, size_t size)
 
 void remove_prefix (char *p, size_t prefixlen)
 {
-    char const *s = p + prefixlen;
+    const char *s = p + prefixlen;
     while ((*p++ = *s++))
         continue;
 }
-bool isempty(char const * str)
+bool isempty(const char * str)
 {
     if (str == NULL || *str == '\0') {
         return true;
     }
     else {
         return false;
+    }
+}
+
+/* Do two lines match with canonicalized white space? */
+bool similar (const char *a, size_t alen,
+	 const char *b, size_t blen)
+{
+  /* Ignore presence or absence of trailing newlines.  */
+  alen  -=  alen && a[alen - 1] == '\n';
+  blen  -=  blen && b[blen - 1] == '\n';
+
+  for (;;)
+    {
+      if (!blen || (*b == ' ' || *b == '\t'))
+	{
+	  while (blen && (*b == ' ' || *b == '\t'))
+	    b++, blen--;
+	  if (alen)
+	    {
+	      if (!(*a == ' ' || *a == '\t'))
+		return false;
+	      do a++, alen--;
+	      while (alen && (*a == ' ' || *a == '\t'));
+	    }
+	  if (!alen || !blen)
+	    return alen == blen;
+	}
+      else if (!alen || *a++ != *b++)
+	return false;
+      else
+	alen--, blen--;
     }
 }
 
@@ -96,7 +130,7 @@ void * xmalloc(size_t size)
 /* Get a response from the user, somehow or other. */
 
 void
-ask (char const *format, ...)
+ask (const char *format, ...)
 {
     static int ttyfd = -2;
     ssize_t r;
@@ -172,22 +206,22 @@ void too_many_lines(const char *filename)
     diegrace ("File %s has too many lines", quotearg (filename));
 }
 
-static char const DEV_NULL[] = NULL_DEVICE;
+static const char DEV_NULL[] = NULL_DEVICE;
 
-static char const RCSSUFFIX[] = ",v";
-static char const CHECKOUT[] = "co %s";
-static char const CHECKOUT_LOCKED[] = "co -l %s";
-static char const RCSDIFF1[] = "rcsdiff %s";
+static const char RCSSUFFIX[] = ",v";
+static const char CHECKOUT[] = "co %s";
+static const char CHECKOUT_LOCKED[] = "co -l %s";
+static const char RCSDIFF1[] = "rcsdiff %s";
 
-static char const SCCSPREFIX[] = "s.";
+static const char SCCSPREFIX[] = "s.";
 static const char *GET = "get ";
 static const char *GET_LOCKED = "get -e ";
-static char const SCCSDIFF1[] = "get -p ";
-static char const SCCSDIFF2[] = "|diff - %s";
+static const char SCCSDIFF1[] = "get -p ";
+static const char SCCSDIFF2[] = "|diff - %s";
 
-static char const CLEARTOOL_CO[] = "cleartool co -unr -nc ";
+static const char CLEARTOOL_CO[] = "cleartool co -unr -nc ";
 
-static char const PERFORCE_CO[] = "p4 edit ";
+static const char PERFORCE_CO[] = "p4 edit ";
 
 /* Return "RCS" if FILENAME is controlled by RCS,
    "SCCS" if it is controlled by SCCS,
@@ -200,14 +234,14 @@ static char const PERFORCE_CO[] = "p4 edit ";
    that gets the file; similarly for DIFFBUF and a command to diff the file
    (but set *DIFFBUF to 0 if the diff operation is meaningless).
    *GETBUF and *DIFFBUF must be freed by the caller.  */
-char const *
-version_controller (char const *filename, bool readonly,
+const char *
+version_controller (const char *filename, bool readonly,
 		    struct stat const *filestat, char **getbuf, char **diffbuf)
 {
     struct stat cstat;
     char *dir = dir_name (filename);
     char *filebase = base_name (filename);
-    char const *dotslash = *filename == '-' ? "./" : "";
+    const char *dotslash = *filename == '-' ? "./" : "";
     size_t dirlen = strlen (dir) + 1;
     size_t maxfixlen = sizeof "SCCS/" - 1 + sizeof SCCSPREFIX - 1;
     size_t maxtrysize = dirlen + strlen (filebase) + maxfixlen + 1;
@@ -217,7 +251,7 @@ version_controller (char const *filename, bool readonly,
         (sizeof SCCSDIFF1 + sizeof SCCSDIFF2 + sizeof DEV_NULL - 1
          + 2 * quotelen + maxfixlen);
     char *trybuf = (char *) xmalloc (maxtrysize);
-    char const *r = 0;
+    const char *r = 0;
 
     sprintf (trybuf, "%s/", dir);
 
@@ -332,7 +366,7 @@ int systemic(const char * cmd)
 const char * make_temp (char letter)
 {
     char *r;
-    char const *tmpdir = getenv ("TMPDIR");	/* Unix tradition */
+    const char *tmpdir = getenv ("TMPDIR");	/* Unix tradition */
     if (!tmpdir) tmpdir = getenv ("TMP");		/* DOS tradition */
     if (!tmpdir) tmpdir = getenv ("TEMP");	/* another DOS tradition */
     if (!tmpdir) tmpdir = TMPDIR;
@@ -379,7 +413,7 @@ static void insert_file (struct stat const *st)
    and FROMST must be nonnull if both FROM and BACKUP are nonnull.
    Back up TO if BACKUP is true.  */
 
-void move_file (char const *from, int volatile *from_needs_removal,
+void move_file (const char *from, int volatile *from_needs_removal,
 	   struct stat const *fromst,
 	   char *to, mode_t mode, bool backup)
 {
@@ -442,7 +476,7 @@ rename_succeeded:
 /* Create FILE with OPEN_FLAGS, and with MODE adjusted so that
    we can read and write the file and that the file is not executable.
    Return the file descriptor.  */
-int create_file (char const *file, int open_flags, mode_t mode,
+int create_file (const char *file, int open_flags, mode_t mode,
 	     bool to_dir_known_to_exist)
 {
     int try_makedirs_errno = to_dir_known_to_exist ? 0 : ENOENT;
@@ -488,7 +522,7 @@ void copy_to_fd (const char *from, int tofd)
 }
 
 /* Copy a file. */
-void copy_file (char const *from, char const *to, struct stat *tost,
+void copy_file (const char *from, const char *to, struct stat *tost,
 	   int to_flags, mode_t mode, bool to_dir_known_to_exist)
 {
     int tofd;
@@ -534,7 +568,7 @@ static char * replace_slashes (char *filename)
 {
     char *f;
     char *last_location_replaced = 0;
-    char const *component_start;
+    const char *component_start;
 
     for (f = filename + FILE_SYSTEM_PREFIX_LEN (filename);  ISSLASH (*f);  f++)
         continue;
@@ -616,5 +650,15 @@ void init_backup_hash_table (void)
             file_id_comparator, free);
     if (!file_id_table)
         xalloc_die ();
+}
+
+/* Has the file identified by ST already been inserted into the hash
+   table?  */
+bool file_already_seen (struct stat const *st)
+{
+    file_id f;
+    f.dev = st->st_dev;
+    f.ino = st->st_ino;
+    return hash_lookup (file_id_table, &f) != 0;
 }
 

@@ -14,10 +14,15 @@ enum difftype { NO_DIFF, CONTEXT_DIFF, NORMAL_DIFF, ED_DIFF, NEW_CONTEXT_DIFF, U
 #define TIBUFSIZE_MINIMUM (8 * 1024)	/* minimum value for tibufsize */
 #endif
 
+
+#define merge_hunk(hunk, outstate, where, somefailed) false
+
 struct ParserConfig {
     bool set_time;
     bool set_utc;
     bool reverse_flag_specified;
+    bool backup;
+    bool dry_run;
 };
 
 /* Output stream state.  */
@@ -34,6 +39,11 @@ public:
     char *patchname;
     FILE *pfp;
 
+    char *inname;
+    char *outfile;
+
+    bool snap;
+
     difftype diff_type;
 
     char *p_c_function;		/* the C function a hunk is in */
@@ -46,24 +56,32 @@ public:
 
     static LINENUM hunkmax;	/* size of above arrays */
 
+
     PatchParser(const char *, enum difftype);
     ~PatchParser();
 
+    void gobble(void);
     char *fetchname (char *, int, char **, time_t *);
 
-    LINENUM pch_end (void);
-    LINENUM pch_first (void);
-    LINENUM pch_hunk_beg (void);
+    void print_header_line (FILE *, const char *, bool);
+    void print_unidiff_range (FILE *, LINENUM, LINENUM);
+
+    LINENUM locate_hunk (LINENUM);
+    bool patch_match (LINENUM, LINENUM, LINENUM, LINENUM);
+    bool apply_hunk (struct outstate *, LINENUM);
+    void abort_hunk (bool, bool);
+    bool copy_till (struct outstate *outstate, LINENUM lastline);
+    void mangled_patch (LINENUM, LINENUM);
+    bool spew_output (struct outstate *, struct stat *);
+
     char const *pch_c_function (void);
     char const * pch_timestr (bool which);
     LINENUM pch_newfirst (void);
     LINENUM pch_prefix_context (void);
-    LINENUM pch_ptrn_lines (void);
-    LINENUM pch_repl_lines (void);
     LINENUM pch_suffix_context (void);
     bool pch_swap (void);
     bool pch_write_line (LINENUM, FILE *);
-    bool there_is_another_patch (bool);
+    bool there_is_another_patch ();
     char *pfetch (LINENUM);
     char pch_char (LINENUM);
     int another_hunk (enum difftype, bool);
@@ -72,7 +90,7 @@ public:
     const char *pch_name(enum nametype);
     time_t pch_timestamp (bool);
     void do_ed_script (FILE *);
-    void open_patch_file (char const *);
+    void open_patch_file (void);
     void re_patch (void);
     void set_hunkmax (void);
     void pch_normalize (enum difftype);
@@ -110,18 +128,29 @@ public:
 
     bool incomplete_line (void);
 
-    void init_output (const char *, int , struct outstate *);
+    void init_output (int);
 
 protected:
+    void init_output (const char *, int , struct outstate *);
+
+
     char *buf;			/* general purpose buffer */
     static size_t bufsize;			/* allocated size of buf */
+    static LINENUM maxfuzz;
+
+    char linenumbuf[LINENUM_LENGTH_BOUND + 1];
 
     struct outstate outstate;
     struct stat instat;
+    struct stat outst;
 
     const char * volatile tmpinname;
     const char * volatile tmpoutname;
     const char * volatile tmppatname;
+
+    int volatile tmpinname_needs_removal;
+    int volatile tmpoutname_needs_removal;
+    int volatile tmppatname_needs_removal;
 
     int p_says_nonexistent[2];	/* [0] for old file, [1] for new:
 		0 for existent and nonempty,
@@ -167,8 +196,6 @@ protected:
     LINENUM last_frozen_line;
 
 
-    char *inname;
-    char *outfile;
 
     int inerrno;
     int invc;

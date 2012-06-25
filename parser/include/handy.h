@@ -19,6 +19,17 @@ extern "C" {
 #define TMPDIR "/tmp"
 #endif
 
+#define UNIMPL_STR_FMT "Unimplemented block %s:%d, %s\n", \
+    __FILE__, __LINE__, __PRETTY_FUNCTION__
+
+#define WARN_UNIMPL fprintf(stderr, UNIMPL_STR_FMT); 
+
+#define DIE_UNIMPL  do { \
+    fprintf(stderr, UNIMPL_STR_FMT); \
+    exit(1); \
+} while(0)
+    
+
 bool isempty(const char *);
 
 void diegrace(const char *, ...) __attribute__ ((noreturn, format (printf, 1, 2)));
@@ -46,7 +57,7 @@ void *xmalloc(size_t) __attribute__ ((__malloc__));
     ((size_t) (sizeof (ptrdiff_t) <= sizeof (size_t) ? -1 : -2) / (s) < (n))
 
 
-void ask(char const *, ...) __attribute__ ((format (printf, 1, 2)));
+void ask(const char *, ...) __attribute__ ((format (printf, 1, 2)));
 #define say printf
 #define vsay vprintf
 #define quotearg(s) s
@@ -54,8 +65,8 @@ void ask(char const *, ...) __attribute__ ((format (printf, 1, 2)));
 void read_fatal (void);
 void write_fatal (void);
 void xalloc_die(void);
-char const *version_controller (char const *, bool, struct stat const *, char **, char **);
-int systemic (char const *);
+const char *version_controller (const char *, bool, struct stat const *, char **, char **);
+int systemic (const char *);
 
 void too_many_lines(const char *) __attribute__((noreturn));
 
@@ -63,15 +74,16 @@ void too_many_lines(const char *) __attribute__((noreturn));
 void removedirs (char *);
 void makedirs (char *);
 
-void move_file (char const *, int volatile *, struct stat const *, char *, mode_t, bool);
+void move_file (const char *, int volatile *, struct stat const *, char *, mode_t, bool);
 void copy_to_fd (const char *, int);
-void copy_file (char const *, char const *, struct stat *, int, mode_t, bool);
-int create_file (char const *, int, mode_t, bool);
-char const * make_temp(char);
+void copy_file (const char *, const char *, struct stat *, int, mode_t, bool);
+int create_file (const char *, int, mode_t, bool);
+const char * make_temp(char);
 
+bool similar (const char*, size_t , const char*, size_t);
 
 void init_backup_hash_table (void);
-
+bool file_already_seen (struct stat const *);
 
 #ifdef __cplusplus
 }
