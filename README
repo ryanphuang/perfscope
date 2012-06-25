@@ -1,0 +1,19 @@
+This is the source tree for PerfScope, a neat tool for analyzing given
+patch's performance impact to existing source repository. 
+
+PerfScope is a research project from the [Opera Research Group](http://opera.ucs.edu) 
+in University of California, San Diego. It consists of several parts to operate:
+- Parser: parse the patch file for information like what's the file(s) that's modified,
+    which location does it lie, etc.
+- Resolver: resolve the dependencies among the modifications inside a patch found by the parser.
+- Analyzer: analyze the change(s)' performance impact
+- TestDB: a particular use case of PerfScope: prioritize performance testing based on the impact
+    analysis result. This module will also keep track of each performance testing execution
+    information to help do test selection.
+
+PerfScope borrows some code from GNU 'Patch' open source project and is free software: 
+you can redistribute it and/or modify it under the terms of the GNU General Public License 
+as published by the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+For bug report or any other suggestion, please contact ryanhuang@cs.ucsd.edu.
