@@ -1,0 +1,15 @@
+--- a.c	2012-06-21 23:53:37.887366338 -0700
++++ b.c	2012-06-21 23:53:51.143366330 -0700
+@@ -1,8 +1,8 @@
+ #include<stdio.h>
+-int foo(int x, int y)
++int foo(int a, int b)
+ {
+-    if (x > 10) {
+-        return x - y;
++    if (a > 10) {
++        return a - b;
+     }
+-    return x + y;
++    return a + b;
+ }
