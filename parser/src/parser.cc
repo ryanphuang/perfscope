@@ -173,7 +173,7 @@ const char* PatchParser::pch_timestr (bool which)
 
 const char * PatchParser::pch_name(enum nametype type)
 {
-  return type == NONE ? NULL : p_name[type];
+    return type == NONE ? NULL : p_name[type];
 }
 
 void PatchParser::print_unidiff_range (FILE *fp, LINENUM start, LINENUM count)
@@ -280,75 +280,75 @@ void PatchParser::next_intuit_at(file_offset file_pos, LINENUM file_line)
 
 bool PatchParser::maybe_reverse (char const *name, bool nonexistent, bool empty)
 {
-  bool is_empty = nonexistent || empty;
-  bool r;
+    bool is_empty = nonexistent || empty;
+    bool r;
 
-  r = (! is_empty) < p_says_nonexistent[reverse ^ is_empty]
-      && ok_to_reverse ("The next patch%s would %s the file %s,\nwhich %s!",
-			reverse ? ", when reversed," : "",
-			(nonexistent ? "delete"
-			 : empty ? "empty out"
-			 : "create"),
-			quotearg (name),
-			(nonexistent ? "does not exist"
-			 : empty ? "is already empty"
-			 : "already exists"));
-  reverse ^= r;
-  return r;
+    r = (! is_empty) < p_says_nonexistent[reverse ^ is_empty]
+        && ok_to_reverse ("The next patch%s would %s the file %s,\nwhich %s!",
+                reverse ? ", when reversed," : "",
+                (nonexistent ? "delete"
+                 : empty ? "empty out"
+                 : "create"),
+                quotearg (name),
+                (nonexistent ? "does not exist"
+                 : empty ? "is already empty"
+                 : "already exists"));
+    reverse ^= r;
+    return r;
 }
 
 bool PatchParser::ok_to_reverse(char const *format, ...)
 {
-  bool r = false;
+    bool r = false;
 
-  if (noreverse || ! (force && verbosity == SILENT))
+    if (noreverse || ! (force && verbosity == SILENT))
     {
-      va_list args;
-      va_start (args, format);
-      vsay (format, args);
-      va_end (args);
-    }
-
-  if (noreverse)
-    {
-      say ("  Skipping patch.\n");
-      skip_rest_of_patch = true;
-    }
-  else if (force)
-    {
-      if (verbosity != SILENT)
-	say ("  Applying it anyway.\n");
-    }
-  else if (batch)
-    {
-      say (reverse ? "  Ignoring -R.\n" : "  Assuming -R.\n");
-      r = true;
-    }
-  else
-    {
-      ask (reverse ? "  Ignore -R? [n] " : "  Assume -R? [n] ");
-      r = *buf == 'y';
-      if (! r)
-	{
-	  ask ("Apply anyway? [n] ");
-	  if (*buf != 'y')
-	    {
-	      if (verbosity != SILENT)
-		say ("Skipping patch.\n");
-	      skip_rest_of_patch = true;
-	    }
-	}
+        va_list args;
+        va_start (args, format);
+        vsay (format, args);
+        va_end (args);
     }
 
-  return r;
+    if (noreverse)
+    {
+        say ("  Skipping patch.\n");
+        skip_rest_of_patch = true;
+    }
+    else if (force)
+    {
+        if (verbosity != SILENT)
+            say ("  Applying it anyway.\n");
+    }
+    else if (batch)
+    {
+        say (reverse ? "  Ignoring -R.\n" : "  Assuming -R.\n");
+        r = true;
+    }
+    else
+    {
+        ask (reverse ? "  Ignore -R? [n] " : "  Assume -R? [n] ");
+        r = *buf == 'y';
+        if (! r)
+        {
+            ask ("Apply anyway? [n] ");
+            if (*buf != 'y')
+            {
+                if (verbosity != SILENT)
+                    say ("Skipping patch.\n");
+                skip_rest_of_patch = true;
+            }
+        }
+    }
+
+    return r;
 }
 /* Make sure our dynamically realloced tables are malloced to begin with. */
 void PatchParser::set_hunkmax (void)
 {
     if (!p_line)
-	    p_line = (char **) malloc (hunkmax * sizeof *p_line);
+        p_line = (char **) malloc (hunkmax * sizeof *p_line);
     if (!p_len)
-    	p_len = (size_t *) malloc (hunkmax * sizeof *p_len);
+        p_len = (size_t *) malloc (hunkmax * sizeof *p_len);
     if (!p_Char)
         p_Char = (char *) malloc (hunkmax * sizeof *p_Char);
 }
@@ -360,13 +360,13 @@ void PatchParser::open_patch_file()
     struct stat st;
     if(isempty(patchname) || streq(patchname, "-")) {
         pfp = stdin;
-	    if (S_ISREG (st.st_mode) && (file_pos = ftell(stdin)) != -1)
-	    {
-	        pfp = stdin;
-	    }
+        if (S_ISREG (st.st_mode) && (file_pos = ftell(stdin)) != -1)
+        {
+            pfp = stdin;
+        }
         else {
             size_t charsread;
-	        int exclusive = tmppatname_needs_removal ? 0 : O_EXCL;
+            int exclusive = tmppatname_needs_removal ? 0 : O_EXCL;
             tmppatname_needs_removal = 1;
             pfp = fdopen (create_file (tmppatname,
                         O_RDWR | O_BINARY | exclusive,
@@ -709,7 +709,7 @@ bool PatchParser::apply_hunk (struct outstate *outstate, LINENUM where)
 
 /* Does the patch pattern match at line base+offset? */
 bool PatchParser::patch_match (LINENUM base, LINENUM offset,
-	     LINENUM prefix_fuzz, LINENUM suffix_fuzz)
+        LINENUM prefix_fuzz, LINENUM suffix_fuzz)
 {
     register LINENUM pline = 1 + prefix_fuzz;
     register LINENUM iline;
@@ -836,16 +836,16 @@ void PatchParser::gobble()
 
     if (diff_type == ED_DIFF) {
         errgrace("ED type diff not supported\n");
-//      outstate.zero_output = false;
-//      snap |= skip_rest_of_patch;
-//      do_ed_script (outstate.ofp);
-//      if (! dry_run && ! outfile && ! skip_rest_of_patch)
-//      {
-//          struct stat statbuf;
-//          if (stat (tmpoutname, &statbuf) != 0)
-//              diegrace ("%s", tmpoutname);
-//          outstate.zero_output = statbuf.st_size == 0;
-//      }
+        //      outstate.zero_output = false;
+        //      snap |= skip_rest_of_patch;
+        //      do_ed_script (outstate.ofp);
+        //      if (! dry_run && ! outfile && ! skip_rest_of_patch)
+        //      {
+        //          struct stat statbuf;
+        //          if (stat (tmpoutname, &statbuf) != 0)
+        //              diegrace ("%s", tmpoutname);
+        //          outstate.zero_output = statbuf.st_size == 0;
+        //      }
     } else {
         int got_hunk;
         bool apply_anyway = merge;  /* don't try to reverse when merging */
@@ -1045,23 +1045,23 @@ void PatchParser::gobble()
                             && (t = pch_timestamp (! reverse)) != (time_t) -1)
                     {
                         DIE_UNIMPL;
-//                      struct utimbuf utimbuf;
-//                      utimbuf.actime = utimbuf.modtime = t;
-//
-//                      if (! force && ! inerrno
-//                              && pch_says_nonexistent (reverse) != 2
-//                              && (t = pch_timestamp (reverse)) != (time_t) -1
-//                              && t != instat.st_mtime)
-//                          say ("Not setting time of file %s "
-//                                  "(time mismatch)\n",
-//                                  quotearg (outname));
-//                      else if (! force && (mismatch | failed))
-//                          say ("Not setting time of file %s "
-//                                  "(contents mismatch)\n",
-//                                  quotearg (outname));
-//                      else if (utime (outname, &utimbuf) != 0)
-//                          diegrace ("Can't set timestamp on file %s",
-//                                   quotearg (outname));
+                        //                      struct utimbuf utimbuf;
+                        //                      utimbuf.actime = utimbuf.modtime = t;
+                        //
+                        //                      if (! force && ! inerrno
+                        //                              && pch_says_nonexistent (reverse) != 2
+                        //                              && (t = pch_timestamp (reverse)) != (time_t) -1
+                        //                              && t != instat.st_mtime)
+                        //                          say ("Not setting time of file %s "
+                        //                                  "(time mismatch)\n",
+                        //                                  quotearg (outname));
+                        //                      else if (! force && (mismatch | failed))
+                        //                          say ("Not setting time of file %s "
+                        //                                  "(contents mismatch)\n",
+                        //                                  quotearg (outname));
+                        //                      else if (utime (outname, &utimbuf) != 0)
+                        //                          diegrace ("Can't set timestamp on file %s",
+                        //                                   quotearg (outname));
                     }
 
                     if (! inerrno)
@@ -1079,16 +1079,16 @@ void PatchParser::gobble()
                 }
                 else
                     WARN_UNIMPL;
-                    //create_backup (outname, 0, 0, true);
+                //create_backup (outname, 0, 0, true);
             }
         }
     }
     if (diff_type != ED_DIFF) {
-//      struct stat rejst;
-//
-//      if ((failed && fstat (fileno (rejfp), &rejst) != 0)
-//              || fclose (rejfp) != 0)
-//          write_fatal ();
+        //      struct stat rejst;
+        //
+        //      if ((failed && fstat (fileno (rejfp), &rejst) != 0)
+        //              || fclose (rejfp) != 0)
+        //          write_fatal ();
         if (failed) {
             snap = true;
             say ("%d out of %d hunk%s %s", failed, hunk, "s" + (hunk == 1),
@@ -1113,28 +1113,28 @@ void PatchParser::gobble()
                     if (rejname)
                     {
                         WARN_UNIMPL;
-//                      if (! written_to_rejname)
-//                      {
-//                          copy_file (tmprejname, rejname, 0, 0, 0666, true);
-//                          written_to_rejname = true;
-//                      }
-//                      else
-//                          append_to_file (tmprejname, rejname);
+                        //                      if (! written_to_rejname)
+                        //                      {
+                        //                          copy_file (tmprejname, rejname, 0, 0, 0666, true);
+                        //                          written_to_rejname = true;
+                        //                      }
+                        //                      else
+                        //                          append_to_file (tmprejname, rejname);
                     }
                     else
                     {
                         WARN_UNIMPL;
-//                      struct stat oldst;
-//                      int olderrno;
-//
-//                      olderrno = stat (rej, &oldst) ? errno : 0;
-//                      if (olderrno && olderrno != ENOENT)
-//                          write_fatal ();
-//                      if (! olderrno && file_already_seen (&oldst))
-//                          append_to_file (tmprejname, rej);
-//                      else
-//                          move_file (tmprejname, &tmprejname_needs_removal,
-//                                  &rejst, rej, 0666, false);
+                        //                      struct stat oldst;
+                        //                      int olderrno;
+                        //
+                        //                      olderrno = stat (rej, &oldst) ? errno : 0;
+                        //                      if (olderrno && olderrno != ENOENT)
+                        //                          write_fatal ();
+                        //                      if (! olderrno && file_already_seen (&oldst))
+                        //                          append_to_file (tmprejname, rej);
+                        //                      else
+                        //                          move_file (tmprejname, &tmprejname_needs_removal,
+                        //                                  &rejst, rej, 0666, false);
                     }
                 }
                 if (!rejname)
@@ -1281,8 +1281,8 @@ void PatchParser::skip_to (file_offset file_pos, LINENUM file_line)
 
 size_t PatchParser::get_line(void)
 {
-   return pget_line (p_indent, p_rfc934_nesting, p_strip_trailing_cr,
-		     p_pass_comments_through);
+    return pget_line (p_indent, p_rfc934_nesting, p_strip_trailing_cr,
+            p_pass_comments_through);
 }
 
 /* Input a line from the patch file, worrying about indentation.
@@ -1297,7 +1297,7 @@ size_t PatchParser::get_line(void)
    Return -1 if we ran out of memory.  */
 
 size_t PatchParser::pget_line (size_t indent, int rfc934_nesting, bool strip_trailing_cr,
-	   bool pass_comments_through)
+        bool pass_comments_through)
 {
     register FILE *fp = pfp;
     register int c;
@@ -1397,7 +1397,7 @@ enum difftype PatchParser::intuit_diff_type (bool need_header)
     LINENUM fcl_line = 0; /* Pacify `gcc -W'.  */
     register bool this_is_a_command = false;
     register bool stars_this_line = false;
-//    enum nametype i;
+    //    enum nametype i;
     int i;
     struct stat st[3];
     int stat_errno[3];
@@ -2657,11 +2657,11 @@ bool PatchParser::grow_hunkmax (void)
     hunkmax *= 2;
     assert (p_line && p_len && p_Char);
     if ((p_line = (char **) realloc (p_line, hunkmax * sizeof (*p_line)))
-	&& (p_len = (size_t *) realloc (p_len, hunkmax * sizeof (*p_len)))
-	&& (p_Char = (char *) realloc (p_Char, hunkmax * sizeof (*p_Char))))
-      return true;
+            && (p_len = (size_t *) realloc (p_len, hunkmax * sizeof (*p_len)))
+            && (p_Char = (char *) realloc (p_Char, hunkmax * sizeof (*p_Char))))
+        return true;
     if (!using_plan_a)
-      xalloc_die ();
+        xalloc_die ();
     /* Don't free previous values of p_line etc.,
        since some broken implementations free them for us.
        Whatever is null will be allocated again from within plan_a (),
@@ -2671,21 +2671,21 @@ bool PatchParser::grow_hunkmax (void)
 
 bool PatchParser::incomplete_line (void)
 {
-  register FILE *fp = pfp;
-  register int c;
-  register file_offset line_beginning = ftell (fp);
+    register FILE *fp = pfp;
+    register int c;
+    register file_offset line_beginning = ftell (fp);
 
-  if (getc (fp) == '\\')
+    if (getc (fp) == '\\')
     {
-      while ((c = getc (fp)) != '\n'  &&  c != EOF)
-	continue;
-      return true;
+        while ((c = getc (fp)) != '\n'  &&  c != EOF)
+            continue;
+        return true;
     }
-  else
+    else
     {
-      /* We don't trust ungetc.  */
-      Fseek (pfp, line_beginning, SEEK_SET);
-      return false;
+        /* We don't trust ungetc.  */
+        Fseek (pfp, line_beginning, SEEK_SET);
+        return false;
     }
 }
 
@@ -2722,7 +2722,7 @@ void PatchParser::malformed (void)
 {
     char numbuf[LINENUM_LENGTH_BOUND + 1];
     errgrace("malformed patch at line %s: %s", format_linenum (numbuf, p_input_line), buf);
-		/* about as informative as "Syntax error" in C */
+    /* about as informative as "Syntax error" in C */
 }
 
 char * PatchParser::fetchname (char *at, int strip_leading, char **ptimestr, time_t *pstamp)
@@ -2844,37 +2844,37 @@ const char * PatchParser::ifetch (LINENUM line, bool whichbuf, size_t *psize)
     register char const *p;
 
     if (line < 1 || line > input_lines) {
-	*psize = 0;
-	return "";
+        *psize = 0;
+        return "";
     }
     if (using_plan_a) {
-	p = i_ptr[line];
-	*psize = i_ptr[line + 1] - p;
-	return p;
+        p = i_ptr[line];
+        *psize = i_ptr[line + 1] - p;
+        return p;
     } else {
-	LINENUM offline = line % lines_per_buf;
-	LINENUM baseline = line - offline;
+        LINENUM offline = line % lines_per_buf;
+        LINENUM baseline = line - offline;
 
-	if (tiline[0] == baseline)
-	    whichbuf = false;
-	else if (tiline[1] == baseline)
-	    whichbuf = true;
-	else {
-	    tiline[whichbuf] = baseline;
-	    if ((lseek (tifd, baseline/lines_per_buf * tibufsize, SEEK_SET)
-		 == -1)
-		|| read (tifd, tibuf[whichbuf], tibufsize) < 0)
-	      read_fatal ();
-	}
-	p = tibuf[whichbuf] + (tireclen*offline);
-	if (line == input_lines)
-	    *psize = last_line_size;
-	else {
-	    for (q = p;  *q++ != '\n';  )
-		continue;
-	    *psize = q - p;
-	}
-	return p;
+        if (tiline[0] == baseline)
+            whichbuf = false;
+        else if (tiline[1] == baseline)
+            whichbuf = true;
+        else {
+            tiline[whichbuf] = baseline;
+            if ((lseek (tifd, baseline/lines_per_buf * tibufsize, SEEK_SET)
+                        == -1)
+                    || read (tifd, tibuf[whichbuf], tibufsize) < 0)
+                read_fatal ();
+        }
+        p = tibuf[whichbuf] + (tireclen*offline);
+        if (line == input_lines)
+            *psize = last_line_size;
+        else {
+            for (q = p;  *q++ != '\n';  )
+                continue;
+            *psize = q - p;
+        }
+        return p;
     }
 }
 
@@ -2980,18 +2980,18 @@ void PatchParser::scan_input (char *filename)
 {
     using_plan_a = plan_a (filename);
     if (!using_plan_a)
-	plan_b(filename);
+        plan_b(filename);
 
     if (verbosity != SILENT)
-      {
-	filename = quotearg (filename);
+    {
+        filename = quotearg (filename);
 
-	if (verbosity == VERBOSE)
-	  say ("Patching file %s using Plan %s...\n",
-	       filename, using_plan_a ? "A" : "B");
-	else
-	  say ("patching file %s\n", filename);
-      }
+        if (verbosity == VERBOSE)
+            say ("Patching file %s using Plan %s...\n",
+                    filename, using_plan_a ? "A" : "B");
+        else
+            say ("patching file %s\n", filename);
+    }
 }
 
 /* Report whether a desired revision was found.  */
@@ -3139,7 +3139,7 @@ void PatchParser::plan_b(char const *filename)
    Store the resulting file status into *FILESTAT.
    Return true if successful.  */
 bool PatchParser::version_get (char const *filename, char const *cs, bool exists, bool readonly,
-    char const *getbuf, struct stat *filestat)
+        char const *getbuf, struct stat *filestat)
 {
     if (patch_get < 0)
     {
@@ -3251,53 +3251,53 @@ int PatchParser::prefix_components (char *filename, bool checkdirs)
 
 char PatchParser::get_ed_command_letter (char const *line)
 {
-  char const *p = line;
-  char letter;
-  bool pair = false;
+    char const *p = line;
+    char letter;
+    bool pair = false;
 
-  if (ISDIGIT (*p))
+    if (ISDIGIT (*p))
     {
-      while (ISDIGIT (*++p))
-	continue;
-      if (*p == ',')
-	{
-	  if (! ISDIGIT (*++p))
-	    return 0;
-	  while (ISDIGIT (*++p))
-	    continue;
-	  pair = true;
-	}
+        while (ISDIGIT (*++p))
+            continue;
+        if (*p == ',')
+        {
+            if (! ISDIGIT (*++p))
+                return 0;
+            while (ISDIGIT (*++p))
+                continue;
+            pair = true;
+        }
     }
 
-  letter = *p++;
+    letter = *p++;
 
-  switch (letter)
+    switch (letter)
     {
-    case 'a':
-    case 'i':
-      if (pair)
-	return 0;
-      break;
+        case 'a':
+        case 'i':
+            if (pair)
+                return 0;
+            break;
 
-    case 'c':
-    case 'd':
-      break;
+        case 'c':
+        case 'd':
+            break;
 
-    case 's':
-      if (strncmp (p, "/.//", 4) != 0)
-	return 0;
-      p += 4;
-      break;
+        case 's':
+            if (strncmp (p, "/.//", 4) != 0)
+                return 0;
+            p += 4;
+            break;
 
-    default:
-      return 0;
+        default:
+            return 0;
     }
 
-  while (*p == ' ' || *p == '\t')
-    p++;
-  if (*p == '\n')
-    return letter;
-  return 0;
+    while (*p == ' ' || *p == '\t')
+        p++;
+    if (*p == '\n')
+        return letter;
+    return 0;
 }
 
 

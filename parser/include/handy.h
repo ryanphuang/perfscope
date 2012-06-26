@@ -28,7 +28,12 @@ extern "C" {
     fprintf(stderr, UNIMPL_STR_FMT); \
     exit(1); \
 } while(0)
-    
+
+
+typedef struct filenode {
+    char *file;
+    struct filenode *next;
+} filenode;
 
 bool isempty(const char *);
 char *dupstr(const char *);
@@ -88,6 +93,8 @@ void copy_to_fd (const char *, int);
 void copy_file (const char *, const char *, struct stat *, int, mode_t, bool);
 int create_file (const char *, int, mode_t, bool);
 const char * make_temp(char);
+filenode *listdir(const char *);
+
 
 bool similar (const char*, size_t , const char*, size_t);
 

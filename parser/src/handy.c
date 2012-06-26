@@ -733,3 +733,30 @@ bool file_already_seen (struct stat const *st)
     return hash_lookup (file_id_table, &f) != 0;
 }
 
+/* list all files in the directory specified by 'dir' and save the result to files */
+filenode * listdir(const char* dir)
+{
+    DIR * d = opendir(dir);
+    if (NULL == d) {
+        diegrace("Cannot open dir %s\n", dir);
+    }
+    struct dirent * dp;
+    filenode *header = NULL;
+    filenode *p = header;
+    while((dp = readdir(d)) != NULL) {
+        if(streq(dp->d_name, ".") || streq(dp->d_name, "..")) {
+            continue;
+        }
+        filenode *node = (filenode *) malloc(sizeof(filenode));
+        node->file = dupstr(dp->d_name);
+        node->next = NULL;
+        if (header == NULL) {
+            header = node;
+        }
+        else {
+            p->next = node;
+        }
+        p = node;
+    }
+    return header;
+}

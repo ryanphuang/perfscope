@@ -4,6 +4,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<stdbool.h>
+#include<stdint.h>
 #include<stdarg.h>
 #include<sys/types.h>
 #include<sys/stat.h>
@@ -15,7 +16,7 @@
 #include<time.h>
 #include<assert.h>
 #include<limits.h>
-#include<stdint.h>
+#include<dirent.h>
 
 #ifndef SIZE_MAX
 #define SIZE_MAX ((size_t) -1)
