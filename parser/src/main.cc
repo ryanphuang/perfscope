@@ -7,6 +7,7 @@
 #include<handy.h>
 #include<getopt.h>
 #include<backupfile.h>
+#include<string>
 
 static const char* program_name;
 
@@ -18,7 +19,7 @@ static const char* options[] = {
 };
 
 static bool from_directory = false;
-static char *directory = "./";
+static std::string directory("./");
 
 static const char* shortopts = "d:vh";
 
@@ -71,15 +72,9 @@ int main(int argc, char *argv[])
                     if (optarg == NULL) {
                         diegrace("NULL directory");
                     }
-                    size_t len = strlen(optarg);
-                    if (optarg[len - 1] != DIRECTORY_SEPARATOR) {
-                        directory = (char *) malloc(len + 2);
-                        strncpy(directory, optarg, len);
-                        directory[len] =  DIRECTORY_SEPARATOR;
-                        directory[len + 1] = '\0';
-                    }
-                    else {
-                        directory = dupstr(optarg);
+                    directory.assign(optarg);
+                    if (directory.at(directory.length() - 1) != DIRECTORY_SEPARATOR) {
+                        directory += DIRECTORY_SEPARATOR;
                     }
                 }
                 break;
@@ -111,7 +106,7 @@ int main(int argc, char *argv[])
     no_strip_trailing_cr = false;
     explicit_inname = false;
     revision = NULL;
-    debug = 8;
+    debug = 0;
     time(&initial_time);
 
     gbufsize = 8 * KB;
@@ -121,9 +116,9 @@ int main(int argc, char *argv[])
 
     filenode *lst;
     if (from_directory) {
-        lst = listdir(directory);
+        lst = listdir(directory.c_str());
         if (NULL == lst) {
-            diegrace("Cannot get input files from %s\n", directory);
+            diegrace("Cannot get input files from %s\n", directory.c_str());
         }
     }
     else{
@@ -132,25 +127,26 @@ int main(int argc, char *argv[])
         lst->next = NULL;
     }
     filenode *p;
+    int files = 0;
+    int nonsources = 0;
+    std::string fullname;
+    
+    errstay = true;
     for (p = lst; p; p = p->next){
-        char *fullname;
+        fullname.clear();
         if (from_directory) {
-            size_t l1 = strlen(directory);
-            size_t l2 = strlen(p->file);
-            fullname = (char *) malloc(l1 + l2 + 1);
-            strncpy(fullname, directory, l1);
-            strncat(fullname, p->file, l2);
-            fullname[l1 + l2] = '\0';
+            fullname += directory;
         }
-        else {
-            fullname = p->file;
+
+        fullname += p->file;
+        if (true) {
+            printf("scan file: %s\n", fullname.c_str());
         }
-        if (debug) {
-            printf("scan file: %s\n", fullname);
-        }
-        PatchParser *parser = new PatchParser(fullname, UNI_DIFF); 
+
+        PatchParser *parser = new PatchParser(fullname.c_str(), NULL, UNI_DIFF); 
+
         if (NULL == parser) {
-            errgrace("Out of memory\n");
+            errgrace("out of memory");
         }
 
         current_parser == parser;
@@ -162,19 +158,23 @@ int main(int argc, char *argv[])
         
         /* for each patch in patch file */
         while(parser->there_is_another_patch() || apply_empty_patch) {
+            files++;
             if (debug) {
                 printf("got a patch\n");
             }
             if (!issource(parser->inname)) {
-                printf("skip non-source patch\n");
+                if (debug) {
+                    printf("skip non-source patch\n");
+                }
                 parser->skippatch();
+                nonsources++;
             }
             parser->gobble();
             parser->reinitialize();
             apply_empty_patch = false;
         }
         if(parser->snap) { // something was wrong
-            fprintf(stderr, "something is wrong when parsing %s\n", fullname);
+            fprintf(stderr, "something is wrong when parsing %s\n", fullname.c_str());
         }
         delete parser;
         current_parser = NULL;
@@ -182,6 +182,7 @@ int main(int argc, char *argv[])
     if (gbuf) {
         free(gbuf);
     }
+    printf("Scanned total: %d; Non-source: %d\n", files, nonsources);
     // save the effort to free file list
     return 0;
 }

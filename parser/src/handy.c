@@ -156,7 +156,7 @@ void errgrace(const char * format, ...)
     va_start(args, format);
     vfprintf(stderr, format, args);
     va_end(args);
-    fflush(stderr);
+    fprintf(stderr, "\n");
     fflush(stderr);
     exit(1);
 }

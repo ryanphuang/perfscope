@@ -29,6 +29,12 @@ extern "C" {
     exit(1); \
 } while(0)
 
+#define init_array(arr, n) do { \
+    int i = 0; \
+    for (i = 0; i < (n); i++) { \
+        (arr)[i] = 0; \
+    } \
+} while(0)
 
 typedef struct filenode {
     char *file;
@@ -42,11 +48,16 @@ bool endswith(const char*, const char*);
 void remove_prefix (char *, size_t);
 bool issource(const char *);
 
-
-
 void diegrace(const char *, ...) __attribute__ ((noreturn, format (printf, 1, 2)));
 
 void errgrace(const char *, ...) __attribute__ ((noreturn, format (printf, 1, 2)));
+
+#define errreturn(val, format, ...) do { \
+    fprintf(stderr, format,  ##__VA_ARGS__); \
+    fprintf(stderr, "\n"); \
+    return val; \
+} while (0)
+    
 
 void abortgrace(void);
 void Fseek (FILE *, file_offset, int);

@@ -18,14 +18,17 @@ static char const end_defined[] = "\n#endif\n";
 
 static FILE * create_output_file (char const *, int, mode_t);
 
-PatchParser::PatchParser(const char * pname, enum difftype type = NO_DIFF ) :
+PatchParser::PatchParser(const char * pname, const char *outname = NULL, enum difftype type = NO_DIFF ) :
     diff_type(type), skip_rest_of_patch(false), p_efake(-1), p_bfake(-1), 
     p_end(-1), strippath(-1), tifd(-1) 
 {
     patchname = dupstr(pname);
+    outfile = dupstr(outname);
     buf = (char *) xmalloc(bufsize);
     tiline[0] = -1;
     tiline[1] = -1;
+    init_array(p_name, 3);
+    init_array(p_timestr, 2);
     tmpoutname = make_temp ('o');
     tmpinname = make_temp ('i');
     tmppatname = make_temp ('p');
@@ -211,19 +214,20 @@ void PatchParser::print_header_line (FILE *fp, const char *tag, bool reverse)
 /* Open the new file. */
 void PatchParser::init_output (char const *name, int open_flags, struct outstate *os)
 {
-    if (! name)
+    if (NULL == name)
         os->ofp = (FILE *) 0;
-    else if (strcmp (name, "-") != 0)
-        os->ofp = create_output_file (name, open_flags, instat.st_mode);
-    else
-    {
-        int stdout_dup = dup (fileno (stdout));
-        os->ofp = fdopen (stdout_dup, "a");
-        if (stdout_dup == -1 || ! os->ofp)
-            diegrace("Failed to duplicate standard output");
-        if (dup2 (fileno (stderr), fileno (stdout)) == -1)
-            diegrace("Failed to redirect messages to standard error");
-    }
+    else 
+        if (strcmp (name, "-") != 0)
+            os->ofp = create_output_file (name, open_flags, instat.st_mode);
+        else
+        {
+            int stdout_dup = dup (fileno (stdout));
+            os->ofp = fdopen (stdout_dup, "a");
+            if (stdout_dup == -1 || ! os->ofp)
+                diegrace("Failed to duplicate standard output");
+            if (dup2 (fileno (stderr), fileno (stdout)) == -1)
+                diegrace("Failed to redirect messages to standard error");
+        }
 
     os->after_newline = true;
     os->zero_output = true;
@@ -299,48 +303,49 @@ bool PatchParser::maybe_reverse (char const *name, bool nonexistent, bool empty)
 
 bool PatchParser::ok_to_reverse(char const *format, ...)
 {
-    bool r = false;
-
-    if (noreverse || ! (force && verbosity == SILENT))
-    {
-        va_list args;
-        va_start (args, format);
-        vsay (format, args);
-        va_end (args);
-    }
-
-    if (noreverse)
-    {
-        say ("  Skipping patch.\n");
-        skip_rest_of_patch = true;
-    }
-    else if (force)
-    {
-        if (verbosity != SILENT)
-            say ("  Applying it anyway.\n");
-    }
-    else if (batch)
-    {
-        say (reverse ? "  Ignoring -R.\n" : "  Assuming -R.\n");
-        r = true;
-    }
-    else
-    {
-        ask (reverse ? "  Ignore -R? [n] " : "  Assume -R? [n] ");
-        r = *buf == 'y';
-        if (! r)
-        {
-            ask ("Apply anyway? [n] ");
-            if (*buf != 'y')
-            {
-                if (verbosity != SILENT)
-                    say ("Skipping patch.\n");
-                skip_rest_of_patch = true;
-            }
-        }
-    }
-
-    return r;
+    return false;
+//    bool r = false;
+//
+//    if (noreverse || ! (force && verbosity == SILENT))
+//    {
+//        va_list args;
+//        va_start (args, format);
+//        vsay (format, args);
+//        va_end (args);
+//    }
+//
+//    if (noreverse)
+//    {
+//        say ("  Skipping patch.\n");
+//        skip_rest_of_patch = true;
+//    }
+//    else if (force)
+//    {
+//        if (verbosity != SILENT)
+//            say ("  Applying it anyway.\n");
+//    }
+//    else if (batch)
+//    {
+//        say (reverse ? "  Ignoring -R.\n" : "  Assuming -R.\n");
+//        r = true;
+//    }
+//    else
+//    {
+//        ask (reverse ? "  Ignore -R? [n] " : "  Assume -R? [n] ");
+//        r = *buf == 'y';
+//        if (! r)
+//        {
+//            ask ("Apply anyway? [n] ");
+//            if (*buf != 'y')
+//            {
+//                if (verbosity != SILENT)
+//                    say ("Skipping patch.\n");
+//                skip_rest_of_patch = true;
+//            }
+//        }
+//    }
+//
+//    return r;
 }
 /* Make sure our dynamically realloced tables are malloced to begin with. */
 void PatchParser::set_hunkmax (void)
@@ -951,7 +956,8 @@ void PatchParser::gobble()
                             || ! where
                             || ! apply_hunk (&outstate, where))))
             {
-                abort_hunk (! failed, reverse);
+                //abort_hunk (! failed, reverse);
+                abort_hunk (false, reverse);
                 failed++;
                 if (verbosity == VERBOSE ||
                         (! skip_rest_of_patch && verbosity != SILENT))
@@ -2319,7 +2325,10 @@ hunk_done:
                     strcpy (buf, " \n");  /* assume blank lines got chopped */
                     chars_read = 2;
                 } else {
-                    errgrace ("unexpected end of file in patch");
+//                    errgrace ("unexpected end of file in patch");
+
+                    p_base = p_filesize; // hack to force parsing stop
+                    errreturn(-1, "unexpected end of file in patch");
                 }
             }
             if (chars_read == (size_t) -1)

@@ -83,5 +83,8 @@ XTERN int debug;  /* debug flag with big indicating levels */
 XTERN char *gbuf;			/* general purpose buffer */
 XTERN size_t gbufsize;			/* allocated size of buf */
 
+XTERN bool errstay; /* whether keep on going on error */
+
+
 #define KB 1024
 #endif

@@ -57,7 +57,7 @@ public:
     static LINENUM hunkmax;	/* size of above arrays */
 
 
-    PatchParser(const char *, enum difftype);
+    PatchParser(const char *, const char *, enum difftype);
     ~PatchParser();
 
     void gobble(void);
