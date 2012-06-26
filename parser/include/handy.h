@@ -41,6 +41,7 @@ char *dupbuf(const char *, size_t);
 void remove_prefix (char *, size_t);
 
 void *xmalloc(size_t) __attribute__ ((__malloc__));
+void *xrealloc (void *p, size_t s);
 /* Return 1 if an array of N objects, each of size S, cannot exist due
    to size arithmetic overflow.  S must be positive and N must be
    nonnegative.  This is a macro, not an inline function, so that it
@@ -55,6 +56,7 @@ void *xmalloc(size_t) __attribute__ ((__malloc__));
    branch when S is known to be 1.  */
 # define xalloc_oversized(n, s) \
     ((size_t) (sizeof (ptrdiff_t) <= sizeof (size_t) ? -1 : -2) / (s) < (n))
+void * xnrealloc (void *, size_t, size_t);
 
 
 void ask(const char *, ...) __attribute__ ((format (printf, 1, 2)));
@@ -87,6 +89,17 @@ bool file_already_seen (struct stat const *);
 
 #ifdef __cplusplus
 }
+
+/* C++ does not allow conversions from void * to other pointer types
+   without a cast.  Use templates to work around the problem when
+   possible.  */
+
+template <typename T> inline T *
+xrealloc (T *p, size_t s)
+{
+  return (T *) xrealloc ((void *) p, s);
+}
+
 #endif
 
 #endif

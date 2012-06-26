@@ -126,11 +126,28 @@ void * xmalloc(size_t size)
     return p;
 }
 
+/* Change the size of an allocated block of memory P to N bytes,
+   with error checking.  */
+void * xrealloc (void *p, size_t n)
+{
+    p = realloc (p, n);
+    if (!p && n != 0)
+        xalloc_die ();
+    return p;
+}
+
+
+/* Change the size of an allocated block of memory P to an array of N
+   objects each of S bytes, with error checking.  S must be nonzero.  */
+inline void * xnrealloc (void *p, size_t n, size_t s)
+{
+  if (xalloc_oversized (n, s))
+    xalloc_die ();
+  return xrealloc (p, n * s);
+}
 
 /* Get a response from the user, somehow or other. */
-
-void
-ask (const char *format, ...)
+void ask (const char *format, ...)
 {
     static int ttyfd = -2;
     ssize_t r;

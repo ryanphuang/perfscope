@@ -6,6 +6,7 @@
 #include<dirname.h>
 #include<handy.h>
 #include<parser.h>
+#include<backupfile.h>
 
 LINENUM PatchParser::hunkmax = INITHUNKMAX;
 LINENUM PatchParser::maxfuzz = 2;
@@ -388,6 +389,9 @@ void PatchParser::open_patch_file()
             diegrace("Cannot fstat %s", patchname);
         }
     }
+    p_filesize = st.st_size;
+    if (p_filesize != (file_offset) p_filesize)
+        diegrace("patch file is too long");
     next_intuit_at (file_pos, (LINENUM) 1);
     set_hunkmax();
 }
@@ -507,7 +511,7 @@ void PatchParser::mangled_patch (LINENUM old, LINENUM newl)
 {
   char numbuf0[LINENUM_LENGTH_BOUND + 1];
   char numbuf1[LINENUM_LENGTH_BOUND + 1];
-  if (debug)
+  if (debug & 1)
     say ("oldchar = '%c', newchar = '%c'\n",
         pch_char (old), pch_char (newl));
   diegrace("Out-of-sync patch, lines %s,%s -- mangled text or line numbers, "
@@ -781,7 +785,7 @@ void PatchParser::abort_hunk (bool header, bool reverse)
 
 bool PatchParser::spew_output (struct outstate *outstate, struct stat *st)
 {
-    if (debug)
+    if (debug & 1)
     {
         char numbuf0[LINENUM_LENGTH_BOUND + 1];
         char numbuf1[LINENUM_LENGTH_BOUND + 1];
@@ -1086,16 +1090,16 @@ void PatchParser::gobble()
             if (outname && (! rejname || strcmp (rejname, "-") != 0)) {
                 char *rej = rejname;
                 if (!rejname) {
-                    WARN_UNIMPL;
-//                  /* FIXME: This should really be done differnely!  */
-//                  const char *s = simple_backup_suffix;
-//                  size_t len;
-//                  simple_backup_suffix = ".rej";
-//                  rej = find_backup_file_name (outname, simple_backups);
-//                  len = strlen (rej);
-//                  if (rej[len - 1] == '~')
-//                      rej[len - 1] = '#';
-//                  simple_backup_suffix = s;
+                    //WARN_UNIMPL;
+                    /* FIXME: This should really be done differnely!  */
+                    const char *s = simple_backup_suffix;
+                    size_t len;
+                    simple_backup_suffix = ".rej";
+                    rej = find_backup_file_name (outname, simple_backups);
+                    len = strlen (rej);
+                    if (rej[len - 1] == '~')
+                        rej[len - 1] = '#';
+                    simple_backup_suffix = s;
                 }
                 say (" -- saving rejects to file %s\n", quotearg (rej));
                 if (! dry_run)
@@ -2223,7 +2227,7 @@ hunk_done:
                             format_linenum (numbuf0, p_hunk_beg));
                 fillsrc++;
             }
-            if (debug)
+            if (debug & 1)
                 printf ("fillsrc %s, filldst %s, rb %s, e+1 %s\n",
                         format_linenum (numbuf0, fillsrc),
                         format_linenum (numbuf1, filldst),
@@ -2942,23 +2946,23 @@ void PatchParser::get_input_file (char const *filename, char const *outname)
 void PatchParser::re_input (void)
 {
     if (using_plan_a) {
-      if (i_buffer)
-	{
-	  free (i_buffer);
-	  i_buffer = 0;
-	  free (i_ptr);
-	}
+        if (i_buffer)
+        {
+            free (i_buffer);
+            i_buffer = 0;
+            free (i_ptr);
+        }
     }
     else {
-	close (tifd);
-	tifd = -1;
-	if (tibuf[0])
-	  {
-	    free (tibuf[0]);
-	    tibuf[0] = 0;
-	  }
-	tiline[0] = tiline[1] = -1;
-	tireclen = 0;
+        close (tifd);
+        tifd = -1;
+        if (tibuf[0])
+        {
+            free (tibuf[0]);
+            tibuf[0] = 0;
+        }
+        tiline[0] = tiline[1] = -1;
+        tireclen = 0;
     }
 }
 

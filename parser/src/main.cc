@@ -5,6 +5,7 @@
 #undef XTERN
 #include<parser.h>
 #include<handy.h>
+#include<backupfile.h>
 
 static const char* program_name;
 
@@ -30,14 +31,18 @@ int main(int argc, const char **argv)
         usage(stdout);
         exit(1);
     }
-    verbosity = SILENT;
+
+
+    simple_backup_suffix = ".orig";
+
+    verbosity = VERBOSE;
     posixly_correct = false;
     batch = false;
     initial_time = 0;
     no_strip_trailing_cr = false;
     explicit_inname = false;
     revision = NULL;
-    debug = false;
+    debug = 8;
     time(&initial_time);
 
     gbufsize = 8 * KB;
