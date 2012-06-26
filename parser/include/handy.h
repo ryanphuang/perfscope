@@ -31,6 +31,13 @@ extern "C" {
     
 
 bool isempty(const char *);
+char *dupstr(const char *);
+char *dupbuf(const char *, size_t);
+bool endswith(const char*, const char*);
+void remove_prefix (char *, size_t);
+bool issource(const char *);
+
+
 
 void diegrace(const char *, ...) __attribute__ ((noreturn, format (printf, 1, 2)));
 
@@ -39,9 +46,6 @@ void errgrace(const char *, ...) __attribute__ ((noreturn, format (printf, 1, 2)
 void abortgrace(void);
 void Fseek (FILE *, file_offset, int);
 
-char *dupstr(const char *);
-char *dupbuf(const char *, size_t);
-void remove_prefix (char *, size_t);
 
 void *xmalloc(size_t) __attribute__ ((__malloc__));
 void *xrealloc (void *p, size_t s);
@@ -90,7 +94,6 @@ bool similar (const char*, size_t , const char*, size_t);
 void init_backup_hash_table (void);
 bool file_already_seen (struct stat const *);
 
-bool endswith(const char*, const char*);
 
 #ifdef __cplusplus
 }

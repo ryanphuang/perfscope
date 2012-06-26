@@ -61,6 +61,10 @@ int main(int argc, const char **argv)
         if (debug) {
             printf("got a patch\n");
         }
+        if (!issource(parser->inname)) {
+            printf("skip non-source patch\n");
+            parser->skippatch();
+        }
         parser->gobble();
         parser->reinitialize();
         apply_empty_patch = false;

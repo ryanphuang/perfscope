@@ -14,6 +14,15 @@ typedef struct
 } file_id;
 
 static Hash_table *file_id_table;
+static const char *SOURCE_SUFFIX[] = {
+    "c",
+    "h",
+    "cc",
+    "cpp",
+    "C",
+    "hpp",
+    0
+};
 
 char *dupstr(const char *src)
 {
@@ -62,6 +71,18 @@ bool isempty(const char * str)
     else {
         return false;
     }
+}
+
+bool issource(const char *name)
+{
+    const char **suffix = SOURCE_SUFFIX;
+    while(*suffix) {
+        if(endswith(name, *suffix)) {
+            return true;
+        }
+        suffix++;
+    }
+    return false;
 }
 
 /* Do two lines match with canonicalized white space? */

@@ -236,6 +236,12 @@ void PatchParser::init_output(int open_flags)
     init_output(outfile, open_flags, &outstate);
 }
 
+/* Skip the current patch. */
+void PatchParser::skippatch()
+{
+    skip_rest_of_patch = true;
+}
+
 void PatchParser::reinitialize()
 {
     re_patch();
@@ -743,42 +749,42 @@ void PatchParser::abort_hunk (bool header, bool reverse)
     }
 
     /* Add out_offset to guess the same as the previous successful hunk.  */
-    fprintf (fp, "@@ -");
-    print_unidiff_range (fp, p_first + out_offset, lastline);
-    fprintf (fp, " +");
-    print_unidiff_range (fp, p_newfirst + out_offset, p_repl_lines);
-    fprintf (fp, " @@\n");
+    //fprintf (fp, "@@ -");
+    //print_unidiff_range (fp, p_first + out_offset, lastline);
+    //fprintf (fp, " +");
+    //print_unidiff_range (fp, p_newfirst + out_offset, p_repl_lines);
+    //fprintf (fp, " @@\n");
 
-    while (pch_char (newl) == '=' || pch_char (newl) == '\n')
-        newl++;
+    //while (pch_char (newl) == '=' || pch_char (newl) == '\n')
+    //    newl++;
 
-    if (diff_type != UNI_DIFF)
-        pch_normalize (UNI_DIFF);
+    //if (diff_type != UNI_DIFF)
+    //    pch_normalize (UNI_DIFF);
 
-    for (; ; old++, newl++)
-    {
-        for (;  pch_char (old) == '-';  old++)
-        {
-            fputc ('-', fp);
-            pch_write_line (old, fp);
-        }
-        for (;  pch_char (newl) == '+';  newl++)
-        {
-            fputc ('+', fp);
-            pch_write_line (newl, fp);
-        }
+    //for (; ; old++, newl++)
+    //{
+    //    for (;  pch_char (old) == '-';  old++)
+    //    {
+    //        fputc ('-', fp);
+    //        pch_write_line (old, fp);
+    //    }
+    //    for (;  pch_char (newl) == '+';  newl++)
+    //    {
+    //        fputc ('+', fp);
+    //        pch_write_line (newl, fp);
+    //    }
 
-        if (old > lastline)
-            break;
+    //    if (old > lastline)
+    //        break;
 
-        if (pch_char (newl) != pch_char (old))
-            mangled_patch (old, newl);
+    //    if (pch_char (newl) != pch_char (old))
+    //        mangled_patch (old, newl);
 
-        fputc (' ', fp);
-        pch_write_line (old, fp);
-    }
-    if (pch_char (newl) != '^')
-        mangled_patch (old, newl);
+    //    fputc (' ', fp);
+    //    pch_write_line (old, fp);
+    //}
+    //if (pch_char (newl) != '^')
+    //    mangled_patch (old, newl);
 }
 
 /* Finish copying the input file to the output file. */

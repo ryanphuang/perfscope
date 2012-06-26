@@ -61,6 +61,9 @@ public:
     ~PatchParser();
 
     void gobble(void);
+
+    void skippatch(void);
+
     char *fetchname (char *, int, char **, time_t *);
 
     void print_header_line (FILE *, const char *, bool);
