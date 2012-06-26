@@ -35,7 +35,7 @@ int main(int argc, const char **argv)
 
     simple_backup_suffix = ".orig";
 
-    verbosity = VERBOSE;
+    verbosity = SILENT;
     posixly_correct = false;
     batch = false;
     initial_time = 0;
@@ -58,7 +58,7 @@ int main(int argc, const char **argv)
     
     /* for each patch in patch file */
     while(parser->there_is_another_patch() || apply_empty_patch) {
-        if(debug) {
+        if (debug) {
             printf("got a patch\n");
         }
         parser->gobble();

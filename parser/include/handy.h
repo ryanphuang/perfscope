@@ -90,6 +90,8 @@ bool similar (const char*, size_t , const char*, size_t);
 void init_backup_hash_table (void);
 bool file_already_seen (struct stat const *);
 
+bool endswith(const char*, const char*);
+
 #ifdef __cplusplus
 }
 

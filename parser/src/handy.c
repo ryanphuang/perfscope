@@ -39,6 +39,21 @@ void remove_prefix (char *p, size_t prefixlen)
     while ((*p++ = *s++))
         continue;
 }
+
+
+bool endswith(const char *s, const char *ending)
+{
+    if (NULL == s || NULL == ending) {
+        return false;
+    }
+    int l1 = strlen(s);
+    int l2 = strlen(ending);
+    if (l1 < l2) {
+        return false;
+    }
+    return (strncmp(s + (l1 - l2), ending, l2) == 0);
+}
+
 bool isempty(const char * str)
 {
     if (str == NULL || *str == '\0') {
