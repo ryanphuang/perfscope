@@ -175,7 +175,6 @@ int main(int argc, char *argv[])
         }
         if(parser->snap) { // something was wrong
             fprintf(stderr, "something is wrong when parsing %s\n", fullname);
-            continue;
         }
         delete parser;
         current_parser = NULL;

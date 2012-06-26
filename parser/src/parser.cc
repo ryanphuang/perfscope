@@ -3308,6 +3308,7 @@ static FILE * create_output_file (char const *name, int open_flags, mode_t mode)
             mode, true);
     //FILE *f = fdopen (fd, binary_transput ? "wb" : "w");
     FILE *f = fdopen (fd, "w");
+    fprintf(stdout, "creating %s\n", name);
     if (! f)
         diegrace("Can't create file %s", quotearg (name));
     return f;
