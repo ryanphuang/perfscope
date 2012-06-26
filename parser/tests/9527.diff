@@ -1,0 +1,66 @@
+=== modified file 'sql/backup/image_info.cc'
+--- a/sql/backup/image_info.cc 2009-11-04 14:18:21 +0000
++++ b/sql/backup/image_info.cc 20092009-12-10 12:40:49 +0000
+@@ -111,9 +111,9 @@ Image_info::~Image_info()
+ */
+ 
+ Image_info::Db*
+-Image_info::add_db(const String &db_name, uint pos)
++Image_info::add_db(obs::Obj *db_obj, uint pos)
+ {
+-  Db *db= new (&mem_root) Db(db_name);
++  Db *db= new (&mem_root) Db(db_obj);
+ 
+   if (!db)
+     return NULL;
+@@ -123,7 +123,18 @@ Image_info::add_db(const String &db_name
+     m_dbs[pos]->~Db();
+ 
+   if (m_dbs.insert(pos, db))
++  {
++    /*
++      We did not manage to successfully add db to the catalog. Thus we need 
++      to destroy it but first we set m_obj_ptr to NULL so that it is not 
++      deleted in the destructor. We assume ownership of the obs::Obj 
++      instance only if the object has been successfully added to the 
++      catalog.
++    */ 
++    db->m_obj_ptr= NULL;
++    db->~Db();
+     return NULL;
++  }
+ 
+   db->base.pos= pos;
+ 
+@@ -144,9 +155,9 @@ Image_info::add_db(const String &db_name
+ */
+ 
+ Image_info::Ts*
+-Image_info::add_ts(const String &ts_name, uint pos)
++Image_info::add_ts(obs::Obj *ts_obj, uint pos)
+ {
+-  Ts *ts= new (&mem_root) Ts(ts_name);
++  Ts *ts= new (&mem_root) Ts(ts_obj);
+ 
+   if (!ts)
+     return NULL;
+
+
+=== modified file 'sql/backup/image_info.h'
+--- a/sql/backup/image_info.h 2009-11-04 14:18:21 +0000
++++ b/sql/backup/image_info.h 2009-12-10 12:40:49 +0000
+@@ -105,7 +105,8 @@ public: // Public interface.
+ 
+   // Examine contents of the catalogue.
+ 
+-  bool has_db(const String&) const;
++  Db* find_db(const String&) const;
++  Ts* find_ts(const String&) const;
+ 
+   // Retrieve objects using their coordinates.
+ 
+@@ -113,7 +114,6 @@ public: // Public interface.
+   Ts*    get_ts(uint pos) const;
+   Dbobj* get_db_object(uint db_num, ulong pos) const;
+   Table* get_table(ushort snap_num, ulong pos) const;
+-  Db*    find_db(const String &db_name);
