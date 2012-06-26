@@ -64,3 +64,30 @@
    Dbobj* get_db_object(uint db_num, ulong pos) const;
    Table* get_table(ushort snap_num, ulong pos) const;
 -  Db*    find_db(const String &db_name);
+
+
+=== modified file 'mysql-test/suite/backup_extra/vptest/run_vp_test.pl'
+--- a/mysql-test/suite/backup_extra/vptest/run_vp_test.pl   2009-11-19 15:50:00 +0000
++++ b/mysql-test/suite/backup_extra/vptest/run_vp_test.pl   2009-12-07 08:34:04 +0000
+@@ -567,7 +567,7 @@ sub execute_sql {
+     my($port,$sql) =@_;
+ 
+     my $do_sql = "END_OF_SQL\n".$sql."\nEND_OF_SQL\n";
+-    $mysql_args="--user=root --protocol=tcp --port=".$port;
++    $mysql_args="--skip-column-names --user=root --protocol=tcp --port=".$port;
+     my $command = $client_dir."/mysql ".$mysql_args.
+         " << ".$do_sql;
+
+
+=== modified file 'mysql-test/suite/backup/t/backup_bml.test'
+--- a/mysql-test/suite/backup/t/backup_bml.test 2009-06-30 07:51:04 +0000
++++ b/mysql-test/suite/backup/t/backup_bml.test 2009-11-26 09:52:48 +0000
+@@ -36,6 +36,11 @@
+ ##       main, a copy of this test with a modified part 3 has been
+ ##       created as backup_bml_not_falcon.test. Once Falcon is back in
+ ##       main, that test file should be removed.
++## NOTE: The result file of backup_bml_not_falcon has since changed.
++##       Without Falcon, the result file for this test can't be
++##       recorded. When reenabling this test, please check the diff
++##       between the result file of this test and
++##       backup_bml_not_falcon.result
