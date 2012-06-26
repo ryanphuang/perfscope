@@ -107,6 +107,25 @@ void diegrace(const char * format, ...)
     exit(1);
 }
 
+/* The difference between diegrace and errgrace is:
+ *   diegrace will be more versatile and call perror in
+ *   the end, so the typical usage scenario is system call
+ *   failure where errno is set.
+ *   errgrace just emit the error message and exit.
+ *
+ * */
+void errgrace(const char * format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+    fflush(stderr);
+    fflush(stderr);
+    exit(1);
+}
+
+
 void Fseek(FILE *fp, file_offset offset, int origin)
 {
     if (fseek(fp, offset, origin) != 0) {
@@ -117,11 +136,11 @@ void Fseek(FILE *fp, file_offset offset, int origin)
 void * xmalloc(size_t size)
 {
     if (size <= 0) {
-        diegrace("Invalid malloc size");
+        errgrace("Invalid malloc size");
     }
     void *p = malloc(size);
     if (p == NULL) {
-        diegrace("Out of memory");
+        errgrace("Out of memory");
     }
     return p;
 }
@@ -186,9 +205,7 @@ void ask (const char *format, ...)
         {
             s = gbufsize - 1;
             gbufsize *= 2;
-            gbuf = (char *) realloc (gbuf, gbufsize);
-            if (!gbuf)
-                diegrace("Out of memory");
+            gbuf = xrealloc (gbuf, gbufsize);
         }
         if (r == 0)
             printf ("EOF\n");
@@ -213,14 +230,15 @@ void write_fatal()
 {
     diegrace("write error");
 }
+
 void xalloc_die()
 {
-    diegrace("out of memory");
+    errgrace("out of memory");
 }
 
-void too_many_lines(const char *filename)
+inline void too_many_lines(const char *filename)
 {
-    diegrace ("File %s has too many lines", quotearg (filename));
+    errgrace("File %s has too many lines", quotearg (filename));
 }
 
 static const char DEV_NULL[] = NULL_DEVICE;

@@ -33,6 +33,9 @@ extern "C" {
 bool isempty(const char *);
 
 void diegrace(const char *, ...) __attribute__ ((noreturn, format (printf, 1, 2)));
+
+void errgrace(const char *, ...) __attribute__ ((noreturn, format (printf, 1, 2)));
+
 void abortgrace(void);
 void Fseek (FILE *, file_offset, int);
 

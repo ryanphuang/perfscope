@@ -509,15 +509,15 @@ LINENUM PatchParser::locate_hunk (LINENUM fuzz)
 
 void PatchParser::mangled_patch (LINENUM old, LINENUM newl)
 {
-  char numbuf0[LINENUM_LENGTH_BOUND + 1];
-  char numbuf1[LINENUM_LENGTH_BOUND + 1];
-  if (debug & 1)
-    say ("oldchar = '%c', newchar = '%c'\n",
-        pch_char (old), pch_char (newl));
-  diegrace("Out-of-sync patch, lines %s,%s -- mangled text or line numbers, "
-        "maybe?",
-        format_linenum (numbuf0, p_hunk_beg + old),
-        format_linenum (numbuf1, p_hunk_beg + newl));
+    char numbuf0[LINENUM_LENGTH_BOUND + 1];
+    char numbuf1[LINENUM_LENGTH_BOUND + 1];
+    if (debug & 1)
+        say ("oldchar = '%c', newchar = '%c'\n",
+                pch_char (old), pch_char (newl));
+    errgrace("Out-of-sync patch, lines %s,%s -- mangled text or line numbers, "
+            "maybe?",
+            format_linenum (numbuf0, p_hunk_beg + old),
+            format_linenum (numbuf1, p_hunk_beg + newl));
 }
 
 /* Copy input file to output, up to wherever hunk is to be applied. */
@@ -829,7 +829,7 @@ void PatchParser::gobble()
     }
 
     if (diff_type == ED_DIFF) {
-        diegrace("ED type diff not supported\n");
+        errgrace("ED type diff not supported\n");
 //      outstate.zero_output = false;
 //      snap |= skip_rest_of_patch;
 //      do_ed_script (outstate.ofp);
@@ -914,7 +914,7 @@ void PatchParser::gobble()
                         {
                             /* Put it back to normal.  */
                             if (! pch_swap ())
-                                diegrace("lost hunk on alloc error!");
+                                errgrace("lost hunk on alloc error!");
                             if (where)
                             {
                                 apply_anyway = true;
@@ -974,7 +974,7 @@ void PatchParser::gobble()
             if (got_hunk < 0  &&  using_plan_a)
             {
                 if (outfile)
-                    diegrace("out of memory using Plan A");
+                    errgrace("out of memory using Plan A");
                 say ("\n\nRan out of memory using Plan A -- trying again...\n\n");
                 if (outstate.ofp)
                 {
@@ -1887,12 +1887,12 @@ int PatchParser::another_hunk (enum difftype diff, bool rev)
                     strcpy (buf, "  \n");  /* assume blank lines got chopped */
                     chars_read = 3;
                 } else {
-                    diegrace ("unexpected end of file in patch");
+                    errgrace ("unexpected end of file in patch");
                 }
             }
             p_end++;
             if (p_end == hunkmax)
-                diegrace ("unterminated hunk starting at line %s; giving up at line %s: %s",
+                errgrace ("unterminated hunk starting at line %s; giving up at line %s: %s",
                         format_linenum (numbuf0, p_hunk_beg),
                         format_linenum (numbuf1, p_input_line), buf);
             assert(p_end < hunkmax);
@@ -1907,7 +1907,7 @@ int PatchParser::another_hunk (enum difftype diff, bool rev)
                             goto hunk_done;
                         }
                         else
-                            diegrace ("unexpected end of hunk at line %s",
+                            errgrace ("unexpected end of hunk at line %s",
                                     format_linenum (numbuf0, p_input_line));
                     }
                     if (p_end != 0) {
@@ -1915,7 +1915,7 @@ int PatchParser::another_hunk (enum difftype diff, bool rev)
                             repl_missing = true;
                             goto hunk_done;
                         }
-                        diegrace ("unexpected `***' at line %s: %s",
+                        errgrace ("unexpected `***' at line %s: %s",
                                 format_linenum (numbuf0, p_input_line), buf);
                     }
                     context = 0;
@@ -1969,14 +1969,14 @@ int PatchParser::another_hunk (enum difftype diff, bool rev)
                             fillcnt = p_ptrn_lines;
                         }
                         else if (! repl_beginning)
-                            diegrace ("%s `---' at line %s; check line numbers at line %s",
+                            errgrace ("%s `---' at line %s; check line numbers at line %s",
                                     (p_end <= p_ptrn_lines
                                      ? "Premature"
                                      : "Overdue"),
                                     format_linenum (numbuf0, p_input_line),
                                     format_linenum (numbuf1, p_hunk_beg));
                         else if (! repl_could_be_missing)
-                            diegrace ("duplicate `---' at line %s; check line numbers at line %s",
+                            errgrace ("duplicate `---' at line %s; check line numbers at line %s",
                                     format_linenum (numbuf0, p_input_line),
                                     format_linenum (numbuf1,
                                         p_hunk_beg + repl_beginning));
@@ -2141,7 +2141,7 @@ change_line:
 
 hunk_done:
         if (p_end >=0 && !repl_beginning)
-            diegrace ("no `---' found in patch at line %s",
+            errgrace ("no `---' found in patch at line %s",
                     format_linenum (numbuf0, p_hunk_beg));
 
         if (repl_missing) {
@@ -2161,7 +2161,7 @@ hunk_done:
             p_end = p_max;
         }
         else if (! ptrn_missing && ptrn_copiable != repl_copiable)
-            diegrace ("context mangled in hunk at line %s",
+            errgrace ("context mangled in hunk at line %s",
                     format_linenum (numbuf0, p_hunk_beg));
         else if (!some_context && fillcnt == 1) {
             /* the first hunk was a null hunk with no context */
@@ -2212,7 +2212,7 @@ hunk_done:
                     fillsrc++;
                 if (p_end < fillsrc || fillsrc == repl_beginning)
                 {
-                    diegrace ("replacement text or line numbers mangled in hunk at line %s",
+                    errgrace ("replacement text or line numbers mangled in hunk at line %s",
                             format_linenum (numbuf0, p_hunk_beg));
                 }
                 p_line[filldst] = p_line[fillsrc];
@@ -2223,7 +2223,7 @@ hunk_done:
             while (fillsrc <= p_end && fillsrc != repl_beginning)
             {
                 if (p_Char[fillsrc] == ' ')
-                    diegrace ("replacement text or line numbers mangled in hunk at line %s",
+                    errgrace ("replacement text or line numbers mangled in hunk at line %s",
                             format_linenum (numbuf0, p_hunk_beg));
                 fillsrc++;
             }
@@ -2313,7 +2313,7 @@ hunk_done:
                     strcpy (buf, " \n");  /* assume blank lines got chopped */
                     chars_read = 2;
                 } else {
-                    diegrace ("unexpected end of file in patch");
+                    errgrace ("unexpected end of file in patch");
                 }
             }
             if (chars_read == (size_t) -1)
@@ -2451,10 +2451,10 @@ hunk_done:
                 return -1;
             }
             if (!chars_read)
-                diegrace ("unexpected end of file in patch at line %s",
+                errgrace ("unexpected end of file in patch at line %s",
                         format_linenum (numbuf0, p_input_line));
             if (buf[0] != '<' || (buf[1] != ' ' && buf[1] != '\t'))
-                diegrace ("`<' expected at line %s of patch",
+                errgrace ("`<' expected at line %s of patch",
                         format_linenum (numbuf0, p_input_line));
             chars_read -= 2 + (i == p_ptrn_lines && incomplete_line ());
             p_len[i] = chars_read;
@@ -2473,10 +2473,10 @@ hunk_done:
                 return -1;
             }
             if (! chars_read)
-                diegrace ("unexpected end of file in patch at line %s",
+                errgrace ("unexpected end of file in patch at line %s",
                         format_linenum (numbuf0, p_input_line));
             if (*buf != '-')
-                diegrace ("`---' expected at line %s of patch",
+                errgrace ("`---' expected at line %s of patch",
                         format_linenum (numbuf0, p_input_line));
         }
         sprintf (buf, "--- %s,%s\n",
@@ -2496,10 +2496,10 @@ hunk_done:
                 return -1;
             }
             if (!chars_read)
-                diegrace ("unexpected end of file in patch at line %s",
+                errgrace ("unexpected end of file in patch at line %s",
                         format_linenum (numbuf0, p_input_line));
             if (buf[0] != '>' || (buf[1] != ' ' && buf[1] != '\t'))
-                diegrace ("`>' expected at line %s of patch",
+                errgrace ("`>' expected at line %s of patch",
                         format_linenum (numbuf0, p_input_line));
             chars_read -= 2 + (i == p_end && incomplete_line ());
             p_len[i] = chars_read;
@@ -2700,11 +2700,11 @@ char * PatchParser::scan_linenum (char *s0, LINENUM *linenum)
     }
 
     if (s == s0)
-        diegrace ("missing line number at line %s: %s",
+        errgrace ("missing line number at line %s: %s",
                 format_linenum (numbuf, p_input_line), buf);
 
     if (overflow)
-        diegrace ("line number %.*s is too large at line %s: %s",
+        errgrace ("line number %.*s is too large at line %s: %s",
                 (int) (s - s0), s0, format_linenum (numbuf, p_input_line), buf);
 
     *linenum = n;
@@ -2715,7 +2715,7 @@ char * PatchParser::scan_linenum (char *s0, LINENUM *linenum)
 void PatchParser::malformed (void)
 {
     char numbuf[LINENUM_LENGTH_BOUND + 1];
-    diegrace("malformed patch at line %s: %s", format_linenum (numbuf, p_input_line), buf);
+    errgrace("malformed patch at line %s: %s", format_linenum (numbuf, p_input_line), buf);
 		/* about as informative as "Syntax error" in C */
 }
 
@@ -2901,7 +2901,7 @@ void PatchParser::get_input_file (char const *filename, char const *outname)
 		if (!elsewhere
 		    && (instat.st_mode & (S_IWUSR|S_IWGRP|S_IWOTH)) != 0)
 		    /* Somebody can write to it.  */
-		  diegrace ("File %s seems to be locked by somebody else under %s",
+		  errgrace ("File %s seems to be locked by somebody else under %s",
 			 quotearg (filename), cs);
 		if (diffbuf)
 		  {
@@ -2938,7 +2938,7 @@ void PatchParser::get_input_file (char const *filename, char const *outname)
 	instat.st_size = 0;
       }
     else if (! S_ISREG (instat.st_mode))
-      diegrace ("File %s is not a regular file -- can't patch",
+      errgrace ("File %s is not a regular file -- can't patch",
 	     quotearg (filename));
 }
 
@@ -3006,14 +3006,14 @@ void PatchParser::report_revision (bool found_revision)
                     rev);
     }
     else if (batch)
-        diegrace ("This file doesn't appear to be the %s version -- aborting.",
+        errgrace ("This file doesn't appear to be the %s version -- aborting.",
                 rev);
     else
     {
         ask ("This file doesn't appear to be the %s version -- patch anyway? [n] ",
                 rev);
         if (*buf != 'y')
-            diegrace ("aborted");
+            errgrace ("aborted");
     }
 }
 
@@ -3124,7 +3124,7 @@ bool PatchParser::plan_a(char const *filename)
 /* Keep (virtually) nothing in memory. */
 void PatchParser::plan_b(char const *filename)
 {
-    diegrace("Ooops, plan B not implmeneted");
+    errgrace("Ooops, plan B not implmeneted");
 }
 
 /* Get FILENAME from version control system CS.  The file already exists if
@@ -3146,7 +3146,7 @@ bool PatchParser::version_get (char const *filename, char const *cs, bool exists
     if (dry_run)
     {
         if (! exists)
-            diegrace ("can't do dry run on nonexistent version-controlled file %s; invoke `%s' and try again",
+            errgrace ("can't do dry run on nonexistent version-controlled file %s; invoke `%s' and try again",
                     quotearg (filename), getbuf);
     }
     else
