@@ -15,12 +15,13 @@ typedef struct
 
 static Hash_table *file_id_table;
 static const char *SOURCE_SUFFIX[] = {
-    "c",
-    "h",
-    "cc",
-    "cpp",
-    "C",
-    "hpp",
+    ".c",
+    ".h",
+    ".cc",
+    ".cpp",
+    ".C",
+    ".hpp",
+    ".cs",
     0
 };
 

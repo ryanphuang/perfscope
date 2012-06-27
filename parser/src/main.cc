@@ -130,6 +130,10 @@ int main(int argc, char *argv[])
     int files = 0;
     int nonsources = 0;
     std::string fullname;
+    FILE *fnonsource = fopen("non.txt", "w");
+    if (fnonsource == NULL) {
+        diegrace("Faile to open file\n");
+    }
     
     errstay = true;
     for (p = lst; p; p = p->next){
@@ -163,6 +167,7 @@ int main(int argc, char *argv[])
                 printf("got a patch\n");
             }
             if (!issource(parser->inname)) {
+                fprintf(fnonsource, "%s\n", parser->inname);
                 if (debug) {
                     printf("skip non-source patch\n");
                 }
@@ -182,6 +187,7 @@ int main(int argc, char *argv[])
     if (gbuf) {
         free(gbuf);
     }
+    fclose(fnonsource);
     printf("Scanned total: %d; Non-source: %d\n", files, nonsources);
     // save the effort to free file list
     return 0;

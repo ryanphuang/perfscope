@@ -24,11 +24,23 @@ PatchParser::PatchParser(const char * pname, const char *outname = NULL, enum di
 {
     patchname = dupstr(pname);
     outfile = dupstr(outname);
-    buf = (char *) xmalloc(bufsize);
-    tiline[0] = -1;
-    tiline[1] = -1;
+    inname = NULL;
+    pfp = NULL;
+    p_Char = NULL;
+    p_len = NULL;
+    p_line = NULL;
+    p_c_function = NULL;
+    i_buffer = NULL;
+    i_ptr = NULL;
     init_array(p_name, 3);
     init_array(p_timestr, 2);
+    
+    buf = (char *) xmalloc(bufsize);
+
+    tiline[0] = -1;
+    tiline[1] = -1;
+
+
     tmpoutname = make_temp ('o');
     tmpinname = make_temp ('i');
     tmppatname = make_temp ('p');
