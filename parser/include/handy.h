@@ -22,6 +22,8 @@ extern "C" {
 #define UNIMPL_STR_FMT "Unimplemented block %s:%d, %s\n", \
     __FILE__, __LINE__, __PRETTY_FUNCTION__
 
+#define WARN(...) fprintf(stderr, __VA_ARGS__)
+
 #define WARN_UNIMPL fprintf(stderr, UNIMPL_STR_FMT); 
 
 #define DIE_UNIMPL  do { \

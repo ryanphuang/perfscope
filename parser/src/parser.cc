@@ -8,9 +8,6 @@
 #include<parser.h>
 #include<backupfile.h>
 
-LINENUM PatchParser::hunkmax = INITHUNKMAX;
-LINENUM PatchParser::maxfuzz = 2;
-size_t PatchParser::bufsize = 8 * 1024;
 static char const if_defined[] = "\n#ifdef %s\n";
 static char const not_defined[] = "\n#ifndef %s\n";
 static char const else_defined[] = "\n#else\n";
@@ -19,8 +16,8 @@ static char const end_defined[] = "\n#endif\n";
 static FILE * create_output_file (char const *, int, mode_t);
 
 PatchParser::PatchParser(const char * pname, const char *outname = NULL, enum difftype type = NO_DIFF ) :
-    diff_type(type), skip_rest_of_patch(false), p_efake(-1), p_bfake(-1), 
-    p_end(-1), strippath(-1), tifd(-1) 
+    diff_type(type), hunkmax(INITHUNKMAX), p_efake(-1), p_bfake(-1), 
+    p_end(-1), bufsize(8 * KB), skip_rest_of_patch(false), strippath(-1), tifd(-1)
 {
     patchname = dupstr(pname);
     outfile = dupstr(outname);
@@ -315,6 +312,7 @@ bool PatchParser::maybe_reverse (char const *name, bool nonexistent, bool empty)
 
 bool PatchParser::ok_to_reverse(char const *format, ...)
 {
+    fprintf(stderr, "ok to reverse!\n");
     return false;
 //    bool r = false;
 //
@@ -907,7 +905,7 @@ void PatchParser::gobble()
                 LINENUM suffix_context = p_suffix_context;
                 LINENUM context = (prefix_context < suffix_context
                         ? suffix_context : prefix_context);
-                mymaxfuzz = (maxfuzz < context ? maxfuzz : context);
+                mymaxfuzz = (MAXFUZZ < context ? MAXFUZZ : context);
             }
 
             hunk++;

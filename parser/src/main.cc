@@ -137,18 +137,21 @@ int main(int argc, char *argv[])
     
     errstay = true;
     for (p = lst; p; p = p->next){
-        fullname.clear();
-        if (from_directory) {
-            fullname += directory;
+        PatchParser *parser; 
+        if (!p->file) {
+            parser = new PatchParser(NULL, NULL, UNI_DIFF); 
         }
-
-        fullname += p->file;
-        if (true) {
-            printf("scan file: %s\n", fullname.c_str());
+        else {
+            fullname.clear();
+            if (from_directory) {
+                fullname += directory;
+            }
+            fullname += p->file;
+            if (true) {
+                printf("scan file: %s\n", fullname.c_str());
+            }
+            parser = new PatchParser(fullname.c_str(), NULL, UNI_DIFF); 
         }
-
-        PatchParser *parser = new PatchParser(fullname.c_str(), NULL, UNI_DIFF); 
-
         if (NULL == parser) {
             errgrace("out of memory");
         }

@@ -6,6 +6,8 @@ enum difftype { NO_DIFF, CONTEXT_DIFF, NORMAL_DIFF, ED_DIFF, NEW_CONTEXT_DIFF, U
 
 #define INITHUNKMAX 125			/* initial dynamic allocation size */
 
+#define MAXFUZZ 2 /* fuzz factor for inexact matching, should parse from config */
+
 /* An upper bound on the print length of a signed decimal line number.
    Add one for the sign.  */
 #define LINENUM_LENGTH_BOUND (sizeof (LINENUM) * CHAR_BIT / 3 + 1) 
@@ -36,6 +38,8 @@ struct outstate
 
 class PatchParser {
 public:
+
+
     char *patchname;
     FILE *pfp;
 
@@ -54,7 +58,31 @@ public:
 
     off_t p_filesize;		/* size of the patch file */
 
-    static LINENUM hunkmax;	/* size of above arrays */
+
+    LINENUM hunkmax;	/* size of above arrays */
+
+    /* how long is input file in lines */
+    LINENUM input_lines; 
+    /* offset in the input and output at which the previous hunk matched */
+    LINENUM in_offset;
+    LINENUM out_offset;
+    /* how many input lines have been irretractably output */
+
+    LINENUM p_bline;			/* line # of p_base */
+    LINENUM p_sline;			/* and the line number for it */
+    LINENUM p_hunk_beg;		/* line number of current hunk */
+    LINENUM p_efake;		/* end of faked up lines--don't free */
+    LINENUM p_bfake;		/* beg of faked up lines */
+    LINENUM p_first;			/* 1st line number */
+    LINENUM p_newfirst;		/* 1st line number of replacement */
+    LINENUM p_ptrn_lines;		/* # lines in pattern */
+    LINENUM p_repl_lines;		/* # lines in replacement text */
+    LINENUM p_end;		/* last line in hunk */
+    LINENUM p_max;			/* max allowed value of p_end */
+    LINENUM p_prefix_context;	/* # of prefix context lines */
+    LINENUM p_suffix_context;	/* # of suffix context lines */
+    LINENUM p_input_line;		/* current line # from patch file */
+    LINENUM last_frozen_line;
 
 
     PatchParser(const char *, const char *, enum difftype);
@@ -138,7 +166,7 @@ protected:
 
 
     char *buf;			/* general purpose buffer */
-    static size_t bufsize;			/* allocated size of buf */
+    size_t bufsize;			/* allocated size of buf */
     static LINENUM maxfuzz;
 
     char linenumbuf[LINENUM_LENGTH_BOUND + 1];
@@ -173,32 +201,6 @@ protected:
 
     file_offset p_base;		/* where to intuit this time */
     file_offset p_start;		/* where intuit found a patch */
-
-
-    /* how long is input file in lines */
-    LINENUM input_lines; 
-    /* offset in the input and output at which the previous hunk matched */
-    LINENUM in_offset;
-    LINENUM out_offset;
-    /* how many input lines have been irretractably output */
-
-    LINENUM p_bline;			/* line # of p_base */
-    LINENUM p_sline;			/* and the line number for it */
-    LINENUM p_hunk_beg;		/* line number of current hunk */
-    LINENUM p_efake;		/* end of faked up lines--don't free */
-    LINENUM p_bfake;		/* beg of faked up lines */
-    LINENUM p_first;			/* 1st line number */
-    LINENUM p_newfirst;		/* 1st line number of replacement */
-    LINENUM p_ptrn_lines;		/* # lines in pattern */
-    LINENUM p_repl_lines;		/* # lines in replacement text */
-    LINENUM p_end;		/* last line in hunk */
-    LINENUM p_max;			/* max allowed value of p_end */
-    LINENUM p_prefix_context;	/* # of prefix context lines */
-    LINENUM p_suffix_context;	/* # of suffix context lines */
-    LINENUM p_input_line;		/* current line # from patch file */
-    LINENUM last_frozen_line;
-
-
 
     int inerrno;
     int invc;
