@@ -129,9 +129,13 @@ int main(int argc, char *argv[])
     filenode *p;
     int files = 0;
     int nonsources = 0;
+    int newfile = 0;
+    int delfile = 0;
     std::string fullname;
     FILE *fnonsource = fopen("non.txt", "w");
-    if (fnonsource == NULL) {
+    FILE *fnew = fopen("new.txt", "w");
+    FILE *fdel = fopen("del.txt", "w");
+    if (fnonsource == NULL || fnew == NULL || fdel == NULL) {
         diegrace("Faile to open file\n");
     }
     
@@ -166,18 +170,26 @@ int main(int argc, char *argv[])
         /* for each patch in patch file */
         while(parser->there_is_another_patch() || apply_empty_patch) {
             files++;
-            if (debug) {
-                printf("got a patch\n");
+            DEBUG("got a patch\n");
+            skipreason reason = parser->gobble();
+            switch (reason) {
+                case NO_REASON:
+                    break;
+                case NEW_FILE:
+                    newfile++;
+                    fprintf(fnew, "%s\n", parser->inname);
+                    break;
+                case DEL_FILE:
+                    delfile++;
+                    fprintf(fdel, "%s\n", parser->inname);
+                    break;
+                case NON_SOURCE:
+                    nonsources++;
+                    fprintf(fnonsource, "%s\n", parser->inname);
+                    break;
+                default:
+                    WARN("Unknown reason %d\n", reason);
             }
-            if (!issource(parser->inname)) {
-                fprintf(fnonsource, "%s\n", parser->inname);
-                if (debug) {
-                    printf("skip non-source patch\n");
-                }
-                parser->skippatch();
-                nonsources++;
-            }
-            parser->gobble();
             parser->reinitialize();
             apply_empty_patch = false;
         }

@@ -24,6 +24,8 @@ extern "C" {
 
 #define WARN(...) fprintf(stderr, __VA_ARGS__)
 
+#define DEBUG(...) debug ? fprintf(stdout, __VA_ARGS__) : NULL
+
 #define WARN_UNIMPL fprintf(stderr, UNIMPL_STR_FMT); 
 
 #define DIE_UNIMPL  do { \

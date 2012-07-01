@@ -36,7 +36,9 @@ PatchParser::PatchParser(const char * pname, const char *outname = NULL, enum di
 
     tiline[0] = -1;
     tiline[1] = -1;
-
+    
+    tibuf[0] = NULL;
+    tibuf[1] = NULL;
 
     tmpoutname = make_temp ('o');
     tmpinname = make_temp ('i');
@@ -312,8 +314,9 @@ bool PatchParser::maybe_reverse (char const *name, bool nonexistent, bool empty)
 
 bool PatchParser::ok_to_reverse(char const *format, ...)
 {
-    fprintf(stderr, "ok to reverse!\n");
     return false;
+//    fprintf(stderr, "ok to reverse!\n");
+//    return false;
 //    bool r = false;
 //
 //    if (noreverse || ! (force && verbosity == SILENT))
@@ -357,6 +360,7 @@ bool PatchParser::ok_to_reverse(char const *format, ...)
 //
 //    return r;
 }
+
 /* Make sure our dynamically realloced tables are malloced to begin with. */
 void PatchParser::set_hunkmax (void)
 {
@@ -367,7 +371,6 @@ void PatchParser::set_hunkmax (void)
     if (!p_Char)
         p_Char = (char *) malloc (hunkmax * sizeof *p_Char);
 }
-
 
 void PatchParser::open_patch_file()
 {
@@ -443,8 +446,8 @@ char * PatchParser::format_linenum (char numbuf[LINENUM_LENGTH_BOUND + 1], LINEN
 /* Attempt to find the right place to apply this hunk of patch. */
 LINENUM PatchParser::locate_hunk (LINENUM fuzz)
 {
-    register LINENUM first_guess = p_first + in_offset;
-    register LINENUM offset;
+    LINENUM first_guess = p_first + in_offset;
+    LINENUM offset;
     LINENUM pat_lines = p_ptrn_lines;
     LINENUM prefix_context = p_prefix_context;
     LINENUM suffix_context = p_suffix_context;
@@ -726,11 +729,11 @@ bool PatchParser::apply_hunk (struct outstate *outstate, LINENUM where)
 bool PatchParser::patch_match (LINENUM base, LINENUM offset,
         LINENUM prefix_fuzz, LINENUM suffix_fuzz)
 {
-    register LINENUM pline = 1 + prefix_fuzz;
-    register LINENUM iline;
-    register LINENUM pat_lines = p_ptrn_lines - suffix_fuzz;
+    LINENUM pline = 1 + prefix_fuzz;
+    LINENUM iline;
+    LINENUM pat_lines = p_ptrn_lines - suffix_fuzz;
     size_t size;
-    register char const *p;
+    char const *p;
 
     for (iline=base+offset+prefix_fuzz; pline <= pat_lines; pline++,iline++) {
         p = ifetch (iline, offset >= 0, &size);
@@ -751,10 +754,6 @@ bool PatchParser::patch_match (LINENUM base, LINENUM offset,
 void PatchParser::abort_hunk (bool header, bool reverse)
 {
     FILE *fp = stdout;
-    register LINENUM old = 1;
-    register LINENUM lastline = p_ptrn_lines;
-    register LINENUM newl = lastline + 1;
-
     if (header)
     {
         if (pch_name (INDEX))
@@ -764,6 +763,10 @@ void PatchParser::abort_hunk (bool header, bool reverse)
     }
 
     /* Add out_offset to guess the same as the previous successful hunk.  */
+    //LINENUM old = 1;
+    //LINENUM lastline = p_ptrn_lines;
+    //LINENUM newl = lastline + 1;
+
     //fprintf (fp, "@@ -");
     //print_unidiff_range (fp, p_first + out_offset, lastline);
     //fprintf (fp, " +");
@@ -832,35 +835,32 @@ bool PatchParser::spew_output (struct outstate *outstate, struct stat *st)
 }
 
 /* analyze each patch in patch file */
-void PatchParser::gobble()
+skipreason PatchParser::gobble()
 {
+    
     int hunk = 0;
     int failed = 0;
     bool mismatch = false;
     char *outname = NULL;
+    enum skipreason reason = NO_REASON;
 
     //currently disable the following features 
     char *rejname = NULL;
     bool merge = false;
+    
+    if (!issource(inname)) {
+        DEBUG("skip non-source: %s\n", inname);
+        reason = NON_SOURCE;
+        skip_rest_of_patch = true;
+    }
 
-    if (! skip_rest_of_patch)
-    {
+    if (!skip_rest_of_patch) {
         outname = outfile ? outfile : inname;
         get_input_file (inname, outname);
     }
 
     if (diff_type == ED_DIFF) {
         errgrace("ED type diff not supported\n");
-        //      outstate.zero_output = false;
-        //      snap |= skip_rest_of_patch;
-        //      do_ed_script (outstate.ofp);
-        //      if (! dry_run && ! outfile && ! skip_rest_of_patch)
-        //      {
-        //          struct stat statbuf;
-        //          if (stat (tmpoutname, &statbuf) != 0)
-        //              diegrace ("%s", tmpoutname);
-        //          outstate.zero_output = statbuf.st_size == 0;
-        //      }
     } else {
         int got_hunk;
         bool apply_anyway = merge;  /* don't try to reverse when merging */
@@ -868,17 +868,14 @@ void PatchParser::gobble()
         /* initialize the patched file */
         if (! skip_rest_of_patch && ! outfile)
         {
-            int exclusive = tmpoutname_needs_removal ? 0 : O_EXCL;
-            tmpoutname_needs_removal = 1;
-            init_output (tmpoutname, exclusive, &outstate);
-        }
-
-        /* initialize reject file */
-        //init_reject ();
-
-        /* find out where all the lines are */
-        if (!skip_rest_of_patch)
+            if (!outfile) {
+                int exclusive = tmpoutname_needs_removal ? 0 : O_EXCL;
+                tmpoutname_needs_removal = 1;
+                init_output (tmpoutname, exclusive, &outstate);
+            }
+            /* find out where all the lines are */
             scan_input (inname);
+        }
 
         /* from here on, open no standard i/o files, because malloc */
         /* might misfire and we can't catch it easily */
@@ -886,9 +883,7 @@ void PatchParser::gobble()
         /* apply each hunk of patch */
         while (0 < (got_hunk = another_hunk (diff_type, reverse)))
         {
-            if (debug) {
-                fprintf(stdout, "got a hunk\n");
-            }
+            DEBUG("got a hunk\n");
             LINENUM where = 0; /* Pacify `gcc -Wall'.  */
             LINENUM newwhere;
             LINENUM fuzz = 0;
@@ -909,6 +904,19 @@ void PatchParser::gobble()
             }
 
             hunk++;
+            if (hunk == 1) {
+                if (p_first == 1 && p_ptrn_lines == 0) {
+                    reason = NEW_FILE;
+                    printf("new file\n");
+                    skip_rest_of_patch = true;
+                }
+                else
+                    if (p_newfirst == 1 && p_repl_lines == 0) {
+                        reason = DEL_FILE;
+                        printf("delete file\n");
+                        skip_rest_of_patch = true;
+                    }
+            } 
             if (!skip_rest_of_patch) {
                 do {
                     where = locate_hunk(fuzz);
@@ -966,8 +974,8 @@ void PatchParser::gobble()
                             || ! where
                             || ! apply_hunk (&outstate, where))))
             {
-                //abort_hunk (! failed, reverse);
-                abort_hunk (false, reverse);
+                abort_hunk (! failed, reverse);
+                //abort_hunk (false, reverse);
                 failed++;
                 if (verbosity == VERBOSE ||
                         (! skip_rest_of_patch && verbosity != SILENT))
@@ -1004,7 +1012,7 @@ void PatchParser::gobble()
                     outstate.ofp = 0;
                 }
                 //fclose (rejfp);
-                return;
+                return reason;
             }
 
             /* Finish spewing out the new file.  */
@@ -1060,24 +1068,7 @@ void PatchParser::gobble()
                     if ((set_time | set_utc)
                             && (t = pch_timestamp (! reverse)) != (time_t) -1)
                     {
-                        DIE_UNIMPL;
-                        //                      struct utimbuf utimbuf;
-                        //                      utimbuf.actime = utimbuf.modtime = t;
-                        //
-                        //                      if (! force && ! inerrno
-                        //                              && pch_says_nonexistent (reverse) != 2
-                        //                              && (t = pch_timestamp (reverse)) != (time_t) -1
-                        //                              && t != instat.st_mtime)
-                        //                          say ("Not setting time of file %s "
-                        //                                  "(time mismatch)\n",
-                        //                                  quotearg (outname));
-                        //                      else if (! force && (mismatch | failed))
-                        //                          say ("Not setting time of file %s "
-                        //                                  "(contents mismatch)\n",
-                        //                                  quotearg (outname));
-                        //                      else if (utime (outname, &utimbuf) != 0)
-                        //                          diegrace ("Can't set timestamp on file %s",
-                        //                                   quotearg (outname));
+                        WARN_UNIMPL;
                     }
 
                     if (! inerrno)
@@ -1124,41 +1115,13 @@ void PatchParser::gobble()
                     simple_backup_suffix = s;
                 }
                 say (" -- saving rejects to file %s\n", quotearg (rej));
-                if (! dry_run)
-                {
-                    if (rejname)
-                    {
-                        WARN_UNIMPL;
-                        //                      if (! written_to_rejname)
-                        //                      {
-                        //                          copy_file (tmprejname, rejname, 0, 0, 0666, true);
-                        //                          written_to_rejname = true;
-                        //                      }
-                        //                      else
-                        //                          append_to_file (tmprejname, rejname);
-                    }
-                    else
-                    {
-                        WARN_UNIMPL;
-                        //                      struct stat oldst;
-                        //                      int olderrno;
-                        //
-                        //                      olderrno = stat (rej, &oldst) ? errno : 0;
-                        //                      if (olderrno && olderrno != ENOENT)
-                        //                          write_fatal ();
-                        //                      if (! olderrno && file_already_seen (&oldst))
-                        //                          append_to_file (tmprejname, rej);
-                        //                      else
-                        //                          move_file (tmprejname, &tmprejname_needs_removal,
-                        //                                  &rejst, rej, 0666, false);
-                    }
-                }
                 if (!rejname)
                     free (rej);
             } else
                 say ("\n");
         }
     }
+    return reason;
 }
 
 /* Apply an ed script by feeding ed itself. */
@@ -1267,9 +1230,9 @@ bool PatchParser::there_is_another_patch()
 
 void PatchParser::skip_to (file_offset file_pos, LINENUM file_line)
 {
-    register FILE *i = pfp;
-    register FILE *o = stdout;
-    register int c;
+    FILE *i = pfp;
+    FILE *o = stdout;
+    int c;
 
     assert(p_base <= file_pos);
     if ((verbosity == VERBOSE || !inname) && p_base < file_pos) {
@@ -1315,11 +1278,11 @@ size_t PatchParser::get_line(void)
 size_t PatchParser::pget_line (size_t indent, int rfc934_nesting, bool strip_trailing_cr,
         bool pass_comments_through)
 {
-    register FILE *fp = pfp;
-    register int c;
-    register size_t i;
-    register char *b;
-    register size_t s;
+    FILE *fp = pfp;
+    int c;
+    size_t i;
+    char *b;
+    size_t s;
 
     do
     {
@@ -1407,18 +1370,18 @@ patch_ends_in_middle_of_line:
 /* Determine what kind of diff is in the remaining part of the patch file. */
 enum difftype PatchParser::intuit_diff_type (bool need_header)
 {
-    register file_offset this_line = 0;
-    register file_offset first_command_line = -1;
+    file_offset this_line = 0;
+    file_offset first_command_line = -1;
     char first_ed_command_letter = 0;
     LINENUM fcl_line = 0; /* Pacify `gcc -W'.  */
-    register bool this_is_a_command = false;
-    register bool stars_this_line = false;
+    bool this_is_a_command = false;
+    bool stars_this_line = false;
     //    enum nametype i;
     int i;
     struct stat st[3];
     int stat_errno[3];
     int version_controlled[3];
-    register enum difftype retval;
+    enum difftype retval;
 
     for (i = OLD;  i <= INDEX;  i++)
         if (p_name[i]) {
@@ -1445,12 +1408,12 @@ enum difftype PatchParser::intuit_diff_type (bool need_header)
     Fseek (pfp, p_base, SEEK_SET);
     p_input_line = p_bline - 1;
     for (;;) {
-        register char *s;
-        register char *t;
-        register file_offset previous_line = this_line;
-        register bool last_line_was_command = this_is_a_command;
-        register bool stars_last_line = stars_this_line;
-        register size_t indent = 0;
+        char *s;
+        char *t;
+        file_offset previous_line = this_line;
+        bool last_line_was_command = this_is_a_command;
+        bool stars_last_line = stars_this_line;
+        size_t indent = 0;
         char ed_command_letter;
         bool strip_trailing_cr;
         size_t chars_read;
@@ -1752,18 +1715,7 @@ scan_exit:
                             version_controlled[i] = !! cs;
                             if (cs)
                             {
-                                if (version_get (p_name[i], cs, false, readonly,
-                                            getbuf, &st[i]))
-                                    stat_errno[i] = 0;
-                                else
-                                    version_controlled[i] = 0;
-
-                                free (getbuf);
-                                if (diffbuf)
-                                    free (diffbuf);
-
-                                if (! stat_errno[i])
-                                    break;
+                                WARN_UNIMPL;
                             }
                         }
 
@@ -1827,9 +1779,9 @@ scan_exit:
    0 if not; -1 if ran out of memory. */
 int PatchParser::another_hunk (enum difftype diff, bool rev)
 {
-    register char *s;
-    register LINENUM context = 0;
-    register size_t chars_read;
+    char *s;
+    LINENUM context = 0;
+    size_t chars_read;
     char numbuf0[LINENUM_LENGTH_BOUND + 1];
     char numbuf1[LINENUM_LENGTH_BOUND + 1];
     char numbuf2[LINENUM_LENGTH_BOUND + 1];
@@ -1856,12 +1808,12 @@ int PatchParser::another_hunk (enum difftype diff, bool rev)
         file_offset line_beginning = ftell (pfp);
         /* file pos of the current line */
         LINENUM repl_beginning = 0;	/* index of --- line */
-        register LINENUM fillcnt = 0;	/* #lines of missing ptrn or repl */
-        register LINENUM fillsrc;	/* index of first line to copy */
-        register LINENUM filldst;	/* index of first missing line */
+        LINENUM fillcnt = 0;	/* #lines of missing ptrn or repl */
+        LINENUM fillsrc;	/* index of first line to copy */
+        LINENUM filldst;	/* index of first missing line */
         bool ptrn_spaces_eaten = false;	/* ptrn was slightly misformed */
         bool some_context = false;	/* (perhaps internal) context seen */
-        register bool repl_could_be_missing = true;
+        bool repl_could_be_missing = true;
         bool ptrn_missing = false;	/* The pattern was missing.  */
         bool repl_missing = false;	/* Likewise for replacement.  */
         file_offset repl_backtrack_position = 0;
@@ -2262,8 +2214,8 @@ hunk_done:
     else if (diff == UNI_DIFF) {
         file_offset line_beginning = ftell (pfp);
         /* file pos of the current line */
-        register LINENUM fillsrc;	/* index of old lines */
-        register LINENUM filldst;	/* index of new lines */
+        LINENUM fillsrc;	/* index of old lines */
+        LINENUM filldst;	/* index of new lines */
         char ch = '\0';
 
         chars_read = get_line ();
@@ -2423,7 +2375,7 @@ hunk_done:
     }
     else {				/* normal diff--fake it up */
         char hunk_type;
-        register int i;
+        int i;
         LINENUM min, max;
         file_offset line_beginning = ftell (pfp);
 
@@ -2576,10 +2528,10 @@ bool PatchParser::pch_swap (void)
     char **tp_line;		/* the text of the hunk */
     size_t *tp_len;		/* length of each line */
     char *tp_char;		/* +, -, and ! */
-    register LINENUM i;
-    register LINENUM n;
+    LINENUM i;
+    LINENUM n;
     bool blankline = false;
-    register char *s;
+    char *s;
 
     i = p_first;
     p_first = p_newfirst;
@@ -2690,9 +2642,9 @@ bool PatchParser::grow_hunkmax (void)
 
 bool PatchParser::incomplete_line (void)
 {
-    register FILE *fp = pfp;
-    register int c;
-    register file_offset line_beginning = ftell (fp);
+    FILE *fp = pfp;
+    int c;
+    file_offset line_beginning = ftell (fp);
 
     if (getc (fp) == '\\')
     {
@@ -2748,7 +2700,7 @@ char * PatchParser::fetchname (char *at, int strip_leading, char **ptimestr, tim
 {
     char *name;
     char *timestr = NULL;
-    register char *t;
+    char *t;
     int sleading = strip_leading;
     time_t stamp = (time_t) -1;
 
@@ -2859,8 +2811,7 @@ char * PatchParser::fetchname (char *at, int strip_leading, char **ptimestr, tim
 
 const char * PatchParser::ifetch (LINENUM line, bool whichbuf, size_t *psize)
 {
-    register char const *q;
-    register char const *p;
+    char const *p;
 
     if (line < 1 || line > input_lines) {
         *psize = 0;
@@ -2871,29 +2822,7 @@ const char * PatchParser::ifetch (LINENUM line, bool whichbuf, size_t *psize)
         *psize = i_ptr[line + 1] - p;
         return p;
     } else {
-        LINENUM offline = line % lines_per_buf;
-        LINENUM baseline = line - offline;
-
-        if (tiline[0] == baseline)
-            whichbuf = false;
-        else if (tiline[1] == baseline)
-            whichbuf = true;
-        else {
-            tiline[whichbuf] = baseline;
-            if ((lseek (tifd, baseline/lines_per_buf * tibufsize, SEEK_SET)
-                        == -1)
-                    || read (tifd, tibuf[whichbuf], tibufsize) < 0)
-                read_fatal ();
-        }
-        p = tibuf[whichbuf] + (tireclen*offline);
-        if (line == input_lines)
-            *psize = last_line_size;
-        else {
-            for (q = p;  *q++ != '\n';  )
-                continue;
-            *psize = q - p;
-        }
-        return p;
+        DIE_UNIMPL;
     }
 }
 
@@ -2921,40 +2850,7 @@ void PatchParser::get_input_file (char const *filename, char const *outname)
                         (filename, elsewhere,
                          inerrno ? (struct stat *) 0 : &instat,
                          &getbuf, &diffbuf))))) {
-
-        if (!inerrno) {
-            if (!elsewhere
-                    && (instat.st_mode & (S_IWUSR|S_IWGRP|S_IWOTH)) != 0)
-                /* Somebody can write to it.  */
-                errgrace ("File %s seems to be locked by somebody else under %s",
-                        quotearg (filename), cs);
-            if (diffbuf)
-            {
-                /* It might be checked out unlocked.  See if it's safe to
-                   check out the default version locked.  */
-
-                if (verbosity == VERBOSE)
-                    say ("Comparing file %s to default %s version...\n",
-                            quotearg (filename), cs);
-
-                if (systemic (diffbuf) != 0)
-                {
-                    say ("warning: Patching file %s, which does not match default %s version\n",
-                            quotearg (filename), cs);
-                    cs = 0;
-                }
-            }
-            if (dry_run)
-                cs = 0;
-        }
-
-        if (cs && version_get (filename, cs, ! inerrno, elsewhere, getbuf,
-                    &instat))
-            inerrno = 0;
-
-        free (getbuf);
-        if (diffbuf)
-            free (diffbuf);
+        WARN_UNIMPL;
     }
 
     if (inerrno)
@@ -3046,11 +2942,11 @@ void PatchParser::report_revision (bool found_revision)
 
 bool PatchParser::plan_a(char const *filename)
 {
-    register char const *s;
-    register char const *lim;
-    register char const **ptr;
-    register char *buffer;
-    register LINENUM iline;
+    char const *s;
+    char const *lim;
+    char const **ptr;
+    char *buffer;
+    LINENUM iline;
     size_t size = instat.st_size;
 
     /* Fail if the file size doesn't fit in a size_t,
@@ -3118,26 +3014,7 @@ bool PatchParser::plan_a(char const *filename)
 
     if (revision)
     {
-        char const *rev = revision;
-        int rev0 = rev[0];
-        bool found_revision = false;
-        size_t revlen = strlen (rev);
-
-        if (revlen <= size)
-        {
-            char const *limrev = lim - revlen;
-
-            for (s = buffer;  (s = (char *) memchr (s, rev0, limrev - s));  s++)
-                if (memcmp (s, rev, revlen) == 0
-                        && (s == buffer || ISSPACE ((unsigned char) s[-1]))
-                        && (s + 1 == limrev || ISSPACE ((unsigned char) s[revlen])))
-                {
-                    found_revision = true;
-                    break;
-                }
-        }
-
-        report_revision (found_revision);
+        WARN_UNIMPL;
     }
 
     /* Plan A will work.  */
@@ -3160,31 +3037,7 @@ void PatchParser::plan_b(char const *filename)
 bool PatchParser::version_get (char const *filename, char const *cs, bool exists, bool readonly,
         char const *getbuf, struct stat *filestat)
 {
-    if (patch_get < 0)
-    {
-        ask ("Get file %s from %s%s? [y] ",
-                quotearg (filename), cs, readonly ? "" : " with lock");
-        if (*buf == 'n')
-            return 0;
-    }
-
-    if (dry_run)
-    {
-        if (! exists)
-            errgrace ("can't do dry run on nonexistent version-controlled file %s; invoke `%s' and try again",
-                    quotearg (filename), getbuf);
-    }
-    else
-    {
-        if (verbosity == VERBOSE)
-            say ("Getting file %s from %s%s...\n", quotearg (filename),
-                    cs, readonly ? "" : " with lock");
-        if (systemic (getbuf) != 0)
-            diegrace ("Can't get file %s from %s", quotearg (filename), cs);
-        if (stat (filename, filestat) != 0)
-            diegrace ("%s", quotearg (filename));
-    }
-
+    WARN_UNIMPL;
     return 1;
 }
 

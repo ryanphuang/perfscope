@@ -3,6 +3,7 @@
 
 enum nametype { OLD, NEW, INDEX, NONE };
 enum difftype { NO_DIFF, CONTEXT_DIFF, NORMAL_DIFF, ED_DIFF, NEW_CONTEXT_DIFF, UNI_DIFF};
+enum skipreason {NO_REASON, NEW_FILE, DEL_FILE, NON_SOURCE};
 
 #define INITHUNKMAX 125			/* initial dynamic allocation size */
 
@@ -88,7 +89,7 @@ public:
     PatchParser(const char *, const char *, enum difftype);
     ~PatchParser();
 
-    void gobble(void);
+    skipreason gobble(void);
 
     void skippatch(void);
 
