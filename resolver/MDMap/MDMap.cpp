@@ -37,6 +37,18 @@ namespace {
     
     typedef DomTreeNodeBase<BasicBlock> BBNode;
 
+    template <class T1, class T2> struct Pair
+    {
+      typedef T1 first_type;
+      typedef T2 second_type;
+
+      T1 first;
+      T2 second;
+
+      Pair() : first(T1()), second(T2()) {}
+      Pair(const T1& x, const T2& y) : first(x), second(y) {}
+      template <class U, class V> Pair (const Pair<U,V> &p) : first(p.first), second(p.second) { }
+    };
 
     class MetadataElement {
       public:
@@ -116,17 +128,18 @@ namespace {
 
                   /** BFS Traversal **/
                   BBNode *Node = DT.getRootNode();
-                  if (Node) {
-                      std::deque<BBNode *> ques;
-                      ques.push_back(Node);
-                      while (!ques.empty()) {
-                          Node = ques.front();
-                          ques.pop_front();
+                  std::deque< Pair<BBNode *, unsigned> > ques;
+                  ques.push_back(Pair<BBNode *, unsigned>(Node, 1));
+                  while (!ques.empty()) {
+                      Pair<BBNode *, unsigned> pair = ques.front();
+                      Node = pair.first;
+                      ques.pop_front();
+                      if (Node) {
                           BasicBlock * BB = Node->getBlock();
-                          errs() << BB->getName() << "\n";
+                          errs() << "[" << pair.second << "] " << BB->getName() << "\n";
                           for (BBNode::iterator I = Node->begin(), E = Node->end(); I != E; I++) {
                             BBNode * N = *I;
-                            ques.push_back(N);
+                            ques.push_back(Pair<BBNode *, unsigned>(N, pair.second + 1));
                           }
                       }
                   }
