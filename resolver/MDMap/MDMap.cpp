@@ -19,19 +19,69 @@
 #include "llvm/ADT/Statistic.h"
 
 #include "llvm/Analysis/DebugInfo.h"
+#include "llvm/Analysis/Dominators.h"
 #include "llvm/Metadata.h"
 #include "llvm/Module.h"
 #include "llvm/Support/Dwarf.h"
+#include "llvm/Support/CFG.h"
 #include "llvm/Constants.h"
+#include "llvm/Instruction.h"
+#include "llvm/InstrTypes.h"
+
+#include <vector>
+#include <deque>
 
 using namespace llvm;
 
 namespace {
-    struct MDMap: public ModulePass {
+    
+    typedef DomTreeNodeBase<BasicBlock> BBNode;
+
+
+    class MetadataElement {
+      public:
+        unsigned key;
+        DIDescriptor value;
+    };
+
+    class MetadataNode {
+      public:
+        MetadataNode *parent;
+        MetadataNode *left;
+        MetadataNode *right;
+        MetadataElement Element;
+    };
+    
+    class MetadataTree {
+      public:
+        MetadataNode *root;
+        void insert(MetadataNode *);
+        MetadataNode *search(unsigned key);
+    };
+
+    class MySP {
+      public:
+        DISubprogram SP;
+
+        MySP(DISubprogram p) : SP(p) {}
+        bool operator < (const MySP & another) const 
+        { 
+            return SP.getLineNumber() < another.SP.getLineNumber();
+        }
+    };
+
+    class MDMap: public ModulePass {
+
+        DebugInfoFinder Finder;
+        std::vector<MySP> MySPs;
+
+      public:
         static char ID; // Pass identification, replacement for typeid
         MDMap() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
+            /** DIY SP finder **/
+            /**
             if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu"))
                 for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
                     DICompileUnit DICU(CU_Nodes->getOperand(i));
@@ -40,20 +90,128 @@ namespace {
                         DIArray SPs = DICU.getSubprograms();
                         for (unsigned i = 0, e = SPs.getNumElements(); i != e; i++) {
                             DISubprogram DIS(SPs.getElement(i));
-                            errs() << "SP@" << DIS.getLineNumber() << ": " << 
-                                DIS.getLinkageName() << "(" << DIS.getName() << ") \n";
+                            MySPs.push_back(MySP(DIS));
+                            //errs() << "SP@" << DIS.getLineNumber() << ": " << 
+                            //    DIS.getLinkageName() << "(" << DIS.getName() << ") \n";
                         }
                     }
                 }
-
+            **/
             if (NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.sp"))
                 for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
                     DISubprogram DIS(NMD->getOperand(i));
                     errs() << "DIS: " << DIS.getName() << ", " << DIS.getDisplayName() << "\n";
                 }
+
+            for (Module::iterator I = M.begin(), E = M.end(); I != E; I++) {
+                if (I->getName().startswith("llvm.dbg")) { // Skip intrinsic functions
+                    continue;
+                }
+                errs() << "Function: " << I->getName() << "\n";
+                //** Getting Dominator Tree
+                if (!I->isDeclaration()) { // Dominator Tree only works with function definition, not declaration.
+                  DominatorTree & DT = getAnalysis<DominatorTree>(*I);
+                  //DT.print(errs()); // DFS print
+
+
+                  /** BFS Traversal **/
+                  BBNode *Node = DT.getRootNode();
+                  if (Node) {
+                      std::deque<BBNode *> ques;
+                      ques.push_back(Node);
+                      while (!ques.empty()) {
+                          Node = ques.front();
+                          ques.pop_front();
+                          BasicBlock * BB = Node->getBlock();
+                          errs() << BB->getName() << "\n";
+                          for (BBNode::iterator I = Node->begin(), E = Node->end(); I != E; I++) {
+                            BBNode * N = *I;
+                            ques.push_back(N);
+                          }
+                      }
+                  }
+                }
+                //**/
+               
+                //for (Function::iterator FI = I->begin(), FE = I->end(); FI != FE; FI++) {
+                    
+                    /** Traverse the successors
+                    errs() << FI->getName() << "\n";
+                    for (succ_iterator SI = succ_begin(FI), SE = succ_end(FI); SI != SE; SI++) {
+                        errs() << "\t" << (*SI)->getName() << "\n";
+                    }
+                    **/
+
+
+                    /** Use first and last instruction to get the scope information
+                    Instruction *first = FI->getFirstNonPHI();
+                    Instruction *last = FI->getTerminator();
+                    if (first == NULL || last == NULL) {
+                        errs() << "NULL scope instructions " << "\n";
+                        continue;
+                    }
+                    DebugLoc Loc = first->getDebugLoc();
+                    if (Loc.isUnknown()) {
+                        errs() << "Unknown LOC information" << "\n";
+                        continue;
+                    }
+                    errs() << "Block :" << Loc.getLine();
+                    Loc = last->getDebugLoc();
+                    if (Loc.isUnknown()) {
+                        errs() << "Unknown LOC information" << "\n";
+                        continue;
+                    }
+                    errs() << ", " << Loc.getLine() << "\n";
+                    **/
+                    
+                    /** Get each instruction's scope information
+                    for (BasicBlock::iterator BI = FI->begin(), BE = FI->end(); BI != BE; BI++) {
+                        DebugLoc Loc = BI->getDebugLoc();
+                        if (Loc.isUnknown())
+                            continue;
+                        LLVMContext & Ctx = BI->getContext();
+
+                        DIDescriptor Scope(Loc.getScope(Ctx));
+                        if (Scope.isLexicalBlock()) {
+                           DILexicalBlock DILB(Scope);
+                           errs() << "Block :" << DILB.getLineNumber() << ", " << DILB.getColumnNumber() << "\n";
+                        }
+                    }
+                    **/
+                //}
+            }
+
+
+            /** Off-the-shelf SP finder
+            Finder.processModule(M);
+            for (DebugInfoFinder::iterator I = Finder.subprogram_begin(), E = 
+                  Finder.subprogram_end(); I != E; I++) {
+                DISubprogram DIS(*I);
+                errs() << "@" << DIS.getLineNumber() << ": " << 
+                DIS.getLinkageName() << "(" << DIS.getName() << ") \n";
+            }
+            **/
+
+            /** Sort based on line number
+            std::sort(MySPs.begin(), MySPs.end());
+            std::vector<MySP>::iterator I, E;
+            for (I = MySPs.begin(), E = MySPs.end(); I != E; I++) {
+                errs() << "@" << I->SP.getLineNumber() << ": " << 
+                  I->SP.getLinkageName() << "(" << I->SP.getName() << ") \n";
+            }
+            **/
             return false;
         }
+
+        virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+            AU.setPreservesAll();
+            AU.addRequired<DominatorTree>();
+        }
     };
+
+    void MetadataTree::insert(MetadataNode * node) {
+
+    }
 }
 
 char MDMap::ID = 0;
