@@ -86,11 +86,24 @@ namespace {
             return SP.getLineNumber() < another.SP.getLineNumber();
         }
     };
+    
+    bool DISCmp(const DISubprogram & SP1, const DISubprogram & SP2) 
+    { 
+        int cmp = SP1.getDirectory().compare(SP2.getDirectory());
+        if (cmp == 0) {
+            cmp = SP1.getFilename().compare(SP2.getFilename());
+            if (cmp == 0) {
+                cmp = SP1.getLineNumber() - SP2.getLineNumber();
+            }
+        }
+        return cmp > 0 ? false : true;
+    }
 
     class MDMap: public ModulePass {
 
         DebugInfoFinder Finder;
-        std::vector<MySP> MySPs;
+        //std::vector<MySP> MySPs;
+        std::vector<DISubprogram> MySPs;
 
       public:
         static char ID; // Pass identification, replacement for typeid
@@ -234,22 +247,10 @@ namespace {
             errs() << "\n";
         }
 
-
-        virtual bool runOnModule(Module &M) 
+        void processSubprograms(Module &M)
         {
-            Finder.processModule(M);
-            testMatching(1, 3);
-            testMatching(7, 24);
-            testMatching(7, 29);
-            testMatching(24, 26);
-            testMatching(1, 38);
-            testMatching(37, 40);
-
-            // actually we don't know the end of last function, so the result will be last function
-            testMatching(40, 45); 
-
             /** DIY SP finder **/
-            /**
+            MySPs.clear();
             if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu"))
                 for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
                     DICompileUnit DICU(CU_Nodes->getOperand(i));
@@ -258,7 +259,7 @@ namespace {
                         DIArray SPs = DICU.getSubprograms();
                         for (unsigned i = 0, e = SPs.getNumElements(); i != e; i++) {
                             DISubprogram DIS(SPs.getElement(i));
-                            MySPs.push_back(MySP(DIS));
+                            MySPs.push_back(DIS);
                             //errs() << "SP@" << DIS.getLineNumber() << ": " << 
                             //    DIS.getLinkageName() << "(" << DIS.getName() << ") \n";
                         }
@@ -270,7 +271,49 @@ namespace {
                     DISubprogram DIS(NMD->getOperand(i));
                     errs() << "DIS: " << DIS.getName() << ", " << DIS.getDisplayName() << "\n";
                 }
-            **/
+
+            /** Sort based on line number **/
+            std::sort(MySPs.begin(), MySPs.end(), DISCmp);
+            std::vector<DISubprogram>::iterator I, E;
+            for (I = MySPs.begin(), E = MySPs.end(); I != E; I++) {
+                errs() << "@" << I->getDirectory() << "/" << I->getFilename() << 
+                  ":" << I->getLineNumber() << "# " << I->getLinkageName() << 
+                  "(" << I->getName() << ") \n";
+            }
+
+        }
+
+        /** Off-the-shelf SP finder **/
+        void processSubprograms()
+        {
+            // place the following call before invoking this method
+            // Finder.processModule(M);
+            for (DebugInfoFinder::iterator I = Finder.subprogram_begin(), E = 
+                  Finder.subprogram_end(); I != E; I++) {
+                DISubprogram DIS(*I);
+                errs() << "@" << DIS.getDirectory() << "/" << DIS.getFilename() << 
+                  ":" << DIS.getLineNumber() << "# " << DIS.getLinkageName() << 
+                  "(" << DIS.getName() << ") \n";
+            }
+        }
+    
+        void testDriver()
+        {
+            testMatching(1, 3);
+            testMatching(7, 24);
+            testMatching(7, 29);
+            testMatching(24, 26);
+            testMatching(1, 38);
+            testMatching(37, 40);
+
+            // actually we don't know the end of last function, so the result will be last function
+            testMatching(40, 45); 
+        }
+
+        virtual bool runOnModule(Module &M) 
+        {
+            //Finder.processModule(M);
+            processSubprograms(M);
 
             /**
             for (Module::iterator I = M.begin(), E = M.end(); I != E; I++) {
@@ -358,24 +401,6 @@ namespace {
             //}
 
 
-            /** Off-the-shelf SP finder
-            Finder.processModule(M);
-            for (DebugInfoFinder::iterator I = Finder.subprogram_begin(), E = 
-                  Finder.subprogram_end(); I != E; I++) {
-                DISubprogram DIS(*I);
-                errs() << "@" << DIS.getLineNumber() << ": " << 
-                DIS.getLinkageName() << "(" << DIS.getName() << ") \n";
-            }
-            **/
-
-            /** Sort based on line number
-            std::sort(MySPs.begin(), MySPs.end());
-            std::vector<MySP>::iterator I, E;
-            for (I = MySPs.begin(), E = MySPs.end(); I != E; I++) {
-                errs() << "@" << I->SP.getLineNumber() << ": " << 
-                  I->SP.getLinkageName() << "(" << I->SP.getName() << ") \n";
-            }
-            **/
             return false;
         }
 
