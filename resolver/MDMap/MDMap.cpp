@@ -471,15 +471,24 @@ namespace {
             }
         }
 
+        void getLoopScope(Loop * L)
+        {
+            BasicBlock * header= L->getHeader();
+            Scope scope;
+            getBlockScope(scope, header);
+            errs() << scope << "\n";
+        }
+
         void processLoops(Function *F)
         {
             LoopInfo &li = getAnalysis<LoopInfo>(*F);
             for (LoopInfo::iterator LII = li.begin(),  LIE = li.end(); LII != LIE; LII++) {
-                (*LII)->dump();
-                BasicBlock * header= (*LII)->getHeader();
-                Scope scope;
-                getBlockScope(scope, header);
-                errs() << scope << "\n";
+                // dump loops including all subloops
+                // (*LII)->dump();
+                getLoopScope(*LII); //Top level loops
+                for (Loop::iterator LIBI = (*LII)->begin(), LIBE = (*LII)->end(); LIBI != LIBE; LIBI++) {
+                    getLoopScope(*LIBI); //Sub loops
+                }
             }
         }
 
