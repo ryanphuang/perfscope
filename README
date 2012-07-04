@@ -5,7 +5,8 @@ PerfScope is a research project from the [Opera Research Group](http://opera.ucs
 in University of California, San Diego. It consists of several parts to operate:
 - Parser: parse the patch file for information like what's the file(s) that's modified,
     which location does it lie, etc.
-- Resolver: resolve the dependencies among the modifications inside a patch found by the parser.
+- Mapper: map the change location in source file to the corresponding programming constructs.
+- Resolver: resolve the dependencies among the modifications.
 - Analyzer: analyze the change(s)' performance impact
 - TestDB: a particular use case of PerfScope: prioritize performance testing based on the impact
     analysis result. This module will also keep track of each performance testing execution
