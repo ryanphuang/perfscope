@@ -337,6 +337,16 @@ namespace {
             return false;
         }
 
+        unsigned getInstLine(Instruction *I)
+        {
+            DebugLoc Loc = I->getDebugLoc();
+            if (Loc.isUnknown()) {
+                errs() << "Unknown LOC" << "\n";
+                return 0;
+            }
+            return Loc.getLine();
+        }
+
         bool getBlockScope(Scope & scope, BasicBlock *B)
         {
             /** Use first and last instruction to get the scope information **/
@@ -346,15 +356,13 @@ namespace {
                 errs() << "NULL scope instructions " << "\n";
                 return false;
             }
-            DebugLoc Loc1 = first->getDebugLoc();
-            DebugLoc Loc2 = last->getDebugLoc();
-            if (Loc1.isUnknown() || Loc2.isUnknown()) {
-                errs() << "Unknown LOC information" << "\n";
+            unsigned b = getInstLine(first);
+            unsigned e = getInstLine(last);
+            if (b == 0 || e == 0) {
                 return false;
             }
-            //errs() << "Block :" << Loc1.getLine() << ", " << Loc2.getLine() << "\n";
-            scope.begin = Loc1.getLine();
-            scope.end = Loc2.getLine();
+            scope.begin = b;
+            scope.end = e;
             return true;
         }
 
@@ -471,23 +479,36 @@ namespace {
             }
         }
 
-        void getLoopScope(Loop * L)
+        bool getLoopScope(Scope & scope, Loop * L)
         {
             BasicBlock * header= L->getHeader();
-            Scope scope;
-            getBlockScope(scope, header);
-            errs() << scope << "\n";
+            if (getBlockScope(scope, header)) {
+                BasicBlock *back  = L->getBlocks().back();
+                Scope es;
+                if (getBlockScope(es, back)) {
+                    // errs() << scope << "--" << es << "\n";
+                    // use the last instruction of the last BB to approximate ending scope
+                    scope.end = es.end; 
+                    return true;
+                }
+            }
+            return false;
         }
 
         void processLoops(Function *F)
         {
             LoopInfo &li = getAnalysis<LoopInfo>(*F);
+            Scope scope;
             for (LoopInfo::iterator LII = li.begin(),  LIE = li.end(); LII != LIE; LII++) {
                 // dump loops including all subloops
                 // (*LII)->dump();
-                getLoopScope(*LII); //Top level loops
+                if (getLoopScope(scope, *LII)) { //Top level loops
+                    errs() << scope << "\n";
+                }
                 for (Loop::iterator LIBI = (*LII)->begin(), LIBE = (*LII)->end(); LIBI != LIBE; LIBI++) {
-                    getLoopScope(*LIBI); //Sub loops
+                    if (getLoopScope(scope, *LIBI)) { //Sub loops
+                        errs() << scope << "\n";
+                    }
                 }
             }
         }
