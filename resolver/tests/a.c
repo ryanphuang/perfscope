@@ -35,5 +35,5 @@ int bar()
 
 int main()
 {
-    bar(foo());
+    foo(bar());
 }
