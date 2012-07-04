@@ -25,6 +25,7 @@
 #include "llvm/Module.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/CFG.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Constants.h"
 #include "llvm/Instruction.h"
 #include "llvm/InstrTypes.h"
@@ -63,7 +64,15 @@ namespace {
             end(e), filename(f), directory(d) {}
         Scope(const Scope &another) : begin(another.begin), end(another.end), 
             filename(another.filename), directory(another.directory) {}
+
     } Scope;
+
+    //TODO: add filename and directory in the print info
+    raw_ostream & operator<<(raw_ostream& os, const Scope & scope)
+    {
+        os << "[#" << scope.begin << ",#" << scope.end <<"]";
+        return os;
+    }
 
     typedef struct MetadataElement {
         unsigned key;
@@ -247,7 +256,7 @@ namespace {
             DebugInfoFinder::iterator I = NULL;
             while ((f = matchFunction(I, scope)) != NULL ) {
                 s++;
-                errs() << "scope #" << s << ": " << f->getName() << " |=> [" << scope.begin << "," << scope.end << "], ";
+                errs() << "scope #" << s << ": " << f->getName() << " |=> " << scope << ", ";
             }
             if (s == 0) {
                 errs() << "insignificant scope";
@@ -368,7 +377,7 @@ namespace {
                     errs() << "[" << pair.second << "] " << BB->getName();
                     Scope scope;
                     if (getBlockScope(scope, BB)) {
-                        errs() << ": (" << scope.begin << "," << scope.end << ")" << "\n";
+                        errs() << ": " << scope << "\n";
                     }
                     for (BBNode::iterator BI = Node->begin(), BE = Node->end(); BI != BE; BI++) {
                         BBNode * N = *BI;
@@ -394,7 +403,7 @@ namespace {
                     errs() << "[" << pair.second << "] " << BB->getName();
                     Scope scope;
                     if (getBlockScope(scope, BB)) {
-                        errs() << ": (" << scope.begin << "," << scope.end << ")" << "\n";
+                        errs() << ": " << scope << "\n";
                     }
                     for (succ_iterator SI = succ_begin(pair.first), SE = succ_end(pair.first); SI != SE; SI++) {
                         BB = *SI;
@@ -467,6 +476,10 @@ namespace {
             LoopInfo &li = getAnalysis<LoopInfo>(*F);
             for (LoopInfo::iterator LII = li.begin(),  LIE = li.end(); LII != LIE; LII++) {
                 (*LII)->dump();
+                BasicBlock * header= (*LII)->getHeader();
+                Scope scope;
+                getBlockScope(scope, header);
+                errs() << scope << "\n";
             }
         }
 
