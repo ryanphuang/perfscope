@@ -23,9 +23,10 @@
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Metadata.h"
 #include "llvm/Module.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/CFG.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Constants.h"
 #include "llvm/Instruction.h"
 #include "llvm/InstrTypes.h"
@@ -34,6 +35,11 @@
 #include <deque>
 
 using namespace llvm;
+
+
+static cl::opt<std::string>  ClScopeListFile("md-scopelist",
+       cl::desc("File containing the list of scopes to analyzed"
+                ), cl::Hidden);
 
 namespace {
     
@@ -544,6 +550,7 @@ namespace {
             //Finder.processModule(M);
             //processSubprograms(M);
 
+            errs() << ClScopeListFile << "\n";
             for (Module::iterator I = M.begin(), E = M.end(); I != E; I++) {
                 if (skipFunction(I))
                     continue;
