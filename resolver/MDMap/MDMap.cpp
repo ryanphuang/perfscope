@@ -19,6 +19,7 @@
 #include "llvm/ADT/Statistic.h"
 
 #include "llvm/Analysis/DebugInfo.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Metadata.h"
 #include "llvm/Module.h"
@@ -53,8 +54,15 @@ namespace {
     typedef struct Scope {
         unsigned long begin;
         unsigned long end;
+        StringRef filename;
+        StringRef directory;
+        
+        Scope() : begin(0), end(0) {}
         Scope(unsigned long b, unsigned long e) : begin(b), end(e) {}
-        Scope(const Scope &another) : begin(another.begin), end(another.end) {}
+        Scope(unsigned long b, unsigned long e, StringRef f, StringRef d) : begin(b), 
+            end(e), filename(f), directory(d) {}
+        Scope(const Scope &another) : begin(another.begin), end(another.end), 
+            filename(another.filename), directory(another.directory) {}
     } Scope;
 
     typedef struct MetadataElement {
@@ -310,103 +318,183 @@ namespace {
             testMatching(40, 45); 
         }
 
+        bool skipFunction(Function *F)
+        {
+            // Skip intrinsic functions and function declaration because DT only 
+            // works with function definition.
+            if (F == NULL || F->getName().startswith("llvm.dbg") || 
+                    F->isDeclaration()) 
+                return true;
+            return false;
+        }
+
+        bool getBlockScope(Scope & scope, BasicBlock *B)
+        {
+            /** Use first and last instruction to get the scope information **/
+            Instruction *first = & B->front();
+            Instruction *last = & B->back();
+            if (first == NULL || last == NULL) {
+                errs() << "NULL scope instructions " << "\n";
+                return false;
+            }
+            DebugLoc Loc1 = first->getDebugLoc();
+            DebugLoc Loc2 = last->getDebugLoc();
+            if (Loc1.isUnknown() || Loc2.isUnknown()) {
+                errs() << "Unknown LOC information" << "\n";
+                return false;
+            }
+            //errs() << "Block :" << Loc1.getLine() << ", " << Loc2.getLine() << "\n";
+            scope.begin = Loc1.getLine();
+            scope.end = Loc2.getLine();
+            return true;
+        }
+
+        void processDomTree(Function *F)
+        {
+            /** Getting Dominator Tree **/
+            DominatorTree & DT = getAnalysis<DominatorTree>(*F);
+            DT.print(errs()); // DFS print
+
+            /** BFS Traversal  **/
+            BBNode *Node = DT.getRootNode();
+            std::deque< Pair<BBNode *, unsigned> > ques;
+            ques.push_back(Pair<BBNode *, unsigned>(Node, 1));
+            while (!ques.empty()) {
+                Pair<BBNode *, unsigned> pair = ques.front();
+                Node = pair.first;
+                ques.pop_front();
+                if (Node) {
+                    BasicBlock * BB = Node->getBlock();
+                    errs() << "[" << pair.second << "] " << BB->getName();
+                    Scope scope;
+                    if (getBlockScope(scope, BB)) {
+                        errs() << ": (" << scope.begin << "," << scope.end << ")" << "\n";
+                    }
+                    for (BBNode::iterator BI = Node->begin(), BE = Node->end(); BI != BE; BI++) {
+                        BBNode * N = *BI;
+                        ques.push_back(Pair<BBNode *, unsigned>(N, pair.second + 1));
+                    }
+                }
+            }
+        }
+
+        void preTraversal(Function *F)
+        {
+            std::deque< Pair<Function::iterator, unsigned> > ques;
+            BasicBlock *BB = F->begin();
+            SmallPtrSet<const BasicBlock *, 8> Visited;
+            Visited.insert(BB);
+            ques.push_back(Pair<Function::iterator, unsigned>(BB, 1));
+            /** BFS traversal **/
+            while(!ques.empty()) {
+                Pair<Function::iterator, unsigned> pair = ques.front();
+                BB = pair.first;
+                ques.pop_front();
+                if (BB) {
+                    errs() << "[" << pair.second << "] " << BB->getName();
+                    Scope scope;
+                    if (getBlockScope(scope, BB)) {
+                        errs() << ": (" << scope.begin << "," << scope.end << ")" << "\n";
+                    }
+                    for (succ_iterator SI = succ_begin(pair.first), SE = succ_end(pair.first); SI != SE; SI++) {
+                        BB = *SI;
+                        if (!Visited.count(BB)) {
+                            ques.push_back(Pair<Function::iterator, unsigned>(BB, pair.second + 1));
+                            Visited.insert(BB);
+                        }
+                    }
+                }
+            }
+        }
+
+        void succTraversal(Function *F)
+        {
+            for (Function::iterator FI = F->begin(), FE = F->end(); FI != FE; FI++) {
+                /** Traverse the successors **/
+                errs() << FI->getName() << "\n";
+                for (succ_iterator SI = succ_begin(FI), SE = succ_end(FI); SI != SE; SI++) {
+                    errs() << "\t" << (*SI)->getName() << "\n";
+                }
+            }
+        }
+
+        void processInst(Function *F)
+        {
+            for (Function::iterator FI = F->begin(), FE = F->end(); FI != FE; FI++) {
+                /** Get each instruction's scope information **/
+                for (BasicBlock::iterator BI = FI->begin(), BE = FI->end(); BI != BE; BI++) {
+                    DebugLoc Loc = BI->getDebugLoc();
+                    if (Loc.isUnknown())
+                        continue;
+                    LLVMContext & Ctx = BI->getContext();
+
+                    DIDescriptor Scope(Loc.getScope(Ctx));
+                    if (Scope.isLexicalBlock()) {
+                        DILexicalBlock DILB(Scope);
+                        errs() << "Block :" << DILB.getLineNumber() << ", " << DILB.getColumnNumber() << "\n";
+                    }
+                }
+            }
+        }
+
+        void processBasicBlock(Function *F)
+        {
+            for (Function::iterator FI = F->begin(), FE = F->end(); FI != FE; FI++) {
+                /** Use first and last instruction to get the scope information **/
+                Instruction *first = & FI->front();
+                Instruction *last = & FI->back();
+                if (first == NULL || last == NULL) {
+                    errs() << "NULL scope instructions " << "\n";
+                    continue;
+                }
+                DebugLoc Loc = first->getDebugLoc();
+                if (Loc.isUnknown()) {
+                    errs() << "Unknown LOC information" << "\n";
+                    continue;
+                }
+                errs() << "Block :" << Loc.getLine();
+                Loc = last->getDebugLoc();
+                if (Loc.isUnknown()) {
+                    errs() << "Unknown LOC information" << "\n";
+                    continue;
+                }
+                errs() << ", " << Loc.getLine() << "\n";
+            }
+        }
+
+        void processLoops(Function *F)
+        {
+            LoopInfo &li = getAnalysis<LoopInfo>(*F);
+            for (LoopInfo::iterator LII = li.begin(),  LIE = li.end(); LII != LIE; LII++) {
+                (*LII)->dump();
+            }
+        }
+
         virtual bool runOnModule(Module &M) 
         {
             //Finder.processModule(M);
-            processSubprograms(M);
+            //processSubprograms(M);
 
-            /**
             for (Module::iterator I = M.begin(), E = M.end(); I != E; I++) {
-                if (I->getName().startswith("llvm.dbg")) { // Skip intrinsic functions
+                if (skipFunction(I))
                     continue;
-                }
                 errs() << "Function: " << I->getName() << "\n";
-            **/
-
-                /** Getting Dominator Tree **/
-                /**
-                if (!I->isDeclaration()) { // Dominator Tree only works with function definition, not declaration.
-                  DominatorTree & DT = getAnalysis<DominatorTree>(*I);
-                  //DT.print(errs()); // DFS print
-
-                **/
-
-                  /** BFS Traversal  **/
-                  /**
-                  BBNode *Node = DT.getRootNode();
-                  std::deque< Pair<BBNode *, unsigned> > ques;
-                  ques.push_back(Pair<BBNode *, unsigned>(Node, 1));
-                  while (!ques.empty()) {
-                      Pair<BBNode *, unsigned> pair = ques.front();
-                      Node = pair.first;
-                      ques.pop_front();
-                      if (Node) {
-                          BasicBlock * BB = Node->getBlock();
-                          errs() << "[" << pair.second << "] " << BB->getName() << "\n";
-                          for (BBNode::iterator I = Node->begin(), E = Node->end(); I != E; I++) {
-                            BBNode * N = *I;
-                            ques.push_back(Pair<BBNode *, unsigned>(N, pair.second + 1));
-                          }
-                      }
-                  }
+                processLoops(I);
+                //succTraversal(I);
+                //processInst(I);
+                if (I->getName().equals("_ZL23test_if_skip_sort_orderP13st_join_tableP8st_ordermb")) {
+                    //processBasicBlock(I);
+                    //processDomTree(I);
+                    //preTraversal(I);
                 }
-                **/
-               
-                //for (Function::iterator FI = I->begin(), FE = I->end(); FI != FE; FI++) {
-                    
-                    /** Traverse the successors
-                    errs() << FI->getName() << "\n";
-                    for (succ_iterator SI = succ_begin(FI), SE = succ_end(FI); SI != SE; SI++) {
-                        errs() << "\t" << (*SI)->getName() << "\n";
-                    }
-                    **/
-
-
-                    /** Use first and last instruction to get the scope information
-                    Instruction *first = FI->getFirstNonPHI();
-                    Instruction *last = FI->getTerminator();
-                    if (first == NULL || last == NULL) {
-                        errs() << "NULL scope instructions " << "\n";
-                        continue;
-                    }
-                    DebugLoc Loc = first->getDebugLoc();
-                    if (Loc.isUnknown()) {
-                        errs() << "Unknown LOC information" << "\n";
-                        continue;
-                    }
-                    errs() << "Block :" << Loc.getLine();
-                    Loc = last->getDebugLoc();
-                    if (Loc.isUnknown()) {
-                        errs() << "Unknown LOC information" << "\n";
-                        continue;
-                    }
-                    errs() << ", " << Loc.getLine() << "\n";
-                    **/
-                    
-                    /** Get each instruction's scope information
-                    for (BasicBlock::iterator BI = FI->begin(), BE = FI->end(); BI != BE; BI++) {
-                        DebugLoc Loc = BI->getDebugLoc();
-                        if (Loc.isUnknown())
-                            continue;
-                        LLVMContext & Ctx = BI->getContext();
-
-                        DIDescriptor Scope(Loc.getScope(Ctx));
-                        if (Scope.isLexicalBlock()) {
-                           DILexicalBlock DILB(Scope);
-                           errs() << "Block :" << DILB.getLineNumber() << ", " << DILB.getColumnNumber() << "\n";
-                        }
-                    }
-                    **/
-                //}
-            //}
-
-
+            }
             return false;
         }
 
         virtual void getAnalysisUsage(AnalysisUsage &AU) const {
             AU.setPreservesAll();
             AU.addRequired<DominatorTree>();
+            AU.addRequired<LoopInfo>();
         }
     };
 

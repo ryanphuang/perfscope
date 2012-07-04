@@ -3,12 +3,19 @@ static int id = 2;
 
 int foo(int c)
 {
+
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 5; j++) {
+            c += i;
+            c *= j;
+        }
+    }
     c++;
-    if (c > 10) 
-{
+    if (c > 10) {
         c *= c;
+        c++;
         return c;
-}
+    }
     else {
         id++;
         if (id > 10) {
