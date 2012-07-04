@@ -37,6 +37,8 @@ using namespace llvm;
 
 namespace {
     
+    static bool DEBUG = false;
+
     typedef DomTreeNodeBase<BasicBlock> BBNode;
 
     template <class T1, class T2> struct Pair
@@ -341,7 +343,9 @@ namespace {
         {
             DebugLoc Loc = I->getDebugLoc();
             if (Loc.isUnknown()) {
-                errs() << "Unknown LOC" << "\n";
+                if (DEBUG) {
+                    errs() << "Unknown LOC" << "\n";
+                }
                 return 0;
             }
             return Loc.getLine();
@@ -483,14 +487,36 @@ namespace {
         {
             BasicBlock * header= L->getHeader();
             if (getBlockScope(scope, header)) {
+                /*
+                Wrong: use the last instruction of the last BB to approximate ending scope
+
+                The last BB in Loop may not be last based on location.
+               
                 BasicBlock *back  = L->getBlocks().back();
                 Scope es;
                 if (getBlockScope(es, back)) {
-                    // errs() << scope << "--" << es << "\n";
-                    // use the last instruction of the last BB to approximate ending scope
                     scope.end = es.end; 
                     return true;
                 }
+                */
+
+                /* The safe way: iterate all BBs and get the last inst. 
+                 * with largest line number.
+                 */
+                unsigned end = 0;
+                for (Loop::block_iterator LI = L->block_begin(), LE = L->block_end();
+                        LI != LE; LI++) {
+                    Scope es;
+                    if (getBlockScope(es, *LI)) {
+                        //errs() << es << "\n";
+                        if (es.end > end) {
+                            end = es.end;
+                        }
+                    }
+                }
+                scope.end = end;
+                return true;
+                
             }
             return false;
         }
@@ -521,15 +547,17 @@ namespace {
             for (Module::iterator I = M.begin(), E = M.end(); I != E; I++) {
                 if (skipFunction(I))
                     continue;
-                errs() << "Function: " << I->getName() << "\n";
-                processLoops(I);
+                //processLoops(I);
                 //succTraversal(I);
                 //processInst(I);
-                if (I->getName().equals("_ZL23test_if_skip_sort_orderP13st_join_tableP8st_ordermb")) {
+                errs() << "Function: " << I->getName() << "\n";
+                //if (I->getName().equals("_ZL23test_if_skip_sort_orderP13st_join_tableP8st_ordermb") || 
+                //    I->getName().equals("_ZL23remove_dup_with_compareP3THDP8st_tablePP5FieldmP4Item")) {
                     //processBasicBlock(I);
                     //processDomTree(I);
                     //preTraversal(I);
-                }
+                    processLoops(I);
+                //}
             }
             return false;
         }
