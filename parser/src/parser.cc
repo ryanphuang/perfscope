@@ -48,6 +48,7 @@ PatchParser::PatchParser(const char * pname, const char *outname = NULL, enum di
     outstate.ofp = NULL;
     reverse_flag_specified = false;
     snap = false;
+    patchprinted = false;
 }
 
 PatchParser::~PatchParser()
@@ -484,8 +485,13 @@ skipreason PatchParser::gobble()
                         skip_rest_of_patch = true;
                     }
                     else {
-                            if (!skip_rest_of_patch)
-                                printf("====\n%s|%s\n", inname, patchname);
+                            if (!skip_rest_of_patch) {
+                                if (!patchprinted) {
+                                    printf("****\n%s\n", patchname);
+                                    patchprinted = true;
+                                }
+                                printf("====\n%s\n", inname);
+                            }
                     }
             } 
             if (!skip_rest_of_patch) {

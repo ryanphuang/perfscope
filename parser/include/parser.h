@@ -223,7 +223,7 @@ protected:
     bool reverse;
     /* true if -R was specified on command line.  */
     bool reverse_flag_specified;
-
+    bool patchprinted;
 
     char *i_buffer;			/* plan A buffer */
     char const **i_ptr;		/* pointers to lines in plan A buffer */
