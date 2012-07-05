@@ -1,0 +1,32 @@
+Intro
+=====
+This is the parser part of PerfScope. It's in charge of parsing the raw patch file and output another unified
+format to feed into mapper. Note that, although parser's main job is translating the diff, it should also
+do validation and some pre-filtering(skip non-source modifications).
+
+
+Output Format
+============
+The current output format is:
+    <output> ::= "****"<FILENAME>"\n"<body>
+
+    <body> ::= <unit> | <unit>"\n"<body> 
+    
+    <unit> ::= <file_section>"\n"<hunk_sections>
+
+    <file_section> ::= "===="<FILENAME>
+
+    <hunk_sections> ::= <hunk_section> | <hunk_section>"\n"<hunk_sections>
+
+    <hunk_section> ::= "####"<LINE>"\n"<control_seq>
+    
+    <control_seq> ::= "-"<control_seq> | "+"<control_seq> | "~"<control_seq> | ""
+
+Example:
+    ****1024.diff
+    ====sql/sql_select.cc
+    ####123
+    ~~~-++++~~~---
+    ####477
+    ~--~~++~~---
+
