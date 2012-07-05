@@ -111,6 +111,41 @@ namespace {
             return SP.getLineNumber() < another.SP.getLineNumber();
         }
     };
+
+    enum MODTYPE {ADD, DEL, CHG};
+
+    typedef struct Mod {
+        Scope scope;
+        MODTYPE type;
+    } Mod; 
+
+    class Hunk {
+        public:
+            std::string control_seq;
+            unsigned start_line;
+            typedef SmallVector<Mod *, 8>::const_iterator iterator;
+
+        protected:
+            SmallVector<Mod *, 8> modifications;
+    };
+
+    class Patch {
+        public:
+            std::string filename;
+            typedef SmallVector<Hunk*, 8>::const_iterator iterator;
+
+        protected:
+            SmallVector<Hunk *, 8> hunks;
+    };
+
+    class Parser{
+        public:
+            std::string inputname;
+            typedef SmallVector<Patch *, 8>::const_iterator iterator;
+
+        protected:
+            SmallVector<Patch *, 8> patches;
+    };
     
     bool DISCmp(const DISubprogram & SP1, const DISubprogram & SP2) 
     { 
