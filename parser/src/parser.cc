@@ -17,13 +17,15 @@ static FILE * create_output_file (char const *, int, mode_t);
 
 PatchParser::PatchParser(const char * pname, const char *outname = NULL, enum difftype type = NO_DIFF ) :
     diff_type(type), hunkmax(INITHUNKMAX), p_efake(-1), p_bfake(-1), 
-    p_end(-1), bufsize(8 * KB), skip_rest_of_patch(false), strippath(-1), tifd(-1)
+    p_end(-1), bufsize(8 * KB), skip_rest_of_patch(false), strippath(0), tifd(-1)
 {
     patchname = dupstr(pname);
     outfile = dupstr(outname);
     inname = NULL;
+    fullinname = NULL;
     pfp = NULL;
     p_Char = NULL;
+    p_CtrlChar = NULL;
     p_len = NULL;
     p_line = NULL;
     p_c_function = NULL;
@@ -31,7 +33,6 @@ PatchParser::PatchParser(const char * pname, const char *outname = NULL, enum di
     i_ptr = NULL;
     init_array(p_name, 3);
     init_array(p_timestr, 2);
-    
     buf = (char *) xmalloc(bufsize);
 
     tiline[0] = -1;
@@ -40,9 +41,13 @@ PatchParser::PatchParser(const char * pname, const char *outname = NULL, enum di
     tibuf[0] = NULL;
     tibuf[1] = NULL;
 
-    tmpoutname = make_temp ('o');
-    tmpinname = make_temp ('i');
+    //tmpoutname = make_temp ('o');
+    //tmpinname = make_temp ('i');
     tmppatname = make_temp ('p');
+
+    outstate.ofp = NULL;
+    reverse_flag_specified = false;
+    snap = false;
 }
 
 PatchParser::~PatchParser()
@@ -54,6 +59,7 @@ PatchParser::~PatchParser()
 
 void PatchParser::re_patch()
 {
+    snap = false;
     p_first = 0;
     p_newfirst = 0;
     p_ptrn_lines = 0;
@@ -66,8 +72,8 @@ void PatchParser::re_patch()
 
 void PatchParser::cleanup()
 {
-    unlink(tmpinname);
-    unlink(tmpoutname);
+    //unlink(tmpinname);
+    //unlink(tmpoutname);
     unlink(tmppatname);
 }
 
@@ -92,71 +98,6 @@ size_t PatchParser::pch_line_len (LINENUM line)
     return p_len[line];
 }
 
-void PatchParser::pch_normalize (enum difftype format)
-{
-    LINENUM old = 1;
-    LINENUM newl = p_ptrn_lines + 1;
-
-    while (p_Char[newl] == '=' || p_Char[newl] == '\n')
-        newl++;
-
-    if (format == UNI_DIFF)
-    {
-        /* Convert '!' markers into '-' and '+' as defined by the Unified
-           Format.  */
-
-        for (; old <= p_ptrn_lines; old++)
-            if (p_Char[old] == '!')
-                p_Char[old] = '-';
-        for (; newl <= p_end; newl++)
-            if (p_Char[newl] == '!')
-                p_Char[newl] = '+';
-    }
-    else
-    {
-        /* Convert '-' and '+' markers which are part of a group into '!' as
-           defined by the Context Format.  */
-
-        while (old <= p_ptrn_lines)
-        {
-            if (p_Char[old] == '-')
-            {
-                if (newl <= p_end && p_Char[newl] == '+')
-                {
-                    do
-                    {
-                        p_Char[old] = '!';
-                        old++;
-                    }
-                    while (old <= p_ptrn_lines && p_Char[old] == '-');
-                    do
-                    {
-                        p_Char[newl] = '!';
-                        newl++;
-                    }
-                    while (newl <= p_end && p_Char[newl] == '+');
-                }
-                else
-                {
-                    do
-                        old++;
-                    while (old <= p_ptrn_lines && p_Char[old] == '-');
-                }
-            }
-            else if (newl <= p_end && p_Char[newl] == '+')
-            {
-                do
-                    newl++;
-                while (newl <= p_end && p_Char[newl] == '+');
-            }
-            else
-            {
-                old++;
-                newl++;
-            }
-        }
-    }
-}
 
 /* Return the control character (+, -, *, !, etc) for a patch line.  A '\n'
    indicates an empty line in a hunk.  (The empty line is not part of the
@@ -314,51 +255,8 @@ bool PatchParser::maybe_reverse (char const *name, bool nonexistent, bool empty)
 
 bool PatchParser::ok_to_reverse(char const *format, ...)
 {
+    //fprintf(stderr, "ok to reverse!\n");
     return false;
-//    fprintf(stderr, "ok to reverse!\n");
-//    return false;
-//    bool r = false;
-//
-//    if (noreverse || ! (force && verbosity == SILENT))
-//    {
-//        va_list args;
-//        va_start (args, format);
-//        vsay (format, args);
-//        va_end (args);
-//    }
-//
-//    if (noreverse)
-//    {
-//        say ("  Skipping patch.\n");
-//        skip_rest_of_patch = true;
-//    }
-//    else if (force)
-//    {
-//        if (verbosity != SILENT)
-//            say ("  Applying it anyway.\n");
-//    }
-//    else if (batch)
-//    {
-//        say (reverse ? "  Ignoring -R.\n" : "  Assuming -R.\n");
-//        r = true;
-//    }
-//    else
-//    {
-//        ask (reverse ? "  Ignore -R? [n] " : "  Assume -R? [n] ");
-//        r = *buf == 'y';
-//        if (! r)
-//        {
-//            ask ("Apply anyway? [n] ");
-//            if (*buf != 'y')
-//            {
-//                if (verbosity != SILENT)
-//                    say ("Skipping patch.\n");
-//                skip_rest_of_patch = true;
-//            }
-//        }
-//    }
-//
-//    return r;
 }
 
 /* Make sure our dynamically realloced tables are malloced to begin with. */
@@ -370,6 +268,8 @@ void PatchParser::set_hunkmax (void)
         p_len = (size_t *) malloc (hunkmax * sizeof *p_len);
     if (!p_Char)
         p_Char = (char *) malloc (hunkmax * sizeof *p_Char);
+    if (!p_CtrlChar)
+        p_CtrlChar = (char *) malloc (hunkmax * sizeof *p_CtrlChar);
 }
 
 void PatchParser::open_patch_file()
@@ -443,94 +343,6 @@ char * PatchParser::format_linenum (char numbuf[LINENUM_LENGTH_BOUND + 1], LINEN
     return p;
 }
 
-/* Attempt to find the right place to apply this hunk of patch. */
-LINENUM PatchParser::locate_hunk (LINENUM fuzz)
-{
-    LINENUM first_guess = p_first + in_offset;
-    LINENUM offset;
-    LINENUM pat_lines = p_ptrn_lines;
-    LINENUM prefix_context = p_prefix_context;
-    LINENUM suffix_context = p_suffix_context;
-    LINENUM context = (prefix_context < suffix_context
-            ? suffix_context : prefix_context);
-    LINENUM prefix_fuzz = fuzz + prefix_context - context;
-    LINENUM suffix_fuzz = fuzz + suffix_context - context;
-    LINENUM max_where = input_lines - (pat_lines - suffix_fuzz) + 1;
-    LINENUM min_where = last_frozen_line + 1 - (prefix_context - prefix_fuzz);
-    LINENUM max_pos_offset = max_where - first_guess;
-    LINENUM max_neg_offset = first_guess - min_where;
-    LINENUM max_offset = (max_pos_offset < max_neg_offset
-            ? max_neg_offset : max_pos_offset);
-
-    if (!pat_lines)			/* null range matches always */
-        return first_guess;
-
-    /* Do not try lines <= 0.  */
-    if (first_guess <= max_neg_offset)
-        max_neg_offset = first_guess - 1;
-
-    if (prefix_fuzz < 0 && p_first <= 1)
-    {
-        /* Can only match start of file.  */
-
-        if (suffix_fuzz < 0)
-            /* Can only match entire file.  */
-            if (pat_lines != input_lines || prefix_context < last_frozen_line)
-                return 0;
-
-        offset = 1 - first_guess;
-        if (last_frozen_line <= prefix_context
-                && offset <= max_pos_offset
-                && patch_match (first_guess, offset, (LINENUM) 0, suffix_fuzz))
-        {
-            in_offset += offset;
-            return first_guess + offset;
-        }
-        else
-            return 0;
-    }
-    else if (prefix_fuzz < 0)
-        prefix_fuzz = 0;
-
-    if (suffix_fuzz < 0)
-    {
-        /* Can only match end of file.  */
-        offset = first_guess - (input_lines - pat_lines + 1);
-        if (offset <= max_neg_offset
-                && patch_match (first_guess, -offset, prefix_fuzz, (LINENUM) 0))
-        {
-            in_offset -= offset;
-            return first_guess - offset;
-        }
-        else
-            return 0;
-    }
-
-    for (offset = 0;  offset <= max_offset;  offset++) {
-        char numbuf0[LINENUM_LENGTH_BOUND + 1];
-        char numbuf1[LINENUM_LENGTH_BOUND + 1];
-        if (offset <= max_pos_offset
-                && patch_match (first_guess, offset, prefix_fuzz, suffix_fuzz)) {
-            if (debug & 1)
-                say ("Offset changing from %s to %s\n",
-                        format_linenum (numbuf0, in_offset),
-                        format_linenum (numbuf1, in_offset + offset));
-            in_offset += offset;
-            return first_guess+offset;
-        }
-        if (0 < offset && offset <= max_neg_offset
-                && patch_match (first_guess, -offset, prefix_fuzz, suffix_fuzz)) {
-            if (debug & 1)
-                say ("Offset changing from %s to %s\n",
-                        format_linenum (numbuf0, in_offset),
-                        format_linenum (numbuf1, in_offset - offset));
-            in_offset -= offset;
-            return first_guess-offset;
-        }
-    }
-    return 0;
-}
-
 void PatchParser::mangled_patch (LINENUM old, LINENUM newl)
 {
     char numbuf0[LINENUM_LENGTH_BOUND + 1];
@@ -576,152 +388,6 @@ bool PatchParser::copy_till (struct outstate *outstate, LINENUM lastline)
 /* We found where to apply it (we hope), so do it. */
 bool PatchParser::apply_hunk (struct outstate *outstate, LINENUM where)
 {
-    LINENUM old = 1;
-    LINENUM lastline = p_ptrn_lines;
-    LINENUM newline = lastline+1;
-    enum {OUTSIDE, IN_IFNDEF, IN_IFDEF, IN_ELSE} def_state = OUTSIDE;
-    //char const *R_do_defines = do_defines;
-    char const *R_do_defines = NULL;
-    LINENUM pat_end = p_end;
-    FILE *fp = outstate->ofp;
-
-    where--;
-    while (pch_char(newline) == '=' || pch_char(newline) == '\n')
-        newline++;
-
-    while (old <= lastline) {
-        if (pch_char(old) == '-') {
-            assert (outstate->after_newline);
-            if (! copy_till (outstate, where + old - 1))
-                return false;
-            if (R_do_defines) {
-                if (def_state == OUTSIDE) {
-                    fprintf (fp, outstate->after_newline + not_defined,
-                            R_do_defines);
-                    def_state = IN_IFNDEF;
-                }
-                else if (def_state == IN_IFDEF) {
-                    fputs (outstate->after_newline + else_defined, fp);
-                    def_state = IN_ELSE;
-                }
-                if (ferror (fp))
-                    write_fatal ();
-                outstate->after_newline = pch_write_line (old, fp);
-                outstate->zero_output = false;
-            }
-            last_frozen_line++;
-            old++;
-        }
-        else if (newline > pat_end) {
-            break;
-        }
-        else if (pch_char(newline) == '+') {
-            if (! copy_till (outstate, where + old - 1))
-                return false;
-            if (R_do_defines) {
-                if (def_state == IN_IFNDEF) {
-                    fputs (outstate->after_newline + else_defined, fp);
-                    def_state = IN_ELSE;
-                }
-                else if (def_state == OUTSIDE) {
-                    fprintf (fp, outstate->after_newline + if_defined,
-                            R_do_defines);
-                    def_state = IN_IFDEF;
-                }
-                if (ferror (fp))
-                    write_fatal ();
-            }
-            outstate->after_newline = pch_write_line (newline, fp);
-            outstate->zero_output = false;
-            newline++;
-        }
-        else if (pch_char(newline) != pch_char(old))
-            mangled_patch (old, newline);
-        else if (pch_char(newline) == '!') {
-            assert (outstate->after_newline);
-            if (! copy_till (outstate, where + old - 1))
-                return false;
-            assert (outstate->after_newline);
-            if (R_do_defines) {
-                fprintf (fp, 1 + not_defined, R_do_defines);
-                if (ferror (fp))
-                    write_fatal ();
-                def_state = IN_IFNDEF;
-            }
-
-            do
-            {
-                if (R_do_defines) {
-                    outstate->after_newline = pch_write_line (old, fp);
-                }
-                last_frozen_line++;
-                old++;
-            }
-            while (pch_char (old) == '!');
-
-            if (R_do_defines) {
-                fputs (outstate->after_newline + else_defined, fp);
-                if (ferror (fp))
-                    write_fatal ();
-                def_state = IN_ELSE;
-            }
-
-            do
-            {
-                outstate->after_newline = pch_write_line (newline, fp);
-                newline++;
-            }
-            while (pch_char (newline) == '!');
-            outstate->zero_output = false;
-        }
-        else {
-            assert(pch_char(newline) == ' ');
-            old++;
-            newline++;
-            if (R_do_defines && def_state != OUTSIDE) {
-                fputs (outstate->after_newline + end_defined, fp);
-                if (ferror (fp))
-                    write_fatal ();
-                outstate->after_newline = true;
-                def_state = OUTSIDE;
-            }
-        }
-    }
-    if (newline <= pat_end && pch_char(newline) == '+') {
-        if (! copy_till (outstate, where + old - 1))
-            return false;
-        if (R_do_defines) {
-            if (def_state == OUTSIDE) {
-                fprintf (fp, outstate->after_newline + if_defined,
-                        R_do_defines);
-                def_state = IN_IFDEF;
-            }
-            else if (def_state == IN_IFNDEF) {
-                fputs (outstate->after_newline + else_defined, fp);
-                def_state = IN_ELSE;
-            }
-            if (ferror (fp))
-                write_fatal ();
-            outstate->zero_output = false;
-        }
-
-        do
-        {
-            if (! outstate->after_newline  &&  putc ('\n', fp) == EOF)
-                write_fatal ();
-            outstate->after_newline = pch_write_line (newline, fp);
-            outstate->zero_output = false;
-            newline++;
-        }
-        while (newline <= pat_end && pch_char (newline) == '+');
-    }
-    if (R_do_defines && def_state != OUTSIDE) {
-        fputs (outstate->after_newline + end_defined, fp);
-        if (ferror (fp))
-            write_fatal ();
-        outstate->after_newline = true;
-    }
-    out_offset += p_repl_lines - p_ptrn_lines;
     return true;
 }
 
@@ -761,77 +427,6 @@ void PatchParser::abort_hunk (bool header, bool reverse)
         print_header_line (stdout, "---", reverse);
         print_header_line (stdout, "+++", ! reverse);
     }
-
-    /* Add out_offset to guess the same as the previous successful hunk.  */
-    //LINENUM old = 1;
-    //LINENUM lastline = p_ptrn_lines;
-    //LINENUM newl = lastline + 1;
-
-    //fprintf (fp, "@@ -");
-    //print_unidiff_range (fp, p_first + out_offset, lastline);
-    //fprintf (fp, " +");
-    //print_unidiff_range (fp, p_newfirst + out_offset, p_repl_lines);
-    //fprintf (fp, " @@\n");
-
-    //while (pch_char (newl) == '=' || pch_char (newl) == '\n')
-    //    newl++;
-
-    //if (diff_type != UNI_DIFF)
-    //    pch_normalize (UNI_DIFF);
-
-    //for (; ; old++, newl++)
-    //{
-    //    for (;  pch_char (old) == '-';  old++)
-    //    {
-    //        fputc ('-', fp);
-    //        pch_write_line (old, fp);
-    //    }
-    //    for (;  pch_char (newl) == '+';  newl++)
-    //    {
-    //        fputc ('+', fp);
-    //        pch_write_line (newl, fp);
-    //    }
-
-    //    if (old > lastline)
-    //        break;
-
-    //    if (pch_char (newl) != pch_char (old))
-    //        mangled_patch (old, newl);
-
-    //    fputc (' ', fp);
-    //    pch_write_line (old, fp);
-    //}
-    //if (pch_char (newl) != '^')
-    //    mangled_patch (old, newl);
-}
-
-/* Finish copying the input file to the output file. */
-
-bool PatchParser::spew_output (struct outstate *outstate, struct stat *st)
-{
-    if (debug & 1)
-    {
-        char numbuf0[LINENUM_LENGTH_BOUND + 1];
-        char numbuf1[LINENUM_LENGTH_BOUND + 1];
-        say ("il=%s lfl=%s\n",
-                format_linenum (numbuf0, input_lines),
-                format_linenum (numbuf1, last_frozen_line));
-    }
-
-    if (last_frozen_line < input_lines)
-        if (! copy_till (outstate, input_lines))
-            return false;
-
-    if (outstate->ofp && ! outfile)
-    {
-        if (fflush (outstate->ofp) != 0
-                || fstat (fileno (outstate->ofp), st) != 0
-                || fclose (outstate->ofp) != 0)
-            write_fatal ();
-        outstate->ofp = 0;
-    }
-
-    return true;
 }
 
 /* analyze each patch in patch file */
@@ -839,15 +434,11 @@ skipreason PatchParser::gobble()
 {
     
     int hunk = 0;
-    int failed = 0;
-    bool mismatch = false;
     char *outname = NULL;
     enum skipreason reason = NO_REASON;
 
-    //currently disable the following features 
-    char *rejname = NULL;
-    bool merge = false;
-    
+    char numbuf[LINENUM_LENGTH_BOUND + 1];
+
     if (!issource(inname)) {
         DEBUG("skip non-source: %s\n", inname);
         reason = NON_SOURCE;
@@ -863,16 +454,10 @@ skipreason PatchParser::gobble()
         errgrace("ED type diff not supported\n");
     } else {
         int got_hunk;
-        bool apply_anyway = merge;  /* don't try to reverse when merging */
 
         /* initialize the patched file */
-        if (! skip_rest_of_patch && ! outfile)
+        if (!skip_rest_of_patch)
         {
-            if (!outfile) {
-                int exclusive = tmpoutname_needs_removal ? 0 : O_EXCL;
-                tmpoutname_needs_removal = 1;
-                init_output (tmpoutname, exclusive, &outstate);
-            }
             /* find out where all the lines are */
             scan_input (inname);
         }
@@ -881,253 +466,38 @@ skipreason PatchParser::gobble()
         /* might misfire and we can't catch it easily */
 
         /* apply each hunk of patch */
-        while (0 < (got_hunk = another_hunk (diff_type, reverse)))
+        while (0 < (got_hunk = another_hunk (diff_type)))
         {
             DEBUG("got a hunk\n");
-            LINENUM where = 0; /* Pacify `gcc -Wall'.  */
-            LINENUM newwhere;
-            LINENUM fuzz = 0;
-            LINENUM mymaxfuzz;
-
-            if (merge)
-            {
-                /* When in merge mode, don't apply with fuzz.  */
-                mymaxfuzz = 0;
-            }
-            else
-            {
-                LINENUM prefix_context = p_prefix_context;
-                LINENUM suffix_context = p_suffix_context;
-                LINENUM context = (prefix_context < suffix_context
-                        ? suffix_context : prefix_context);
-                mymaxfuzz = (MAXFUZZ < context ? MAXFUZZ : context);
-            }
-
+           
             hunk++;
             if (hunk == 1) {
                 if (p_first == 1 && p_ptrn_lines == 0) {
                     reason = NEW_FILE;
-                    printf("new file\n");
+                    DEBUG("new file\n");
                     skip_rest_of_patch = true;
                 }
                 else
                     if (p_newfirst == 1 && p_repl_lines == 0) {
                         reason = DEL_FILE;
-                        printf("delete file\n");
+                        DEBUG("delete file\n");
                         skip_rest_of_patch = true;
+                    }
+                    else {
+                            if (!skip_rest_of_patch)
+                                printf("====\n%s|%s\n", inname, patchname);
                     }
             } 
             if (!skip_rest_of_patch) {
-                do {
-                    where = locate_hunk(fuzz);
-                    if (! where || fuzz || in_offset)
-                        mismatch = true;
-                    if (hunk == 1 && ! where && ! (force | apply_anyway)
-                            && reverse == reverse_flag_specified) {
-                        /* dwim for reversed patch? */
-                        if (!pch_swap()) {
-                            say (
-                                    "Not enough memory to try swapped hunk!  Assuming unswapped.\n");
-                            continue;
-                        }
-                        /* Try again.  */
-                        where = locate_hunk (fuzz);
-                        if (where
-                                && (ok_to_reverse
-                                    ("%s patch detected!",
-                                     (reverse
-                                      ? "Unreversed"
-                                      : "Reversed (or previously applied)"))))
-                            reverse = ! reverse;
-                        else
-                        {
-                            /* Put it back to normal.  */
-                            if (! pch_swap ())
-                                errgrace("lost hunk on alloc error!");
-                            if (where)
-                            {
-                                apply_anyway = true;
-                                fuzz--; /* Undo `++fuzz' below.  */
-                                where = 0;
-                            }
-                        }
-                    }
-                } while (!skip_rest_of_patch && !where
-                        && ++fuzz <= mymaxfuzz);
-
-                if (skip_rest_of_patch) {		/* just got decided */
-                    if (outstate.ofp && ! outfile)
-                    {
-                        fclose (outstate.ofp);
-                        outstate.ofp = 0;
-                    }
-                }
+                if (p_nctrl > 0)
+                    printf("####%s\n%s\n", format_linenum(numbuf, p_first), p_CtrlChar);
             }
-
-            newwhere = (where ? where : p_first) + out_offset;
-            if (skip_rest_of_patch
-                    || (merge && ! merge_hunk (hunk, &outstate, where,
-                            &snap))
-                    || (! merge
-                        && ((where == 1 && pch_says_nonexistent (reverse) == 2
-                                && instat.st_size)
-                            || ! where
-                            || ! apply_hunk (&outstate, where))))
-            {
-                abort_hunk (! failed, reverse);
-                //abort_hunk (false, reverse);
-                failed++;
-                if (verbosity == VERBOSE ||
-                        (! skip_rest_of_patch && verbosity != SILENT))
-                    say ("Hunk #%d %s at %s.\n", hunk,
-                            skip_rest_of_patch ? "ignored" : "FAILED",
-                            format_linenum (linenumbuf, newwhere));
-            }
-            else if (! merge &&
-                    (verbosity == VERBOSE
-                     || (verbosity != SILENT && (fuzz || in_offset))))
-            {
-                say ("Hunk #%d succeeded at %s", hunk,
-                        format_linenum (linenumbuf, newwhere));
-                if (fuzz)
-                    say (" with fuzz %s", format_linenum (linenumbuf, fuzz));
-                if (in_offset)
-                    say (" (offset %s line%s)",
-                            format_linenum (linenumbuf, in_offset),
-                            "s" + (in_offset == 1));
-                say (".\n");
-            }
-        }
-
-        if (!skip_rest_of_patch)
-        {
-            if (got_hunk < 0  &&  using_plan_a)
-            {
-                if (outfile)
-                    errgrace("out of memory using Plan A");
-                say ("\n\nRan out of memory using Plan A -- trying again...\n\n");
-                if (outstate.ofp)
-                {
-                    fclose (outstate.ofp);
-                    outstate.ofp = 0;
-                }
-                //fclose (rejfp);
-                return reason;
-            }
-
-            /* Finish spewing out the new file.  */
-            if (! spew_output (&outstate, &outst))
-            {
-                say ("Skipping patch.\n");
-                skip_rest_of_patch = true;
-            }
+            // We shouldn't break here, just let the parser gobble the rest of the patch
+            // to move on to the next patch
         }
     }
 
-    /* and put the output where desired */
-    if (! skip_rest_of_patch && ! outfile) {
-        //bool backup = make_backups
-        //    || (backup_if_mismatch && (mismatch | failed));
-        bool backup = false;
-
-        if (outstate.zero_output
-                && ((pch_says_nonexistent (! reverse) == 2
-                        && ! posixly_correct)))
-        {
-            if (verbosity == VERBOSE)
-                say ("Removing file %s%s\n", quotearg (outname),
-                        dry_run ? " and any empty ancestor directories" : "");
-            if (! dry_run)
-            {
-                move_file (0, 0, 0, outname, 0, backup);
-                removedirs (outname);
-            }
-        }
-        else
-        {
-            if (! outstate.zero_output
-                    && pch_says_nonexistent (! reverse)
-                    && ! (merge && snap))
-            {
-                mismatch = true;
-                if (verbosity != SILENT)
-                    say ("File %s is not empty after patch, as expected\n",
-                            quotearg (outname));
-            }
-
-            if (! dry_run)
-            {
-                /* Avoid replacing files when nothing has changed.  */
-                if (failed < hunk || diff_type == ED_DIFF)
-                {
-                    time_t t;
-
-                    move_file (tmpoutname, &tmpoutname_needs_removal, &outst,
-                            outname, instat.st_mode, backup);
-
-                    if ((set_time | set_utc)
-                            && (t = pch_timestamp (! reverse)) != (time_t) -1)
-                    {
-                        WARN_UNIMPL;
-                    }
-
-                    if (! inerrno)
-                    {
-                        if (chmod (outname, instat.st_mode) != 0)
-                            diegrace ("Can't set permissions on file %s",
-                                    quotearg (outname));
-                        if (geteuid () != instat.st_gid)
-                        {
-                            /* Fails if we are not in group instat.st_gid.  */
-                            chown (outname, -1, instat.st_gid);
-                        }
-                        /* FIXME: There may be other attributes to preserve.  */
-                    }
-                }
-                else
-                    WARN_UNIMPL;
-                //create_backup (outname, 0, 0, true);
-            }
-        }
-    }
-    if (diff_type != ED_DIFF) {
-        //      struct stat rejst;
-        //
-        //      if ((failed && fstat (fileno (rejfp), &rejst) != 0)
-        //              || fclose (rejfp) != 0)
-        //          write_fatal ();
-        if (failed) {
-            snap = true;
-            say ("%d out of %d hunk%s %s", failed, hunk, "s" + (hunk == 1),
-                    skip_rest_of_patch ? "ignored" : "FAILED");
-            if (outname && (! rejname || strcmp (rejname, "-") != 0)) {
-                char *rej = rejname;
-                if (!rejname) {
-                    //WARN_UNIMPL;
-                    /* FIXME: This should really be done differnely!  */
-                    const char *s = simple_backup_suffix;
-                    size_t len;
-                    simple_backup_suffix = ".rej";
-                    rej = find_backup_file_name (outname, simple_backups);
-                    len = strlen (rej);
-                    if (rej[len - 1] == '~')
-                        rej[len - 1] = '#';
-                    simple_backup_suffix = s;
-                }
-                say (" -- saving rejects to file %s\n", quotearg (rej));
-                if (!rejname)
-                    free (rej);
-            } else
-                say ("\n");
-        }
-    }
     return reason;
-}
-
-/* Apply an ed script by feeding ed itself. */
-void PatchParser::do_ed_script (FILE *ofp)
-{
-    DIE_UNIMPL;
 }
 
 /* True if the remainder of the patch file contains a diff of some sort. */
@@ -1135,11 +505,9 @@ bool PatchParser::there_is_another_patch()
 {
     bool need_header = (!(inname || posixly_correct));
     if (p_base != 0 && p_base >= p_filesize) {
-        say ("done\n");
+        DEBUG("done\n");
         return false;
     }
-    if (verbosity == VERBOSE)
-        say ("Hmm...");
     diff_type = intuit_diff_type (need_header);
     if (diff_type == NO_DIFF) {
         if (verbosity == VERBOSE)
@@ -1515,7 +883,8 @@ enum difftype PatchParser::intuit_diff_type (bool need_header)
                 revision = dupstr(revision);
                 *t = oldc;
             }
-        } else
+        } 
+        else
         {
             for (t = s;  t[0] == '-' && t[1] == ' ';  t += 2)
                 continue;
@@ -1524,6 +893,7 @@ enum difftype PatchParser::intuit_diff_type (bool need_header)
                 time_t timestamp = (time_t) -1;
                 p_name[NEW] = fetchname (t+4, strippath, &p_timestr[NEW],
                         &timestamp);
+                
                 need_header = false;
                 if (timestamp != (time_t) -1)
                 {
@@ -1606,7 +976,7 @@ enum difftype PatchParser::intuit_diff_type (bool need_header)
                     LINENUM saved_p_bline = p_bline;
                     Fseek (pfp, previous_line, SEEK_SET);
                     p_input_line -= 2;
-                    if (another_hunk (retval, false)
+                    if (another_hunk (retval)
                             && ! p_repl_lines && p_newfirst == 1)
                         p_says_nonexistent[NEW] = 1 + ! p_timestamp[NEW];
                     next_intuit_at (saved_p_base, saved_p_bline);
@@ -1656,9 +1026,10 @@ scan_exit:
        requiring the creation of the fewest directories.
        - Otherwise, report failure by setting `inname' to 0;
        this causes our invoker to ask the user for a file name.  */
+    
 
     i = NONE;
-
+    
     if (!inname)
     {
         enum nametype i0 = NONE;
@@ -1777,15 +1148,13 @@ scan_exit:
 
 /* 1 if there is more of the current diff listing to process;
    0 if not; -1 if ran out of memory. */
-int PatchParser::another_hunk (enum difftype diff, bool rev)
+int PatchParser::another_hunk (enum difftype diff)
 {
     char *s;
     LINENUM context = 0;
     size_t chars_read;
     char numbuf0[LINENUM_LENGTH_BOUND + 1];
     char numbuf1[LINENUM_LENGTH_BOUND + 1];
-    char numbuf2[LINENUM_LENGTH_BOUND + 1];
-    char numbuf3[LINENUM_LENGTH_BOUND + 1];
 
     while (p_end >= 0) {
         if (p_end == p_efake)
@@ -1805,417 +1174,16 @@ int PatchParser::another_hunk (enum difftype diff, bool rev)
 
     p_max = hunkmax;			/* gets reduced when --- found */
     if (diff == CONTEXT_DIFF || diff == NEW_CONTEXT_DIFF) {
-        file_offset line_beginning = ftell (pfp);
-        /* file pos of the current line */
-        LINENUM repl_beginning = 0;	/* index of --- line */
-        LINENUM fillcnt = 0;	/* #lines of missing ptrn or repl */
-        LINENUM fillsrc;	/* index of first line to copy */
-        LINENUM filldst;	/* index of first missing line */
-        bool ptrn_spaces_eaten = false;	/* ptrn was slightly misformed */
-        bool some_context = false;	/* (perhaps internal) context seen */
-        bool repl_could_be_missing = true;
-        bool ptrn_missing = false;	/* The pattern was missing.  */
-        bool repl_missing = false;	/* Likewise for replacement.  */
-        file_offset repl_backtrack_position = 0;
-        /* file pos of first repl line */
-        LINENUM repl_patch_line;	/* input line number for same */
-        LINENUM repl_context;		/* context for same */
-        LINENUM ptrn_prefix_context = -1; /* lines in pattern prefix context */
-        LINENUM ptrn_suffix_context = -1; /* lines in pattern suffix context */
-        LINENUM repl_prefix_context = -1; /* lines in replac. prefix context */
-        LINENUM ptrn_copiable = 0;	/* # of copiable lines in ptrn */
-        LINENUM repl_copiable = 0;	/* Likewise for replacement.  */
-
-        /* Pacify `gcc -Wall'.  */
-        fillsrc = filldst = repl_patch_line = repl_context = 0;
-
-        chars_read = get_line ();
-        if (chars_read == (size_t) -1
-                || chars_read <= 8
-                || strncmp (buf, "********", 8) != 0) {
-            next_intuit_at(line_beginning,p_input_line);
-            return chars_read == (size_t) -1 ? -1 : 0;
-        }
-        s = buf;
-        while (*s == '*')
-            s++;
-        if (*s == ' ')
-        {
-            p_c_function = s;
-            while (*s != '\n')
-                s++;
-            *s = '\0';
-            p_c_function = dupstr (p_c_function);
-        }
-        p_hunk_beg = p_input_line + 1;
-        while (p_end < p_max) {
-            chars_read = get_line ();
-            if (chars_read == (size_t) -1)
-                return -1;
-            if (!chars_read) {
-                if (repl_beginning && repl_could_be_missing) {
-                    repl_missing = true;
-                    goto hunk_done;
-                }
-                if (p_max - p_end < 4) {
-                    strcpy (buf, "  \n");  /* assume blank lines got chopped */
-                    chars_read = 3;
-                } else {
-                    errgrace ("unexpected end of file in patch");
-                }
-            }
-            p_end++;
-            if (p_end == hunkmax)
-                errgrace ("unterminated hunk starting at line %s; giving up at line %s: %s",
-                        format_linenum (numbuf0, p_hunk_beg),
-                        format_linenum (numbuf1, p_input_line), buf);
-            assert(p_end < hunkmax);
-            p_Char[p_end] = *buf;
-            p_len[p_end] = 0;
-            p_line[p_end] = 0;
-            switch (*buf) {
-                case '*':
-                    if (strneq(buf, "********", 8)) {
-                        if (repl_beginning && repl_could_be_missing) {
-                            repl_missing = true;
-                            goto hunk_done;
-                        }
-                        else
-                            errgrace ("unexpected end of hunk at line %s",
-                                    format_linenum (numbuf0, p_input_line));
-                    }
-                    if (p_end != 0) {
-                        if (repl_beginning && repl_could_be_missing) {
-                            repl_missing = true;
-                            goto hunk_done;
-                        }
-                        errgrace ("unexpected `***' at line %s: %s",
-                                format_linenum (numbuf0, p_input_line), buf);
-                    }
-                    context = 0;
-                    p_len[p_end] = strlen (buf);
-                    if (! (p_line[p_end] = dupstr (buf))) {
-                        p_end--;
-                        return -1;
-                    }
-                    for (s = buf;  *s && !ISDIGIT (*s);  s++)
-                        continue;
-                    if (strneq(s,"0,0",3))
-                        remove_prefix (s, 2);
-                    s = scan_linenum (s, &p_first);
-                    if (*s == ',') {
-                        while (*s && !ISDIGIT (*s))
-                            s++;
-                        scan_linenum (s, &p_ptrn_lines);
-                        p_ptrn_lines += 1 - p_first;
-                    }
-                    else if (p_first)
-                        p_ptrn_lines = 1;
-                    else {
-                        p_ptrn_lines = 0;
-                        p_first = 1;
-                    }
-                    p_max = p_ptrn_lines + 6;	/* we need this much at least */
-                    while (p_max + 1 >= hunkmax)
-                        if (! grow_hunkmax ())
-                            return -1;
-                    p_max = hunkmax;
-                    break;
-                case '-':
-                    if (buf[1] != '-')
-                        goto change_line;
-                    if (ptrn_prefix_context == -1)
-                        ptrn_prefix_context = context;
-                    ptrn_suffix_context = context;
-                    if (repl_beginning
-                            || (p_end
-                                != p_ptrn_lines + 1 + (p_Char[p_end - 1] == '\n')))
-                    {
-                        if (p_end == 1)
-                        {
-                            /* `Old' lines were omitted.  Set up to fill
-                               them in from `new' context lines.  */
-                            ptrn_missing = true;
-                            p_end = p_ptrn_lines + 1;
-                            ptrn_prefix_context = ptrn_suffix_context = -1;
-                            fillsrc = p_end + 1;
-                            filldst = 1;
-                            fillcnt = p_ptrn_lines;
-                        }
-                        else if (! repl_beginning)
-                            errgrace ("%s `---' at line %s; check line numbers at line %s",
-                                    (p_end <= p_ptrn_lines
-                                     ? "Premature"
-                                     : "Overdue"),
-                                    format_linenum (numbuf0, p_input_line),
-                                    format_linenum (numbuf1, p_hunk_beg));
-                        else if (! repl_could_be_missing)
-                            errgrace ("duplicate `---' at line %s; check line numbers at line %s",
-                                    format_linenum (numbuf0, p_input_line),
-                                    format_linenum (numbuf1,
-                                        p_hunk_beg + repl_beginning));
-                        else
-                        {
-                            repl_missing = true;
-                            goto hunk_done;
-                        }
-                    }
-                    repl_beginning = p_end;
-                    repl_backtrack_position = ftell (pfp);
-                    repl_patch_line = p_input_line;
-                    repl_context = context;
-                    p_len[p_end] = strlen (buf);
-                    if (! (p_line[p_end] = dupstr (buf)))
-                    {
-                        p_end--;
-                        return -1;
-                    }
-                    p_Char[p_end] = '=';
-                    for (s = buf;  *s && ! ISDIGIT (*s);  s++)
-                        continue;
-                    s = scan_linenum (s, &p_newfirst);
-                    if (*s == ',')
-                    {
-                        do
-                        {
-                            if (!*++s)
-                                malformed ();
-                        }
-                        while (! ISDIGIT (*s));
-                        scan_linenum (s, &p_repl_lines);
-                        p_repl_lines += 1 - p_newfirst;
-                    }
-                    else if (p_newfirst)
-                        p_repl_lines = 1;
-                    else
-                    {
-                        p_repl_lines = 0;
-                        p_newfirst = 1;
-                    }
-                    p_max = p_repl_lines + p_end;
-                    while (p_max + 1 >= hunkmax)
-                        if (! grow_hunkmax ())
-                            return -1;
-                    if (p_repl_lines != ptrn_copiable
-                            && (p_prefix_context != 0
-                                || context != 0
-                                || p_repl_lines != 1))
-                        repl_could_be_missing = false;
-                    context = 0;
-                    break;
-                case '+':  case '!':
-                    repl_could_be_missing = false;
-change_line:
-                    s = buf + 1;
-                    chars_read--;
-                    if (*s == '\n' && canonicalize) {
-                        strcpy (s, " \n");
-                        chars_read = 2;
-                    }
-                    if (*s == ' ' || *s == '\t') {
-                        s++;
-                        chars_read--;
-                    } else if (repl_beginning && repl_could_be_missing) {
-                        repl_missing = true;
-                        goto hunk_done;
-                    }
-                    if (! repl_beginning)
-                    {
-                        if (ptrn_prefix_context == -1)
-                            ptrn_prefix_context = context;
-                    }
-                    else
-                    {
-                        if (repl_prefix_context == -1)
-                            repl_prefix_context = context;
-                    }
-                    chars_read -=
-                        (1 < chars_read
-                         && p_end == (repl_beginning ? p_max : p_ptrn_lines)
-                         && incomplete_line ());
-                    p_len[p_end] = chars_read;
-                    p_line[p_end] = dupbuf (s, chars_read);
-                    if (chars_read && ! p_line[p_end]) {
-                        p_end--;
-                        return -1;
-                    }
-                    context = 0;
-                    break;
-                case '\t': case '\n':	/* assume spaces got eaten */
-                    s = buf;
-                    if (*buf == '\t') {
-                        s++;
-                        chars_read--;
-                    }
-                    if (repl_beginning && repl_could_be_missing &&
-                            (!ptrn_spaces_eaten || diff == NEW_CONTEXT_DIFF) ) {
-                        repl_missing = true;
-                        goto hunk_done;
-                    }
-                    chars_read -=
-                        (1 < chars_read
-                         && p_end == (repl_beginning ? p_max : p_ptrn_lines)
-                         && incomplete_line ());
-                    p_len[p_end] = chars_read;
-                    p_line[p_end] = dupbuf (buf, chars_read);
-                    if (chars_read && ! p_line[p_end]) {
-                        p_end--;
-                        return -1;
-                    }
-                    if (p_end != p_ptrn_lines + 1) {
-                        ptrn_spaces_eaten |= (repl_beginning != 0);
-                        some_context = true;
-                        context++;
-                        if (repl_beginning)
-                            repl_copiable++;
-                        else
-                            ptrn_copiable++;
-                        p_Char[p_end] = ' ';
-                    }
-                    break;
-                case ' ':
-                    s = buf + 1;
-                    chars_read--;
-                    if (*s == '\n' && canonicalize) {
-                        strcpy (s, "\n");
-                        chars_read = 2;
-                    }
-                    if (*s == ' ' || *s == '\t') {
-                        s++;
-                        chars_read--;
-                    } else if (repl_beginning && repl_could_be_missing) {
-                        repl_missing = true;
-                        goto hunk_done;
-                    }
-                    some_context = true;
-                    context++;
-                    if (repl_beginning)
-                        repl_copiable++;
-                    else
-                        ptrn_copiable++;
-                    chars_read -=
-                        (1 < chars_read
-                         && p_end == (repl_beginning ? p_max : p_ptrn_lines)
-                         && incomplete_line ());
-                    p_len[p_end] = chars_read;
-                    p_line[p_end] = dupbuf (s, chars_read);
-                    if (chars_read && ! p_line[p_end]) {
-                        p_end--;
-                        return -1;
-                    }
-                    break;
-                default:
-                    if (repl_beginning && repl_could_be_missing) {
-                        repl_missing = true;
-                        goto hunk_done;
-                    }
-                    malformed ();
-            }
-        }
-
-hunk_done:
-        if (p_end >=0 && !repl_beginning)
-            errgrace ("no `---' found in patch at line %s",
-                    format_linenum (numbuf0, p_hunk_beg));
-
-        if (repl_missing) {
-
-            /* reset state back to just after --- */
-            p_input_line = repl_patch_line;
-            context = repl_context;
-            for (p_end--; p_end > repl_beginning; p_end--)
-                free(p_line[p_end]);
-            Fseek (pfp, repl_backtrack_position, SEEK_SET);
-
-            /* redundant 'new' context lines were omitted - set */
-            /* up to fill them in from the old file context */
-            fillsrc = 1;
-            filldst = repl_beginning+1;
-            fillcnt = p_repl_lines;
-            p_end = p_max;
-        }
-        else if (! ptrn_missing && ptrn_copiable != repl_copiable)
-            errgrace ("context mangled in hunk at line %s",
-                    format_linenum (numbuf0, p_hunk_beg));
-        else if (!some_context && fillcnt == 1) {
-            /* the first hunk was a null hunk with no context */
-            /* and we were expecting one line -- fix it up. */
-            while (filldst < p_end) {
-                p_line[filldst] = p_line[filldst+1];
-                p_Char[filldst] = p_Char[filldst+1];
-                p_len[filldst] = p_len[filldst+1];
-                filldst++;
-            }
-#if 0
-            repl_beginning--;		/* this doesn't need to be fixed */
-#endif
-            p_end--;
-            p_first++;			/* do append rather than insert */
-            fillcnt = 0;
-            p_ptrn_lines = 0;
-        }
-
-        p_prefix_context = ((repl_prefix_context == -1
-                    || (ptrn_prefix_context != -1
-                        && ptrn_prefix_context < repl_prefix_context))
-                ? ptrn_prefix_context : repl_prefix_context);
-        p_suffix_context = ((ptrn_suffix_context != -1
-                    && ptrn_suffix_context < context)
-                ? ptrn_suffix_context : context);
-        assert (p_prefix_context != -1 && p_suffix_context != -1);
-
-        if (diff == CONTEXT_DIFF
-                && (fillcnt
-                    || (p_first > 1
-                        && p_prefix_context + p_suffix_context < ptrn_copiable))) {
-            if (verbosity == VERBOSE)
-                say ("%s\n%s\n%s\n",
-                        "(Fascinating -- this is really a new-style context diff but without",
-                        "the telltale extra asterisks on the *** line that usually indicate",
-                        "the new style...)");
-            diff_type = diff = NEW_CONTEXT_DIFF;
-        }
-
-        /* if there were omitted context lines, fill them in now */
-        if (fillcnt) {
-            p_bfake = filldst;		/* remember where not to free() */
-            p_efake = filldst + fillcnt - 1;
-            while (fillcnt-- > 0) {
-                while (fillsrc <= p_end && fillsrc != repl_beginning
-                        && p_Char[fillsrc] != ' ')
-                    fillsrc++;
-                if (p_end < fillsrc || fillsrc == repl_beginning)
-                {
-                    errgrace ("replacement text or line numbers mangled in hunk at line %s",
-                            format_linenum (numbuf0, p_hunk_beg));
-                }
-                p_line[filldst] = p_line[fillsrc];
-                p_Char[filldst] = p_Char[fillsrc];
-                p_len[filldst] = p_len[fillsrc];
-                fillsrc++; filldst++;
-            }
-            while (fillsrc <= p_end && fillsrc != repl_beginning)
-            {
-                if (p_Char[fillsrc] == ' ')
-                    errgrace ("replacement text or line numbers mangled in hunk at line %s",
-                            format_linenum (numbuf0, p_hunk_beg));
-                fillsrc++;
-            }
-            if (debug & 1)
-                printf ("fillsrc %s, filldst %s, rb %s, e+1 %s\n",
-                        format_linenum (numbuf0, fillsrc),
-                        format_linenum (numbuf1, filldst),
-                        format_linenum (numbuf2, repl_beginning),
-                        format_linenum (numbuf3, p_end + 1));
-            assert(fillsrc==p_end+1 || fillsrc==repl_beginning);
-            assert(filldst==p_end+1 || filldst==repl_beginning);
-        }
+        errgrace("CONTEXT type diff not supported\n");
     }
     else if (diff == UNI_DIFF) {
         file_offset line_beginning = ftell (pfp);
         /* file pos of the current line */
         LINENUM fillsrc;	/* index of old lines */
         LINENUM filldst;	/* index of new lines */
+
+        LINENUM orig;
+
         char ch = '\0';
 
         chars_read = get_line ();
@@ -2258,6 +1226,7 @@ hunk_done:
             if (! grow_hunkmax ())
                 return -1;
         fillsrc = 1;
+        orig = 0;
         filldst = fillsrc + p_ptrn_lines;
         p_end = filldst + p_repl_lines;
         sprintf (buf, "*** %s,%s ****\n",
@@ -2288,9 +1257,8 @@ hunk_done:
                     chars_read = 2;
                 } else {
 //                    errgrace ("unexpected end of file in patch");
-
                     p_base = p_filesize; // hack to force parsing stop
-                    errreturn(-1, "unexpected end of file in patch");
+                    errreturn(-1, "unexpected end of file in patch '%s' at hunk @@ %s, %s", patchname, format_linenum(numbuf0, p_first), format_linenum(numbuf1, p_newfirst));
                 }
             }
             if (chars_read == (size_t) -1)
@@ -2318,6 +1286,7 @@ hunk_done:
                         malformed ();
                     }
                     chars_read -= fillsrc == p_ptrn_lines && incomplete_line ();
+                    p_CtrlChar[orig++] = ch;
                     p_Char[fillsrc] = ch;
                     p_line[fillsrc] = s;
                     p_len[fillsrc++] = chars_read;
@@ -2336,6 +1305,7 @@ hunk_done:
                     context++;
                     chars_read -= fillsrc == p_ptrn_lines && incomplete_line ();
                     p_Char[fillsrc] = ch;
+                    p_CtrlChar[orig++] = '~';
                     p_line[fillsrc] = s;
                     p_len[fillsrc++] = chars_read;
                     s = dupbuf (s, chars_read);
@@ -2355,6 +1325,9 @@ hunk_done:
                         malformed ();
                     }
                     chars_read -= filldst == p_end && incomplete_line ();
+                    if (ch == '+') { // because of fall through
+                        p_CtrlChar[orig++] = ch;
+                    }
                     p_Char[filldst] = ch;
                     p_line[filldst] = s;
                     p_len[filldst++] = chars_read;
@@ -2372,130 +1345,17 @@ hunk_done:
         if (p_prefix_context == -1)
             malformed ();
         p_suffix_context = context;
+        p_nctrl = orig;
     }
-    else {				/* normal diff--fake it up */
-        char hunk_type;
-        int i;
-        LINENUM min, max;
-        file_offset line_beginning = ftell (pfp);
-
-        p_prefix_context = p_suffix_context = 0;
-        chars_read = get_line ();
-        if (chars_read == (size_t) -1 || !chars_read || !ISDIGIT (*buf)) {
-            next_intuit_at(line_beginning,p_input_line);
-            return chars_read == (size_t) -1 ? -1 : 0;
-        }
-        s = scan_linenum (buf, &p_first);
-        if (*s == ',') {
-            s = scan_linenum (s + 1, &p_ptrn_lines);
-            p_ptrn_lines += 1 - p_first;
-        }
-        else
-            p_ptrn_lines = (*s != 'a');
-        hunk_type = *s;
-        if (hunk_type == 'a')
-            p_first++;			/* do append rather than insert */
-        s = scan_linenum (s + 1, &min);
-        if (*s == ',')
-            scan_linenum (s + 1, &max);
-        else
-            max = min;
-        if (hunk_type == 'd')
-            min++;
-        p_end = p_ptrn_lines + 1 + max - min + 1;
-        while (p_end + 1 >= hunkmax)
-            if (! grow_hunkmax ())
-            {
-                p_end = -1;
-                return -1;
-            }
-        p_newfirst = min;
-        p_repl_lines = max - min + 1;
-        sprintf (buf, "*** %s,%s\n",
-                format_linenum (numbuf0, p_first),
-                format_linenum (numbuf1, p_first + p_ptrn_lines - 1));
-        p_len[0] = strlen (buf);
-        if (! (p_line[0] = dupstr (buf))) {
-            p_end = -1;
-            return -1;
-        }
-        p_Char[0] = '*';
-        for (i=1; i<=p_ptrn_lines; i++) {
-            chars_read = get_line ();
-            if (chars_read == (size_t) -1)
-            {
-                p_end = i - 1;
-                return -1;
-            }
-            if (!chars_read)
-                errgrace ("unexpected end of file in patch at line %s",
-                        format_linenum (numbuf0, p_input_line));
-            if (buf[0] != '<' || (buf[1] != ' ' && buf[1] != '\t'))
-                errgrace ("`<' expected at line %s of patch",
-                        format_linenum (numbuf0, p_input_line));
-            chars_read -= 2 + (i == p_ptrn_lines && incomplete_line ());
-            p_len[i] = chars_read;
-            p_line[i] = dupbuf (buf + 2, chars_read);
-            if (chars_read && ! p_line[i]) {
-                p_end = i-1;
-                return -1;
-            }
-            p_Char[i] = '-';
-        }
-        if (hunk_type == 'c') {
-            chars_read = get_line ();
-            if (chars_read == (size_t) -1)
-            {
-                p_end = i - 1;
-                return -1;
-            }
-            if (! chars_read)
-                errgrace ("unexpected end of file in patch at line %s",
-                        format_linenum (numbuf0, p_input_line));
-            if (*buf != '-')
-                errgrace ("`---' expected at line %s of patch",
-                        format_linenum (numbuf0, p_input_line));
-        }
-        sprintf (buf, "--- %s,%s\n",
-                format_linenum (numbuf0, min),
-                format_linenum (numbuf1, max));
-        p_len[i] = strlen (buf);
-        if (! (p_line[i] = dupstr (buf))) {
-            p_end = i-1;
-            return -1;
-        }
-        p_Char[i] = '=';
-        for (i++; i<=p_end; i++) {
-            chars_read = get_line ();
-            if (chars_read == (size_t) -1)
-            {
-                p_end = i - 1;
-                return -1;
-            }
-            if (!chars_read)
-                errgrace ("unexpected end of file in patch at line %s",
-                        format_linenum (numbuf0, p_input_line));
-            if (buf[0] != '>' || (buf[1] != ' ' && buf[1] != '\t'))
-                errgrace ("`>' expected at line %s of patch",
-                        format_linenum (numbuf0, p_input_line));
-            chars_read -= 2 + (i == p_end && incomplete_line ());
-            p_len[i] = chars_read;
-            p_line[i] = dupbuf (buf + 2, chars_read);
-            if (chars_read && ! p_line[i]) {
-                p_end = i-1;
-                return -1;
-            }
-            p_Char[i] = '+';
-        }
+    else { /* normal diff--fake it up */
+        errgrace("normal type diff not supported\n");
     }
-    if (rev)				/* backwards patch? */
-        if (!pch_swap())
-            say ("Not enough memory to swap next hunk!\n");
+    
     assert (p_end + 1 < hunkmax);
     p_Char[p_end + 1] = '^';  /* add a stopper for apply_hunk */
+    p_CtrlChar[p_nctrl] = '\0';
     if (debug & 2) {
         LINENUM i;
-
         for (i = 0; i <= p_end + 1; i++) {
             fprintf (stderr, "%s %c",
                     format_linenum (numbuf0, i),
@@ -2522,114 +1382,21 @@ hunk_done:
 }
 
 /* Reverse the old and new portions of the current hunk. */
-
 bool PatchParser::pch_swap (void)
 {
-    char **tp_line;		/* the text of the hunk */
-    size_t *tp_len;		/* length of each line */
-    char *tp_char;		/* +, -, and ! */
-    LINENUM i;
-    LINENUM n;
-    bool blankline = false;
-    char *s;
-
-    i = p_first;
-    p_first = p_newfirst;
-    p_newfirst = i;
-
-    /* make a scratch copy */
-
-    tp_line = p_line;
-    tp_len = p_len;
-    tp_char = p_Char;
-    p_line = 0;	/* force set_hunkmax to allocate again */
-    p_len = 0;
-    p_Char = 0;
-    set_hunkmax();
-    if (!p_line || !p_len || !p_Char) {
-        if (p_line)
-            free (p_line);
-        p_line = tp_line;
-        if (p_len)
-            free (p_len);
-        p_len = tp_len;
-        if (p_Char)
-            free (p_Char);
-        p_Char = tp_char;
-        return false;		/* not enough memory to swap hunk! */
-    }
-
-    /* now turn the new into the old */
-
-    i = p_ptrn_lines + 1;
-    if (tp_char[i] == '\n') {		/* account for possible blank line */
-        blankline = true;
-        i++;
-    }
-    if (p_efake >= 0) {			/* fix non-freeable ptr range */
-        if (p_efake <= i)
-            n = p_end - i + 1;
-        else
-            n = -i;
-        p_efake += n;
-        p_bfake += n;
-    }
-    for (n=0; i <= p_end; i++,n++) {
-        p_line[n] = tp_line[i];
-        p_Char[n] = tp_char[i];
-        if (p_Char[n] == '+')
-            p_Char[n] = '-';
-        p_len[n] = tp_len[i];
-    }
-    if (blankline) {
-        i = p_ptrn_lines + 1;
-        p_line[n] = tp_line[i];
-        p_Char[n] = tp_char[i];
-        p_len[n] = tp_len[i];
-        n++;
-    }
-    assert(p_Char[0] == '=');
-    p_Char[0] = '*';
-    for (s=p_line[0]; *s; s++)
-        if (*s == '-')
-            *s = '*';
-
-    /* now turn the old into the new */
-
-    assert(tp_char[0] == '*');
-    tp_char[0] = '=';
-    for (s=tp_line[0]; *s; s++)
-        if (*s == '*')
-            *s = '-';
-    for (i=0; n <= p_end; i++,n++) {
-        p_line[n] = tp_line[i];
-        p_Char[n] = tp_char[i];
-        if (p_Char[n] == '-')
-            p_Char[n] = '+';
-        p_len[n] = tp_len[i];
-    }
-    assert(i == p_ptrn_lines + 1);
-    i = p_ptrn_lines;
-    p_ptrn_lines = p_repl_lines;
-    p_repl_lines = i;
-    p_Char[p_end + 1] = '^';
-    if (tp_line)
-        free (tp_line);
-    if (tp_len)
-        free (tp_len);
-    if (tp_char)
-        free (tp_char);
+    //NOT IMPLEMENTED
     return true;
 }
+
 /* Enlarge the arrays containing the current hunk of patch. */
 
 bool PatchParser::grow_hunkmax (void)
 {
     hunkmax *= 2;
-    assert (p_line && p_len && p_Char);
+    assert (p_line && p_len && p_Char && p_CtrlChar);
     if ((p_line = (char **) realloc (p_line, hunkmax * sizeof (*p_line)))
             && (p_len = (size_t *) realloc (p_len, hunkmax * sizeof (*p_len)))
-            && (p_Char = (char *) realloc (p_Char, hunkmax * sizeof (*p_Char))))
+            && (p_Char = (char *) realloc (p_Char, hunkmax * sizeof (*p_Char))) && (p_CtrlChar = (char *) realloc (p_CtrlChar, hunkmax * sizeof (*p_CtrlChar))))
         return true;
     if (!using_plan_a)
         xalloc_die ();
@@ -2909,35 +1676,6 @@ void PatchParser::scan_input (char *filename)
     }
 }
 
-/* Report whether a desired revision was found.  */
-
-void PatchParser::report_revision (bool found_revision)
-{
-    char const *rev = quotearg (revision);
-
-    if (found_revision)
-    {
-        if (verbosity == VERBOSE)
-            say ("Good.  This file appears to be the %s version.\n", rev);
-    }
-    else if (force)
-    {
-        if (verbosity != SILENT)
-            say ("Warning: this file doesn't appear to be the %s version -- patching anyway.\n",
-                    rev);
-    }
-    else if (batch)
-        errgrace ("This file doesn't appear to be the %s version -- aborting.",
-                rev);
-    else
-    {
-        ask ("This file doesn't appear to be the %s version -- patch anyway? [n] ",
-                rev);
-        if (*buf != 'y')
-            errgrace ("aborted");
-    }
-}
-
 /* Try keeping everything in memory. */
 
 bool PatchParser::plan_a(char const *filename)
@@ -3027,18 +1765,6 @@ bool PatchParser::plan_a(char const *filename)
 void PatchParser::plan_b(char const *filename)
 {
     errgrace("Ooops, plan B not implmeneted");
-}
-
-/* Get FILENAME from version control system CS.  The file already exists if
-   EXISTS.  Only readonly access is needed if READONLY.
-   Use the command GETBUF to actually get the named file.
-   Store the resulting file status into *FILESTAT.
-   Return true if successful.  */
-bool PatchParser::version_get (char const *filename, char const *cs, bool exists, bool readonly,
-        char const *getbuf, struct stat *filestat)
-{
-    WARN_UNIMPL;
-    return 1;
 }
 
 /* Return the index of the best of NAME[OLD], NAME[NEW], and NAME[INDEX].

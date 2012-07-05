@@ -45,6 +45,7 @@ public:
     FILE *pfp;
 
     char *inname;
+    char *fullinname; /* inname in the original header(with path) */
     char *outfile;
 
     bool snap;
@@ -79,6 +80,7 @@ public:
     LINENUM p_ptrn_lines;		/* # lines in pattern */
     LINENUM p_repl_lines;		/* # lines in replacement text */
     LINENUM p_end;		/* last line in hunk */
+    LINENUM p_nctrl;  /* control characters' length */
     LINENUM p_max;			/* max allowed value of p_end */
     LINENUM p_prefix_context;	/* # of prefix context lines */
     LINENUM p_suffix_context;	/* # of suffix context lines */
@@ -116,7 +118,7 @@ public:
     bool there_is_another_patch ();
     char *pfetch (LINENUM);
     char pch_char (LINENUM);
-    int another_hunk (enum difftype, bool);
+    int another_hunk (enum difftype);
     int pch_says_nonexistent (bool);
     size_t pch_line_len (LINENUM);
     const char *pch_name(enum nametype);
@@ -194,6 +196,7 @@ protected:
     char **p_line;			/* the text of the hunk */
     size_t *p_len;			/* line length including \n if any */
     char *p_Char;			/* +, -, and ! */
+    char *p_CtrlChar;
     size_t p_indent;			/* indent to patch */
 
     bool p_strip_trailing_cr;	/* true if stripping trailing \r */

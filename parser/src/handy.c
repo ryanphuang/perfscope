@@ -450,7 +450,7 @@ const char * make_temp (char letter)
        to avoid some DoS problems, but simply substituting mkstemp for
        mktemp here will not fix the DoS problems; a more extensive
        change would be needed.  */
-    mktemp (r);
+    mkstemp (r);
 
     if (!*r)
         diegrace("mktemp");

@@ -28,17 +28,30 @@ extern "C" {
 
 #define WARN_UNIMPL fprintf(stderr, UNIMPL_STR_FMT); 
 
+#define FREE(buf) do { \
+    if ((buf)) \
+        free(buf); \
+} while (0)
+
 #define DIE_UNIMPL  do { \
     fprintf(stderr, UNIMPL_STR_FMT); \
     exit(1); \
 } while(0)
 
 #define init_array(arr, n) do { \
-    int i = 0; \
+    int i; \
     for (i = 0; i < (n); i++) { \
         (arr)[i] = 0; \
     } \
 } while(0)
+
+#define free_bufs(buf, n) do { \
+    int i; \
+    for (i = 0; i < (n); i++) { \
+            if (buf[i]) \
+                free(buf[i]); \
+    } \
+} while(0) 
 
 typedef struct filenode {
     char *file;

@@ -151,9 +151,7 @@ int main(int argc, char *argv[])
                 fullname += directory;
             }
             fullname += p->file;
-            if (true) {
-                printf("scan file: %s\n", fullname.c_str());
-            }
+            DEBUG("scan patch: %s\n", fullname.c_str());
             parser = new PatchParser(fullname.c_str(), NULL, UNI_DIFF); 
         }
         if (NULL == parser) {
@@ -194,7 +192,7 @@ int main(int argc, char *argv[])
             apply_empty_patch = false;
         }
         if(parser->snap) { // something was wrong
-            fprintf(stderr, "something is wrong when parsing %s\n", fullname.c_str());
+            fprintf(stderr, "Oooops when parsing %s\n", fullname.c_str());
         }
         delete parser;
         current_parser = NULL;
@@ -203,7 +201,7 @@ int main(int argc, char *argv[])
         free(gbuf);
     }
     fclose(fnonsource);
-    printf("Scanned total: %d; Non-source: %d\n", files, nonsources);
+    fprintf(stderr, "Scanned total: %d; Non-source: %d\n", files, nonsources);
     // save the effort to free file list
     return 0;
 }
