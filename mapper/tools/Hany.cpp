@@ -46,18 +46,19 @@ size_t fgetline(FILE * fp, char *buf, size_t & bufsize, unsigned &lineno)
             buf = (char *) xrealloc(buf, bufsize);
         }
         if (c == '\n') {
-            buf[i++] = '\0';
+            buf[i] = '\0'; // don't increment i for '\0'
             lineno++;
             break;
         }
         // this shouldn't happen because EOF should be after '\n'
-        if ((c = getc(fp)) == EOF) { 
-            if (ferror(fp)) {
-                perror("reading patch failed");
-                exit(1);
+        else 
+            if (c == EOF) { 
+                if (ferror(fp)) {
+                    perror("reading patch failed");
+                    exit(1);
+                }
+                fprintf(stderr, "unexpected end of file\n");
             }
-            fprintf(stderr, "unexpected end of file\n");
-        }
         buf[i++] = c;
     }
     return i;

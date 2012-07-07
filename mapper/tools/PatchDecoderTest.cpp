@@ -1,10 +1,16 @@
 #include "PatchDecoder.h"
+#include "Handy.h"
 #include<iostream>
 
 using namespace std;
-int main()
+
+int main(int argc, char *argv[])
 {
-    PatchDecoder * decoder = new PatchDecoder("out");
+    if (argc <= 1) {
+        cerr << "Usage: " << argv[0] << " FILE" << endl;
+        exit(1);
+    }
+    PatchDecoder * decoder = new PatchDecoder(argv[1]);
     assert(decoder);
     Patch *patch = decoder->next_patch();
     assert(patch);
@@ -13,4 +19,5 @@ int main()
     assert(chap);
     cout << "chapter: " << chap->filename << endl;
     return 0;
+    
 }

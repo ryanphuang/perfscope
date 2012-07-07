@@ -417,6 +417,7 @@ Patch * PatchDecoder::next_patch()
     chars_read = fgetline(fp, buf, bufsize, lineno); 
     if (chars_read <= 0)
         return NULL;
+    printf("%d %s\n", chars_read, buf);
     //every patch must start with patch header
     if (strncmp(buf, PHEADER, PLEN) != 0) {
         syntaxError("Expecting patch header");
