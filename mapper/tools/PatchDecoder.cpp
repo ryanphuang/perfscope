@@ -91,33 +91,6 @@ Mod * Hunk::newMod(unsigned line, char c)
     return m;
 }
 
-bool Hunk::merge(unsigned start_line, size_t pos)
-{
-    if (start_line == 0 || pos == 0)
-        return false;
-    size_t i;
-    char c = gBuf[0];
-    unsigned line = start_line - 1;
-    if (c != ADDC) {
-        line++;
-    }
-    Mod * m = newMod(line, c);
-    for (i = 1; i < pos; i++) {
-        if (gBuf[i] != ADDC) { // don't increment line on ADD
-                line++;
-        }
-        if (c != gBuf[i]) {
-            if (c != ADDC) {
-                m->scope.end = line - 1; // only update scope end for non-add
-            }
-            c = gBuf[i];
-            mods.push_back(m);
-            m = newMod(line, c);
-        }
-    }
-    mods.push_back(m);
-    return true;
-}
 
 /**
  * Reduce the original control sequence to a list of Mods.
@@ -171,29 +144,30 @@ bool Hunk::reduce()
         switch(c) {
             case SAMC:
                 line++; // SAMC belongs to OLD, so we increment line.
+                // Need to check chunk end first:
+                // example "~~~--++~+". If not, the first chunk won't be merged
+                if (i > 0 && ctrlseq[i - 1] != SAMC) { // chunk end boundary 
+                    ///////////////////////////////////////////////
+                    //           Second approach
+                    ///////////////////////////////////////////////
+                    if (DEBUG) {
+                        printf("*****Translating result*******\n");
+                        dumpBuf(buf_len);
+                    }
+                    merge(chunk_line, buf_len);
+                    /////////////////////////////////////////////////
+                }
                 if (i != seqlen - 1 && ctrlseq[i + 1] != SAMC) { // chunk begin boundary
                     if (ctrlseq[i + 1] == ADDC)
                         chunk_line = line; // 
                     else
                         chunk_line = line + 1;
-                    chunk_beg = i;
+                    chunk_beg = i + 1;
                     buf_len = 0;
                     del_cnt = 0;
                     add_cnt = 0;
                     m = NULL;
                 }
-                else 
-                    if (i > 0 && ctrlseq[i - 1] != SAMC) { // chunk end boundary 
-                        ///////////////////////////////////////////////
-                        //           Second approach
-                        ///////////////////////////////////////////////
-                        if (DEBUG) {
-                            printf("*****Translating result*******\n");
-                            dumpBuf(buf_len);
-                        }
-                        merge(chunk_line, buf_len);
-                        /////////////////////////////////////////////////
-                    }
                 break;
             case ADDC:
                 add_cnt++;
@@ -277,6 +251,38 @@ bool Hunk::reduce()
     }
     return true;
 }
+
+bool Hunk::merge(unsigned start_line, size_t pos)
+{
+    if (start_line == 0 || pos == 0)
+        return false;
+    size_t i;
+    char c = gBuf[0];
+    unsigned line = start_line - 1;
+    if (c != ADDC) {
+        line++;
+    }
+    Mod * m = newMod(line, c);
+    for (i = 1; i < pos; i++) {
+        if (gBuf[i] != ADDC) { // don't increment line on ADD
+                line++;
+        }
+        if (c != gBuf[i]) {
+            if (c != ADDC) {
+                m->scope.end = line - 1; // only update scope end for non-add
+            }
+            c = gBuf[i];
+            mods.push_back(m);
+            m = newMod(line, c);
+        }
+    }
+    mods.push_back(m);
+    return true;
+}
+/////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////
+
+
 
 /////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////
