@@ -13,6 +13,7 @@
 #include <string.h>
 #include <assert.h>
 
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SmallVector.h"
 
 using namespace llvm;
@@ -35,6 +36,14 @@ typedef struct Mod {
     Scope scope;
     MODTYPE type;
 } Mod; 
+
+
+raw_ostream & operator<<(raw_ostream &, const Scope &);
+std::ostream & operator<<(std::ostream &, const Scope &);
+
+std::ostream & operator<<(std::ostream &, const MODTYPE &);
+std::ostream & operator<<(std::ostream &, const Mod &);
+
 
 class PatchDecoder;
 

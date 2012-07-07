@@ -22,6 +22,31 @@ static const char REPC = '^';
 static unsigned gBufSize = 4 * 1024;
 static char * gBuf = (char *) xmalloc(gBufSize);
 
+static const char *MODSTR[3] = { "ADD", "DELETE", "REPLACE" };
+
+raw_ostream & operator<<(raw_ostream& os, const Scope & scope)
+{
+    os << "[#" << scope.begin << ",#" << scope.end <<"]";
+    return os;
+}
+
+std::ostream & operator<<(std::ostream& os, const Scope & scope)
+{
+    os << "[#" << scope.begin << ",#" << scope.end <<"]";
+    return os;
+}
+
+std::ostream & operator<<(std::ostream& os, const MODTYPE & type)
+{
+    os << MODSTR[type];
+    return os;
+}
+
+std::ostream & operator<<(std::ostream& os, const Mod & mod)
+{
+    os << mod.type << "-" << mod.scope;
+    return os;
+}
 void Hunk::putBuf(char c, size_t &len)
 {
     if (len > 0 && c == ADDC && c == gBuf[len - 1]) // Don't add consecutive ADDC
@@ -359,6 +384,13 @@ Chapter * Patch::next_chapter()
     if (line == NULL) { 
         return NULL;
     }
+    
+    // We overcross the next patch.
+    if (strncmp(line, PHEADER, PLEN) == 0) {
+        decoder->unget_line(); //unget the line.
+        return NULL;
+    }
+
     if (strncmp(line, FHEADER, FLEN) != 0) {
         decoder->syntaxError("Expecting chapter header");
     }
@@ -413,8 +445,8 @@ Patch * PatchDecoder::next_patch()
         warn("File pointer is null");
         return NULL;
     }
-    size_t chars_read = 0;
-    chars_read = fgetline(fp, buf, bufsize, lineno); 
+    size_t chars_read;
+    next_line(chars_read);
     if (chars_read <= 0)
         return NULL;
     //every patch must start with patch header
@@ -422,7 +454,7 @@ Patch * PatchDecoder::next_patch()
         syntaxError("Expecting patch header");
         return NULL;
     }
-    chars_read = fgetline(fp, buf, bufsize, lineno);
+    next_line(chars_read);
     if (chars_read <= 0) {
         syntaxError("Expecting patch name");
         return NULL;

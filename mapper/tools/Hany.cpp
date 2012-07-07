@@ -53,11 +53,16 @@ size_t fgetline(FILE * fp, char *buf, size_t & bufsize, unsigned &lineno)
         // this shouldn't happen because EOF should be after '\n'
         else 
             if (c == EOF) { 
+                if (i == 0)
+                {
+                    buf[0] = '\0';
+                    return 0;
+                }
                 if (ferror(fp)) {
                     perror("reading patch failed");
                     exit(1);
                 }
-                fprintf(stderr, "unexpected end of file\n");
+                diegrace("unexpected end of file");
             }
         buf[i++] = c;
     }
