@@ -105,6 +105,7 @@ class Patch {
         Patch(PatchDecoder *, const char *);
         Patch(PatchDecoder *p , const std::string & name) : parser(p), patchname(name),
                 chap(NULL) {}
+        Chapter * next_chapter();
 
 //            iterator begin() { return hunks.begin(); }
 //            iterator end() { return hunks.end(); }
@@ -145,7 +146,7 @@ class PatchDecoder{
                 fclose(fp);
         }
 
-        const Patch * next_patch();
+        Patch * next_patch();
         bool unget_line();
         const char * next_line(size_t &);
     

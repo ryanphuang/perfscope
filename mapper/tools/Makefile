@@ -9,6 +9,10 @@ LEVEL=..
 # List all of the subdirectories that we will compile.
 #
 
+TOOLNAME=testdecoder
+
 LIBRARYNAME=patchdecoder
+
+LLVMLIBS=LLVMSupport.a LLVMCore.a
 
 include $(LEVEL)/Makefile.common
