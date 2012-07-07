@@ -1,9 +1,9 @@
 //===- MDMap.cpp - A pass the extract all debug info for CU, Function, BB, etc. ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
+//                     PerfScope Mapper
 //
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+//      Author: Ryan Huang <ryanhuang@cs.ucsd.edu>
+//
 //
 //===----------------------------------------------------------------------===//
 //
@@ -31,15 +31,19 @@
 #include "llvm/Instruction.h"
 #include "llvm/InstrTypes.h"
 
+#include "PatchDecoder.h"
+
 #include <vector>
 #include <deque>
 
 using namespace llvm;
 
 
+
 static cl::opt<std::string>  ClScopeListFile("md-scopelist",
        cl::desc("File containing the list of scopes to analyzed"
                 ), cl::Hidden);
+
 
 namespace {
     
@@ -60,26 +64,22 @@ namespace {
       template <class U, class V> Pair (const Pair<U,V> &p) : first(p.first), second(p.second) { }
     };
 
-    typedef struct Scope {
-        unsigned long begin;
-        unsigned long end;
-        StringRef filename;
-        StringRef directory;
-        
-        Scope() : begin(0), end(0) {}
-        Scope(unsigned long b, unsigned long e) : begin(b), end(e) {}
-        Scope(unsigned long b, unsigned long e, StringRef f, StringRef d) : begin(b), 
-            end(e), filename(f), directory(d) {}
-        Scope(const Scope &another) : begin(another.begin), end(another.end), 
-            filename(another.filename), directory(another.directory) {}
-
-    } Scope;
-
-    //TODO: add filename and directory in the print info
     raw_ostream & operator<<(raw_ostream& os, const Scope & scope)
     {
         os << "[#" << scope.begin << ",#" << scope.end <<"]";
         return os;
+    }
+
+    bool cmpDIS(const DISubprogram & SP1, const DISubprogram & SP2) 
+    { 
+        int cmp = SP1.getDirectory().compare(SP2.getDirectory());
+        if (cmp == 0) {
+            cmp = SP1.getFilename().compare(SP2.getFilename());
+            if (cmp == 0) {
+                cmp = SP1.getLineNumber() - SP2.getLineNumber();
+            }
+        }
+        return cmp > 0 ? false : true;
     }
 
     typedef struct MetadataElement {
@@ -111,53 +111,6 @@ namespace {
             return SP.getLineNumber() < another.SP.getLineNumber();
         }
     };
-
-    enum MODTYPE {ADD, DEL, CHG};
-
-    typedef struct Mod {
-        Scope scope;
-        MODTYPE type;
-    } Mod; 
-
-    class Hunk {
-        public:
-            std::string control_seq;
-            unsigned start_line;
-            typedef SmallVector<Mod *, 8>::const_iterator iterator;
-
-        protected:
-            SmallVector<Mod *, 8> modifications;
-    };
-
-    class Patch {
-        public:
-            std::string filename;
-            typedef SmallVector<Hunk*, 8>::const_iterator iterator;
-
-        protected:
-            SmallVector<Hunk *, 8> hunks;
-    };
-
-    class Parser{
-        public:
-            std::string inputname;
-            typedef SmallVector<Patch *, 8>::const_iterator iterator;
-
-        protected:
-            SmallVector<Patch *, 8> patches;
-    };
-    
-    bool DISCmp(const DISubprogram & SP1, const DISubprogram & SP2) 
-    { 
-        int cmp = SP1.getDirectory().compare(SP2.getDirectory());
-        if (cmp == 0) {
-            cmp = SP1.getFilename().compare(SP2.getFilename());
-            if (cmp == 0) {
-                cmp = SP1.getLineNumber() - SP2.getLineNumber();
-            }
-        }
-        return cmp > 0 ? false : true;
-    }
 
     class MDMap: public ModulePass {
 
@@ -333,7 +286,7 @@ namespace {
                 }
 
             /** Sort based on line number **/
-            std::sort(MySPs.begin(), MySPs.end(), DISCmp);
+            std::sort(MySPs.begin(), MySPs.end(), cmpDIS);
             std::vector<DISubprogram>::iterator I, E;
             for (I = MySPs.begin(), E = MySPs.end(); I != E; I++) {
                 errs() << "@" << I->getDirectory() << "/" << I->getFilename() << 

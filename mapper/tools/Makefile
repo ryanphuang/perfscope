@@ -8,6 +8,7 @@ LEVEL=..
 #
 # List all of the subdirectories that we will compile.
 #
-DIRS=
+
+LIBRARYNAME=patchdecoder
 
 include $(LEVEL)/Makefile.common
