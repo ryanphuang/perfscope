@@ -1,6 +1,6 @@
 /* * File: PatchDecoder.h
  * *
- * *     Decode the patch parser's intermediate result and translate into scope and modifications
+ * *     Decode the patch decoder's intermediate result and translate into scope and modifications
  * *
  * * Author: Ryan Huang <ryanhuang@cs.ucsd.edu>
  */
@@ -76,7 +76,7 @@ class Chapter {
     public:
         std::string directory;
         std::string filename;
-        PatchDecoder *parser;
+        PatchDecoder *decoder;
 
     protected:
         Hunk *hunk;
@@ -87,13 +87,12 @@ class Chapter {
 
 
     protected:
-        const char * next_line(size_t &);
         void unget_line();
 };
 
 class Patch {
     public:
-        PatchDecoder *parser;
+        PatchDecoder *decoder;
         std::string patchname;
         typedef SmallVector<Hunk*, 8>::const_iterator iterator;
 
@@ -103,7 +102,7 @@ class Patch {
 
     public:
         Patch(PatchDecoder *, const char *);
-        Patch(PatchDecoder *p , const std::string & name) : parser(p), patchname(name),
+        Patch(PatchDecoder *p , const std::string & name) : decoder(p), patchname(name),
                 chap(NULL) {}
         Chapter * next_chapter();
 

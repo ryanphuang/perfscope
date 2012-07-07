@@ -263,14 +263,18 @@ Chapter::Chapter(PatchDecoder * p = NULL, const char *dir = NULL, const char *fi
     if (file != NULL) {
         filename.assign(file);
     }
-    parser = p;
+    decoder = p;
     hunk = NULL;
 }
 
 Hunk * Chapter::next_hunk()
 {
+    if (decoder == NULL) {
+        warn("Decoder is NULL");
+        return NULL;
+    }
     size_t chars_read;
-    const char * line = next_line(chars_read);
+    const char * line = decoder->next_line(chars_read);
     // The feeder is deceased or has nothing to feed us.
     if (line == NULL) { 
         return NULL;
@@ -284,7 +288,7 @@ Hunk * Chapter::next_hunk()
     }
 
     if (strncmp(line, HHEADER, PLEN) != 0) {
-        parser->syntaxError("Expecting hunk header");
+        decoder->syntaxError("Expecting hunk header");
     }
     unsigned lineno = 0;
     unsigned no = 0;
@@ -295,20 +299,20 @@ Hunk * Chapter::next_hunk()
     {
         n = c - '0';
         if (n < 0 || n > 9) {
-            parser->syntaxError("Invalid hunk line number");
+            decoder->syntaxError("Invalid hunk line number");
         }
         lineno = no * 10 + n;
         if (lineno / 10 != no) {
-            parser->syntaxError("Hunk line number too big");
+            decoder->syntaxError("Hunk line number too big");
         }
         no = lineno;
     }
     if (lineno <= 0) {
-        parser->syntaxError("Invalid hunk line number");
+        decoder->syntaxError("Invalid hunk line number");
     }
-    line = next_line(chars_read);
+    line = decoder->next_line(chars_read);
     if (line == NULL) {
-        parser->syntaxError("Invalid hunk control sequence");
+        decoder->syntaxError("Invalid hunk control sequence");
     }
     if (hunk != NULL) {
         delete hunk;
@@ -321,17 +325,9 @@ Hunk * Chapter::next_hunk()
     return hunk;
 }
 
-const char * Chapter::next_line(size_t & chars_read)
-{
-    if (parser == NULL) { 
-        return NULL;
-    } 
-    return parser->next_line(chars_read);
-}
-
 void Chapter::unget_line()
 {
-    if (parser && !parser->unget_line()) { 
+    if (decoder && !decoder->unget_line()) { 
         diegrace("unget line failed");
     }
 }
@@ -347,31 +343,33 @@ Patch::Patch(PatchDecoder * p = NULL, const char *name = NULL)
     if (name!= NULL) {
         patchname.assign(name);
     }
-    parser = p;
+    decoder = p;
     chap = NULL;
 }
 
 Chapter * Patch::next_chapter()
 {
-    if (parser == NULL)
+    if (decoder == NULL) {
+        warn("Decoder is null");
         return NULL;
+    }
     size_t chars_read;
-    const char * line = parser->next_line(chars_read);
+    const char * line = decoder->next_line(chars_read);
     // The feeder is deceased or has nothing to feed us.
     if (line == NULL) { 
         return NULL;
     }
     if (strncmp(line, FHEADER, FLEN) != 0) {
-        parser->syntaxError("Expecting chapter header");
+        decoder->syntaxError("Expecting chapter header");
     }
-    line = parser->next_line(chars_read);
+    line = decoder->next_line(chars_read);
     if (line == NULL)
         return NULL;
     if (chap != NULL) {
         delete chap;
         chap = NULL;
     }
-    chap = new Chapter(parser, NULL, line);
+    chap = new Chapter(decoder, NULL, line);
     return chap;
 }
 /////////////////////////////////////////////////////////
@@ -411,13 +409,14 @@ void PatchDecoder::syntaxError(const char *format, ...)
 
 Patch * PatchDecoder::next_patch()
 {
-    if (fp == NULL) 
+    if (fp == NULL) {
+        warn("File pointer is null");
         return NULL;
+    }
     size_t chars_read = 0;
     chars_read = fgetline(fp, buf, bufsize, lineno); 
     if (chars_read <= 0)
         return NULL;
-    printf("%d %s\n", chars_read, buf);
     //every patch must start with patch header
     if (strncmp(buf, PHEADER, PLEN) != 0) {
         syntaxError("Expecting patch header");
@@ -432,7 +431,7 @@ Patch * PatchDecoder::next_patch()
         delete patch;
         patch = NULL;
     }
-    patch = new Patch(NULL, buf);
+    patch = new Patch(this, buf);
     if (patch == NULL) {
         diegrace("out of memory");
     }
