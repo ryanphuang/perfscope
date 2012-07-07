@@ -139,6 +139,7 @@ bool Hunk::reduce()
     unsigned del_cnt, add_cnt;
     del_cnt = add_cnt = 0;
     Mod *m = NULL;
+    bool printed = false;
     for (; i < seqlen; i++) {
         c = ctrlseq[i];
         switch(c) {
@@ -151,7 +152,10 @@ bool Hunk::reduce()
                     //           Second approach
                     ///////////////////////////////////////////////
                     if (DEBUG) {
-                        printf("*****Translating result*******\n");
+                        if (!printed) {
+                            printed = true;
+                            printf("*****Translating result*******\n");
+                        }
                         dumpBuf(buf_len);
                     }
                     merge(chunk_line, buf_len);
@@ -258,19 +262,16 @@ bool Hunk::merge(unsigned start_line, size_t pos)
         return false;
     size_t i;
     char c = gBuf[0];
-    unsigned line = start_line - 1;
-    if (c != ADDC) {
-        line++;
-    }
+    unsigned line = start_line;
     Mod * m = newMod(line, c);
+    unsigned prev_line;
     for (i = 1; i < pos; i++) {
+        prev_line = line;
         if (gBuf[i] != ADDC) { // don't increment line on ADD
                 line++;
         }
         if (c != gBuf[i]) {
-            if (c != ADDC) {
-                m->scope.end = line - 1; // only update scope end for non-add
-            }
+            m->scope.end = prev_line; // only update scope end for non-add
             c = gBuf[i];
             mods.push_back(m);
             m = newMod(line, c);

@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
             cout << "chapter: " << chap->filename << endl;
             while((hunk = chap->next_hunk()) != NULL) {
                 cout << "hunk: " << hunk->start_line << endl;
+                cout << hunk->ctrlseq << endl;
                 assert(hunk->reduce());
                 for (Hunk::iterator I = hunk->begin(), E = hunk->end();
                     I != E; I++) {
