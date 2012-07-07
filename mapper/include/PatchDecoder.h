@@ -64,9 +64,10 @@ class Hunk {
         iterator begin() { return mods.begin(); }
         iterator end() { return mods.end(); }
 
+        void dumpBuf(size_t);
+
 private:
         void putBuf(char, size_t &);
-        void dumpBuf(size_t);
         Mod * newMod(unsigned, char);
         bool merge(unsigned, size_t);
 

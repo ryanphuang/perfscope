@@ -2,7 +2,7 @@
 #include "PatchDecoder.h"
 
 
-static bool DEBUG = false;
+static bool DEBUG = true;
 
 static const char * PHEADER = "****";
 static const int PLEN = 4;
@@ -188,7 +188,7 @@ bool Hunk::reduce()
                             break;
                         }
                     }
-                    assert(j != buf_len - 1);
+                    assert(j != buf_len);
                     add_cnt--;
                     del_cnt--;
                 }

@@ -18,6 +18,11 @@ int main(int argc, char *argv[])
     Chapter *chap = patch->next_chapter();
     assert(chap);
     cout << "chapter: " << chap->filename << endl;
+    Hunk * hunk = chap->next_hunk();
+    assert(hunk);
+    cout << "hunk: " << hunk->start_line << endl;
+    hunk->reduce();
+    //cout << "Hunk: "
     return 0;
     
 }
