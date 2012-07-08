@@ -76,6 +76,8 @@ void PatchParser::cleanup()
     //unlink(tmpinname);
     //unlink(tmpoutname);
     unlink(tmppatname);
+    if (pfp)
+        fclose(pfp);
 }
 
 /* Return a pointer to a particular patch line. */
