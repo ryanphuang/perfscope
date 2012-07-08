@@ -14,10 +14,21 @@
 #include <stdarg.h>
 #include <assert.h>
 
+# ifndef DIRECTORY_SEPARATOR
+#  define DIRECTORY_SEPARATOR '/'
+# endif
+
+# ifndef ISSLASH
+#  define ISSLASH(C) ((C) == DIRECTORY_SEPARATOR)
+# endif
+
 size_t fgetline(FILE *, char *, size_t & , unsigned &);
 
-const char *strnchr(const char *, size_t, int);
-unsigned countnchr(const char *, size_t, int);
+const char *strnchr(const char *, size_t, char);
+const char *lastof(const char *, char);
+unsigned countnchr(const char *, size_t, char);
+
+const char *stripname(const char *, int);
 
 #define warn(format, ...) do { \
     fprintf(stderr, format,  ##__VA_ARGS__); \
@@ -27,5 +38,6 @@ unsigned countnchr(const char *, size_t, int);
 void diegrace(const char *, ...) __attribute__ ((noreturn, format (printf, 1, 2)));
 void *xmalloc(size_t) __attribute__ ((__malloc__));
 void *xrealloc (void *, size_t);
+
 
 #endif

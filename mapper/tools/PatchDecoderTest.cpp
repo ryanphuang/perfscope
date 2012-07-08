@@ -4,13 +4,35 @@
 
 using namespace std;
 
-int main(int argc, char *argv[])
+
+void test_stripname()
 {
-    if (argc <= 1) {
-        cerr << "Usage: " << argv[0] << " FILE" << endl;
-        exit(1);
-    }
-    PatchDecoder * decoder = new PatchDecoder(argv[1]);
+    unsigned total = 0, failed = 0;
+    bool fail = false;
+    cout << "Testing stripname..." << endl;
+    const char * path = "MYSQLPlus//MYSQLPlusTest/MYSQLPlusTest.cpp";
+    const char * name = stripname(path, -1);
+    fail = !(strcmp(name, "MYSQLPlusTest.cpp")==0);
+    total++;
+    failed += fail;
+    cout << "Test case #1 " << (fail ? "failed" : "succeeded") << "." << endl;
+    name = stripname(path, 1);
+    fail = !(strcmp(name, "MYSQLPlusTest/MYSQLPlusTest.cpp")==0);
+    total++;
+    failed += fail;
+    cout << "Test case #2 " << (fail ? "failed" : "succeeded") << "." << endl;
+    path = "a//b/c///";
+    name = stripname(path, -1);
+    fail = !(strcmp(name, "")==0);
+    total++;
+    failed += fail;
+    cout << "Test case #3 " << (fail ? "failed" : "succeeded") << "." << endl;
+    cout << "Testing stripname finished: total " << total << ", " << failed << " failed." <<  endl;
+}
+
+void test_PatchDecoder(char *input)
+{
+    PatchDecoder * decoder = new PatchDecoder(input);
     assert(decoder);
     Patch *patch = NULL;
     Chapter *chap = NULL;
@@ -33,7 +55,21 @@ int main(int argc, char *argv[])
             }
         }
     }
+}
+
+
+int main(int argc, char *argv[])
+{
+    if (argc <= 1) {
+        cerr << "Usage: " << argv[0] << " FILE" << endl;
+        exit(1);
+    }
+    test_stripname();
+    test_PatchDecoder(argv[1]);
+
+    /**
     
+    **/
     return 0;
     
 }

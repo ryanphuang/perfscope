@@ -64,12 +64,6 @@ namespace {
       template <class U, class V> Pair (const Pair<U,V> &p) : first(p.first), second(p.second) { }
     };
 
-    raw_ostream & operator<<(raw_ostream& os, const Scope & scope)
-    {
-        os << "[#" << scope.begin << ",#" << scope.end <<"]";
-        return os;
-    }
-
     bool cmpDIS(const DISubprogram & SP1, const DISubprogram & SP2) 
     { 
         int cmp = SP1.getDirectory().compare(SP2.getDirectory());

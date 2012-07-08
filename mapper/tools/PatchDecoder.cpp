@@ -36,17 +36,29 @@ std::ostream & operator<<(std::ostream& os, const Scope & scope)
     return os;
 }
 
+raw_ostream & operator<<(raw_ostream& os, const MODTYPE & type)
+{
+    os << MODSTR[type];
+    return os;
+}
+
 std::ostream & operator<<(std::ostream& os, const MODTYPE & type)
 {
     os << MODSTR[type];
     return os;
 }
 
+raw_ostream & operator<<(raw_ostream& os, const Mod & mod)
+{
+    os << mod.type << "-" << mod.scope;
+    return os;
+}
 std::ostream & operator<<(std::ostream& os, const Mod & mod)
 {
     os << mod.type << "-" << mod.scope;
     return os;
 }
+
 void Hunk::putBuf(char c, size_t &len)
 {
     if (len > 0 && c == ADDC && c == gBuf[len - 1]) // Don't add consecutive ADDC
@@ -154,7 +166,7 @@ bool Hunk::reduce()
                     if (DEBUG) {
                         if (!printed) {
                             printed = true;
-                            printf("*****Translating result*******\n");
+                            printf("*****Translation result*******\n");
                         }
                         dumpBuf(buf_len);
                     }
@@ -287,10 +299,10 @@ bool Hunk::merge(unsigned start_line, size_t pos)
 
 /////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////
-Chapter::Chapter(PatchDecoder * p = NULL, const char *dir = NULL, const char *file = NULL)
+Chapter::Chapter(PatchDecoder * p = NULL, const char *full = NULL, const char *file = NULL)
 {
-    if (dir != NULL) {
-        directory.assign(dir);
+    if (full != NULL) {
+        fullname.assign(full);
     }
     if (file != NULL) {
         filename.assign(file);
@@ -408,7 +420,7 @@ Chapter * Patch::next_chapter()
         delete chap;
         chap = NULL;
     }
-    chap = new Chapter(decoder, NULL, line);
+    chap = new Chapter(decoder, line, stripname(line, -1));
     return chap;
 }
 /////////////////////////////////////////////////////////

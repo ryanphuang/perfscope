@@ -42,7 +42,10 @@ raw_ostream & operator<<(raw_ostream &, const Scope &);
 std::ostream & operator<<(std::ostream &, const Scope &);
 
 std::ostream & operator<<(std::ostream &, const MODTYPE &);
+raw_ostream & operator<<(raw_ostream &, const MODTYPE &);
+
 std::ostream & operator<<(std::ostream &, const Mod &);
+raw_ostream & operator<<(raw_ostream &, const Mod &);
 
 
 class PatchDecoder;
@@ -84,7 +87,7 @@ private:
 
 class Chapter {
     public:
-        std::string directory;
+        std::string fullname;
         std::string filename;
         PatchDecoder *decoder;
 

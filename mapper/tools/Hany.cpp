@@ -81,6 +81,36 @@ const char *strnchr(const char *str, size_t n, char ch)
     return NULL;
 }
 
+const char * lastof(const char * str, char ch)
+{
+    const char *s = str;
+    const char *p = NULL;
+    while (*s != '\0') {
+        if (*s == ch)
+            p = s;
+        s++;
+    }
+    return p;
+}
+
+const char * stripname(const char *name, int strips)
+{
+    const char * str = name;
+    const char * p = name;
+    int left = strips;
+    while(*str) {
+        if (ISSLASH(*str)) {
+            while(ISSLASH(str[1])) // care, e,g, a//b/c//
+                str++;
+            if (strips < 0 || --left >= 0) {
+                p = str + 1;
+            }
+        }
+        str++;
+    }
+    return p;
+}
+
 unsigned countnchr(const char *str, size_t n, char ch)
 {
     const char * s = str;
