@@ -1053,7 +1053,7 @@ scan_exit:
             {
                 if (i0 != NONE && strcmp (p_name[i0], p_name[i]) == 0)
                 {
-                    /* It's the same name as before; reuse stat results.  */
+                    // It's the same name as before; reuse stat results.
                     stat_errno[i] = stat_errno[i0];
                     if (! stat_errno[i])
                         st[i] = st[i0];
@@ -1069,6 +1069,7 @@ scan_exit:
                 i0 = (nametype) i;
             }
 
+        /***
         if (! posixly_correct)
         {
             i = best_name (p_name, stat_errno);
@@ -1131,8 +1132,11 @@ scan_exit:
                 i = best_name (p_name, distance_from_minimum);
             }
         }
+        ***/
     }
 
+
+    /**
     if (i == NONE)
     {
         if (inname)
@@ -1143,6 +1147,7 @@ scan_exit:
         else
             inerrno = -1;
     }
+    
     else
     {
         inname = dupstr(p_name[i]);
@@ -1150,7 +1155,15 @@ scan_exit:
         invc = version_controlled[i];
         instat = st[i];
     }
-
+    **/
+    for (i = OLD; i <= INDEX; i++) {
+        if (p_name[i]) {
+            inname = dupstr(p_name[i]);
+            inerrno = stat_errno[i];
+            instat = st[i];
+            break;
+        }
+    }
     return retval;
 }
 

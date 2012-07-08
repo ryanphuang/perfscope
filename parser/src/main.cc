@@ -201,7 +201,8 @@ int main(int argc, char *argv[])
         free(gbuf);
     }
     fclose(fnonsource);
-    fprintf(stderr, "Scanned total: %d; Non-source: %d\n", files, nonsources);
+    fprintf(stderr, "Scanned total: %d; Non-source: %d; Delete: %d; Create: %d\n", files, nonsources,
+    delfile, newfile);
     // save the effort to free file list
     return 0;
 }
