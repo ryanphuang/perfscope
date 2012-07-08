@@ -2,6 +2,8 @@
 #include "Handy.h"
 #include<iostream>
 
+#include<vector>
+
 using namespace std;
 
 
@@ -46,6 +48,7 @@ void test_PatchDecoder(char *input)
                 cout << "hunk: " << hunk->start_line << endl;
                 cout << hunk->ctrlseq << endl;
                 assert(hunk->reduce());
+                cout << hunk->enclosing_scope << endl;
                 for (Hunk::iterator I = hunk->begin(), E = hunk->end();
                     I != E; I++) {
                     mod = *I;
@@ -66,10 +69,5 @@ int main(int argc, char *argv[])
     }
     test_stripname();
     test_PatchDecoder(argv[1]);
-
-    /**
-    
-    **/
     return 0;
-    
 }

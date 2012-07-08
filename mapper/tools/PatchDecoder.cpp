@@ -265,6 +265,10 @@ bool Hunk::reduce()
 
         }
     }
+    if (!mods.empty()) {
+        enclosing_scope.begin = mods.front()->scope.begin;
+        enclosing_scope.end = mods.back()->scope.end;
+    }
     return true;
 }
 

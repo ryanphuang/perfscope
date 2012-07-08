@@ -62,6 +62,7 @@ class Hunk {
     public:
         unsigned start_line;
         const char *ctrlseq;
+        Scope enclosing_scope;
         size_t seqlen;
         typedef SmallVector<Mod *, 16>::const_iterator iterator;
 
