@@ -94,26 +94,46 @@ void test_canonpath()
 }
 
 
+typedef struct stripname_T {
+    const char * name;
+    int strips;
+} stripname_T;
+
+static const stripname_T stripname_test [] = {
+    {"MYSQLPlus//MYSQLPlusTest/MYSQLPlusTest.cpp", -1},
+    {"MYSQLPlus//MYSQLPlusTest/MYSQLPlusTest.cpp", 1},
+    {"a//b/c///", -1},
+    {"/home/ryan/Projects/llvm-exp/mysql-5.0.15/sql/./sql_string.h", 6},
+    {0, 0}
+};
+
+static const char * stripname_expect [] = {
+    "MYSQLPlusTest.cpp",
+    "MYSQLPlusTest/MYSQLPlusTest.cpp",
+    "",
+    "sql/sql_string.h",
+    0
+};
 
 void test_stripname()
 {
     int total = 1, failed = 0;
     bool fail = false;
     begin_test("stripname");
-    const char * path = "MYSQLPlus//MYSQLPlusTest/MYSQLPlusTest.cpp";
-    const char * name = stripname(path, -1);
-    fail = !(strcmp(name, "MYSQLPlusTest.cpp")==0);
-    one_test(total, failed, fail);
-    name = stripname(path, 1);
-    fail = !(strcmp(name, "MYSQLPlusTest/MYSQLPlusTest.cpp")==0);
-    one_test(total, failed, fail);
-    path = "a//b/c///";
-    name = stripname(path, -1);
-    fail = !(strcmp(name, "")==0);
-    one_test(total, failed, fail);
-    fail = !(strcmp(stripname(realpath("/home/ryan/Projects/llvm-exp/mysql-5.0.15/sql/./sql_string.h", 
-            NULL), 6), "sql/sql_string.h") == 0);
-    one_test(total, failed, fail);
+    const stripname_T *t = stripname_test;
+    const char **e = stripname_expect;
+    const char *result, *expect;
+    while (t->name && *e) {
+        result = stripname(t->name, t->strips);
+        expect = *e;
+        if((fail = (strcmp(result, expect) != 0))) {
+            one_test(total, failed, fail, expect, result);
+        }
+        else
+            one_test(total, failed, fail);
+        t++;
+        e++;
+    }
     end_test("stripname", total, failed);
 }
 
