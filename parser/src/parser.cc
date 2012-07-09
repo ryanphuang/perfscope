@@ -433,7 +433,7 @@ void PatchParser::abort_hunk (bool header, bool reverse)
 }
 
 /* analyze each patch in patch file */
-skipreason PatchParser::gobble()
+skipreason PatchParser::gobble(FILE *outfp)
 {
     
     int hunk = 0;
@@ -489,16 +489,16 @@ skipreason PatchParser::gobble()
                     else {
                             if (!skip_rest_of_patch) {
                                 if (!patchprinted) {
-                                    printf("****\n%s\n", patchname);
+                                    fprintf(outfp, "****\n%s\n", patchname);
                                     patchprinted = true;
                                 }
-                                printf("====\n%s\n", inname);
+                                fprintf(outfp, "====\n%s\n", inname);
                             }
                     }
             } 
             if (!skip_rest_of_patch) {
                 if (p_nctrl > 0)
-                    printf("####%s\n%s\n", format_linenum(numbuf, p_first), p_CtrlChar);
+                    fprintf(outfp, "####%s\n%s\n", format_linenum(numbuf, p_first), p_CtrlChar);
             }
             // We shouldn't break here, just let the parser gobble the rest of the patch
             // to move on to the next patch

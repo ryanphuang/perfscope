@@ -91,7 +91,7 @@ public:
     PatchParser(const char *, const char *, enum difftype);
     ~PatchParser();
 
-    skipreason gobble(void);
+    skipreason gobble(FILE * outfp = stdout);
 
     void skippatch(void);
 
