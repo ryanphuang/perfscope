@@ -13,6 +13,8 @@ TOOLNAME=testdecoder
 
 LIBRARYNAME=patchdecoder
 
-LLVMLIBS=LLVMSupport.a LLVMCore.a
+#LLVMLIBS=LLVMSupport.a LLVMCore.a LLVMSupport.a LLVMCore.a LLVMBitReader.a LLVMAsmParser.a LLVMAnalysis.a LLVMTransformUtils.a LLVMScalarOpts.a LLVMTarget.a
+
+LINK_COMPONENTS = all
 
 include $(LEVEL)/Makefile.common
