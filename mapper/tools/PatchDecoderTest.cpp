@@ -209,9 +209,9 @@ int main(int argc, char *argv[])
         cerr << "Usage: " << argv[0] << " FILE" << endl;
         exit(1);
     }
-    test_stripname();
-    //test_PatchDecoder(argv[1]);
-    //test_ScopeFinder();
     test_canonpath();
+    test_stripname();
+    test_PatchDecoder(argv[1]);
+    //test_ScopeFinder();
     return 0;
 }
