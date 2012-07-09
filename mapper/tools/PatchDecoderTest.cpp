@@ -29,43 +29,92 @@ static Module *ReadModule(LLVMContext &Context, StringRef Name) {
     return M;
 }
 
+inline static void begin_test(const char * name)
+{
+    cout << "Testing " << name << "..." << endl;
+}
+
+inline static void one_test(int & total, int & failed, bool fail, string expect = "", 
+        string actual = "")
+{
+    cout << "Test case #" << total << " ";
+    if (fail) {
+        cout << "failed";
+        if (!expect.empty())
+            cout << ": expected(" << expect << "), got(" << actual << ")";
+        cout << "." << endl;
+    }
+    else
+        cout << "succeeded." << endl;
+    total++;
+    failed += fail;
+}
+
+inline static void end_test(const char *name, int & total, int & failed)
+{
+    cout << "Testing " << name << " finished: total " << total << ", " << failed << " failed." <<  endl;
+}
+
+static const char * canonpath_test[] = {
+    "a/./b//c",
+    "/a/./b//c/./d/",
+    "home/ryan/./Documents//../Projects/",
+    "home/../root",
+    0
+};
+
+static const char * canonpath_expect[] = {
+    "a/b/c",
+    "/a/b/c/d",
+    "home/ryan/Projects",
+    "root",
+    0
+};
+
 void test_canonpath()
 {
-    cout << canonpath("a/./b//c", NULL) << endl;
-    cout << canonpath("/a/./b//c/./d/", NULL) << endl;
-    cout << canonpath("home/ryan/./Documents//../Projects/", NULL) << endl;
-    cout << canonpath("home/../root", NULL) << endl;
+    int total = 1, failed = 0;
+    bool fail = false;
+    begin_test("canonpath");
+    const char **t = canonpath_test;
+    const char **e = canonpath_expect;
+    const char *result, *expect;
+    while (*t && *e) {
+        result = canonpath(*t, NULL);
+        expect = *e;
+        if((fail = (strcmp(result, expect) != 0))) {
+            one_test(total, failed, fail, expect, result);
+        }
+        else
+            one_test(total, failed, fail);
+        t++;
+        e++;
+    }
+    end_test("canonpath", total, failed);
 }
 
 
 
 void test_stripname()
 {
-    unsigned total = 0, failed = 0;
+    int total = 1, failed = 0;
     bool fail = false;
-    cout << "Testing stripname..." << endl;
+    begin_test("stripname");
     const char * path = "MYSQLPlus//MYSQLPlusTest/MYSQLPlusTest.cpp";
     const char * name = stripname(path, -1);
     fail = !(strcmp(name, "MYSQLPlusTest.cpp")==0);
-    total++;
-    failed += fail;
-    cout << "Test case #1 " << (fail ? "failed" : "succeeded") << "." << endl;
+    one_test(total, failed, fail);
     name = stripname(path, 1);
     fail = !(strcmp(name, "MYSQLPlusTest/MYSQLPlusTest.cpp")==0);
-    total++;
-    failed += fail;
-    cout << "Test case #2 " << (fail ? "failed" : "succeeded") << "." << endl;
+    one_test(total, failed, fail);
     path = "a//b/c///";
     name = stripname(path, -1);
     fail = !(strcmp(name, "")==0);
-    total++;
-    failed += fail;
-    cout << "Test case #3 " << (fail ? "failed" : "succeeded") << "." << endl;
+    one_test(total, failed, fail);
     fail = !(strcmp(stripname(realpath("/home/ryan/Projects/llvm-exp/mysql-5.0.15/sql/./sql_string.h", 
             NULL), 6), "sql/sql_string.h") == 0);
-    total++;
-    failed += fail;
-    cout << "Testing stripname finished: total " << total << ", " << failed << " failed." <<  endl;
+    one_test(total, failed, fail);
+    end_test("stripname", total, failed);
 }
 
 void testMatching(string & filename, Matcher & matcher, Scope & scope)
@@ -140,7 +189,7 @@ int main(int argc, char *argv[])
         cerr << "Usage: " << argv[0] << " FILE" << endl;
         exit(1);
     }
-    //test_stripname();
+    test_stripname();
     //test_PatchDecoder(argv[1]);
     //test_ScopeFinder();
     test_canonpath();
