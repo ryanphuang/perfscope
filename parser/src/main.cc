@@ -142,6 +142,7 @@ int main(int argc, char *argv[])
     errstay = true;
     for (p = lst; p; p = p->next){
         PatchParser *parser; 
+        FILE *gobblefp = NULL;
         if (!p->file) {
             parser = new PatchParser(NULL, NULL, UNI_DIFF); 
         }
@@ -153,6 +154,12 @@ int main(int argc, char *argv[])
             fullname += p->file;
             DEBUG("scan patch: %s\n", fullname.c_str());
             parser = new PatchParser(fullname.c_str(), NULL, UNI_DIFF); 
+            //TODO less brutal
+            std::string gobblef = fullname + ".id";
+            gobblefp = fopen(gobblef.c_str(), "w");
+            if (gobblefp == NULL) {
+                WARN("Cannot setup gobble output file. Using stdout instead.");
+            }
         }
         if (NULL == parser) {
             errgrace("out of memory");
@@ -169,7 +176,7 @@ int main(int argc, char *argv[])
         while(parser->there_is_another_patch() || apply_empty_patch) {
             files++;
             DEBUG("got a patch\n");
-            skipreason reason = parser->gobble();
+            skipreason reason = parser->gobble(gobblefp);
             switch (reason) {
                 case NO_REASON:
                     break;
@@ -196,6 +203,8 @@ int main(int argc, char *argv[])
         }
         delete parser;
         current_parser = NULL;
+        if (gobblefp)
+            fclose(gobblefp);
     }
     if (gbuf) {
         free(gbuf);

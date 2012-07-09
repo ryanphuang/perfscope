@@ -433,7 +433,7 @@ void PatchParser::abort_hunk (bool header, bool reverse)
 }
 
 /* analyze each patch in patch file */
-skipreason PatchParser::gobble(FILE *outfp)
+skipreason PatchParser::gobble(FILE *_outfp)
 {
     
     int hunk = 0;
@@ -441,6 +441,12 @@ skipreason PatchParser::gobble(FILE *outfp)
     enum skipreason reason = NO_REASON;
 
     char numbuf[LINENUM_LENGTH_BOUND + 1];
+
+    FILE *outfp;
+    if (_outfp == NULL)
+        outfp = stdout;
+    else
+        outfp = _outfp;
 
     if (!issource(inname)) {
         DEBUG("skip non-source: %s\n", inname);
