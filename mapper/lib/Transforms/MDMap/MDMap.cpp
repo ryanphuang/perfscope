@@ -39,12 +39,14 @@
 
 using namespace llvm;
 
-static cl::opt<std::string>  ClScopeListFile("md-scopelist",
-       cl::desc("File containing the list of scopes to analyzed"
+static cl::opt<std::string>  ClScopeListFile("diffout",
+       cl::desc("File containing the parsed result of diff"
                 ), cl::Hidden);
 
 namespace {
     
+    static bool DEBUG = false;
+
     class MDMap: public ModulePass {
 
       public:
@@ -107,11 +109,90 @@ namespace {
         virtual bool runOnModule(Module &M) 
         {
             matcher.init(M);
+            matcher.setstrips(0, 6); // Set the strips of path in the debug info
 
             //Finder.processModule(M);
             //processSubprograms(M);
+            //errs() << ClScopeListFile << "\n";
 
-            errs() << ClScopeListFile << "\n";
+            PatchDecoder * decoder = new PatchDecoder(ClScopeListFile);
+            assert(decoder);
+            Patch *patch = NULL;
+            Chapter *chap = NULL;
+            Hunk * hunk = NULL;
+            Mod * mod = NULL;
+            Scope ls;
+            while((patch = decoder->next_patch()) != NULL) {
+                if (DEBUG)
+                    errs() << "patch: " << patch->patchname << "\n";
+                while((chap = patch->next_chapter()) != NULL) {
+                    if (DEBUG)
+                        errs() << "chapter: " << chap->filename << "\n";
+                    while((hunk = chap->next_hunk()) != NULL) {
+                        if (DEBUG) {
+                            errs() << "hunk: " << hunk->start_line << "\n";
+                            errs() << hunk->ctrlseq << "\n";
+                        }
+                        assert(hunk->reduce());
+                        //testMatching(chap->fullname, matcher, hunk->enclosing_scope);
+                        Function * f;
+                        int s = 0;
+                        ScopeInfoFinder::sp_iterator I = matcher.initMatch(chap->fullname);
+                        errs() << "[" << hunk->enclosing_scope << "] might touch ";
+                        Scope tmps = hunk->enclosing_scope; // match function will modify scope.
+                        Hunk::iterator HI = hunk->begin(), HE = hunk->end();
+                        while ((f = matcher.matchFunction(I, tmps)) != NULL ) {
+                            s++;
+                            errs() << "scope #" << s << ": " << f->getName() << " |=> " << 
+                                    hunk->enclosing_scope << "\n";
+                            LoopInfo &li = getAnalysis<LoopInfo>(*f);
+                            errs() << "\t";
+                            if (li.begin() == li.end()) {
+                                errs() << "loop: none" << "\n";
+                            }
+                            else {
+                                //TODO more elegant
+                                //TODO get function scope
+                                //TODO loop finder no need to restart
+                                Loop * loop = NULL;
+                                while(HI != HE) {
+                                    mod = *HI;
+                                    // if there are multiple functions and this mod
+                                    // crossed the current function's scope, we break
+                                    // the loop
+                                    if (tmps.end != 0  && mod->scope.begin > tmps.begin)
+                                        break;
+                                    loop = Matcher::matchLoop(li, tmps);
+                                    if (loop != NULL) {
+                                        ScopeInfoFinder::getLoopScope(ls, loop);
+                                        errs() << "loop: " << ls;
+                                    }
+                                    HI++;
+                                }
+                                if (loop == NULL)
+                                    errs() << "loop: none" << "\n";
+                                else
+                                    errs() << "\n";
+                            }
+                        }
+                        if (s == 0) {
+                            errs() << "insignificant scope";
+                        }
+                        errs() << "\n";
+                        /**
+                        for (Hunk::iterator I = hunk->begin(), E = hunk->end();
+                            I != E; I++) {
+                            mod = *I;
+                            assert(mod);
+                            if (DEBUG)
+                                cout << "mod: " << *mod << endl;
+                        }
+                        **/
+                    }
+                }
+            }
+
+            /**
             for (Module::iterator I = M.begin(), E = M.end(); I != E; I++) {
                 if (skipFunction(I))
                     continue;
@@ -127,6 +208,7 @@ namespace {
                     processLoops(I);
                 //}
             }
+            **/
             return false;
         }
 

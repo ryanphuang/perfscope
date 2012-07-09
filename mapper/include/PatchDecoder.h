@@ -28,6 +28,8 @@ typedef struct Scope {
     Scope(unsigned long b, unsigned long e) : begin(b), end(e) {}
     Scope(const Scope &another) : begin(another.begin), end(another.end) {}
 
+    bool includes(const Scope &another) { return (another.begin >= begin) && (another.end <= end); }
+
 } Scope;
 
 enum MODTYPE {ADD, DEL, REP};

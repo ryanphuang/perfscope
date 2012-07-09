@@ -257,9 +257,7 @@ bool pathnmeq(const char *path1, const char *path2, int n, int m)
 bool pathneq(const char *path1, const char *path2, int n)
 {
     if (canonpath(path1, PBUF1)) {
-        const char *name = stripname(PBUF1, n);
-        //printf("%s\n", name);
-        return strcmp(name, path2) == 0;
+        return strcmp(stripname(PBUF1, n), path2) == 0;
     }
     else
         return false;
