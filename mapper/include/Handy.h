@@ -25,6 +25,10 @@
 #define MAX_PATH 256
 #endif
 
+#ifndef MANGLE_LEN
+#define MANGLE_LEN 256
+#endif
+
 # ifndef ISSLASH
 #  define ISSLASH(C) ((C) == DIRECTORY_SEPARATOR)
 # endif
@@ -39,6 +43,8 @@ const char *stripname(const char *, int);
 char * canonpath (const char *, char *);
 bool pathnmeq(const char *, const char *, int , int);
 bool pathneq(const char *, const char *, int);
+
+char * cpp_demangle(const char *);
 
 #define streq(a,b) (!strcmp((a), (b)))
 

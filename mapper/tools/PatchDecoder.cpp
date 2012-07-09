@@ -2,7 +2,7 @@
 #include "PatchDecoder.h"
 
 
-static bool DEBUG = true;
+static bool DEBUG = false;
 
 static const char * PHEADER = "****";
 static const int PLEN = 4;

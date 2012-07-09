@@ -1,7 +1,10 @@
 #include "Handy.h"
+#include <cxxabi.h>
 
 static char PBUF1[MAX_PATH];
 static char PBUF2[MAX_PATH];
+static char *MBUF = NULL;
+static size_t MBUF_LEN = 0;
 
 void diegrace(const char * format, ...)
 {
@@ -273,3 +276,15 @@ unsigned countnchr(const char *str, size_t n, char ch)
     }
     return cnt;
 }
+
+/** A simple wrapper for demangling C++ ABI name **/
+char * cpp_demangle(const char *name)
+{
+    if (MBUF == NULL) {
+        MBUF = (char *) xmalloc(MANGLE_LEN);
+        MBUF_LEN = MANGLE_LEN;
+    }
+    int status;
+    return abi::__cxa_demangle(name, MBUF, &MBUF_LEN, &status);
+}
+

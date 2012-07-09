@@ -31,6 +31,7 @@
 #include "llvm/Instruction.h"
 #include "llvm/InstrTypes.h"
 
+#include "Handy.h"
 #include "PatchDecoder.h"
 #include "Matcher.h"
 
@@ -143,8 +144,9 @@ namespace {
                         Hunk::iterator HI = hunk->begin(), HE = hunk->end();
                         while ((f = matcher.matchFunction(I, tmps)) != NULL ) {
                             s++;
-                            errs() << "scope #" << s << ": " << f->getName() << " |=> " << 
+                            errs() << "scope #" << s << ": " << cpp_demangle(f->getName().data()) << " |=> " << 
                                     hunk->enclosing_scope << "\n";
+                            /**
                             LoopInfo &li = getAnalysis<LoopInfo>(*f);
                             errs() << "\t";
                             if (li.begin() == li.end()) {
@@ -174,6 +176,7 @@ namespace {
                                 else
                                     errs() << "\n";
                             }
+                            **/
                         }
                         if (s == 0) {
                             errs() << "insignificant scope";
