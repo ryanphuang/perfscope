@@ -1,0 +1,11 @@
+--- sql/sql_select.cc	2012-07-07 23:30:00.914930820 -0700
++++ sql_select.cc	2012-07-09 01:58:06.546875482 -0700
+@@ -10849,6 +10849,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,OR
+       usable_keys.clear_all();
+       DBUG_RETURN(0);
+     }
++    int nouse = 0;
++    nouse++;
+     usable_keys.intersect(((Item_field*) item)->field->part_of_sortkey);
+     if (usable_keys.is_clear_all())
+       DBUG_RETURN(0);					// No usable keys

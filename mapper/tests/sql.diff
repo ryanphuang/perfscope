@@ -1,0 +1,11 @@
+--- sql/sql_select.cc	2012-07-07 23:30:00.914930820 -0700
++++ new	2012-07-07 23:30:41.718930797 -0700
+@@ -10836,7 +10836,7 @@
+   TABLE *table=tab->table;
+   SQL_SELECT *select=tab->select;
+   key_map usable_keys;
+-  DBUG_ENTER("test_if_skip_sort_order");
++  DBUG_ENTER("test_skip_sort_order");
+   LINT_INIT(ref_key_parts);
+ 
+   /* Check which keys can be used to resolve ORDER BY */
