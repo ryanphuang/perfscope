@@ -156,7 +156,7 @@ void testMatching(string & filename, Matcher & matcher, Scope & scope)
 void test_PatchDecoder(char *input)
 {
     LLVMContext Context;
-    Module *module = ReadModule(Context, "sql_select.o");
+    Module *module = ReadModule(Context, "mysqld.bc");
     assert(module);
     Matcher matcher(*module, 0, 6);
 
