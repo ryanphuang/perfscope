@@ -155,11 +155,12 @@ void testMatching(string & filename, Matcher & matcher, Scope & scope)
 
 void test_PatchDecoder(char *input)
 {
+    /**
     LLVMContext Context;
     Module *module = ReadModule(Context, "mysqld.bc");
     assert(module);
     Matcher matcher(*module, 0, 6);
-
+    **/
 
     PatchDecoder * decoder = new PatchDecoder(input);
     assert(decoder);
@@ -179,8 +180,9 @@ void test_PatchDecoder(char *input)
                     cout << hunk->ctrlseq << endl;
                 }
                 assert(hunk->reduce());
-                //if (DEBUG)
+                if (DEBUG)
                     cout << hunk->enclosing_scope << endl;
+                /**
                 testMatching(chap->fullname, matcher, hunk->enclosing_scope);
                 for (Hunk::iterator I = hunk->begin(), E = hunk->end();
                     I != E; I++) {
@@ -189,6 +191,7 @@ void test_PatchDecoder(char *input)
                     if (DEBUG)
                         cout << "mod: " << *mod << endl;
                 }
+                **/
             }
         }
     }
