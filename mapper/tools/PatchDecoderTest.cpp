@@ -12,12 +12,23 @@
 #include <iostream>
 #include <limits.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <vector>
 
 using namespace std;
 
-static bool DEBUG = false;
+#define DEBUG false
+
+#define STRIP_LEN 6 // define number of components(slashes) to strip of the full path in debug info 
+
+struct stat sourcestat;
+
+static int objlen = MAX_PATH;
+static char objname[MAX_PATH];
+
 
 /// Reads a module from a file.  On error, messages are written to stderr
 /// and null is returned.
@@ -137,6 +148,17 @@ void test_stripname()
     end_test("stripname", total, failed);
 }
 
+void test_src2obj()
+{
+    char *p;
+    p = src2obj("storage/innobase/fil/fil0fil.c", objname, &objlen);
+    assert(streq(p, "storage/innobase/fil/fil0fil.o"));
+    p = src2obj("client/mysql_plugin.c", objname, &objlen);
+    assert(streq(p, "client/mysql_plugin.o"));
+    p = src2obj("include/m_ctype.h", objname, &objlen);
+    assert(p == NULL);
+}
+
 void testMatching(string & filename, Matcher & matcher, Scope & scope)
 {
     Function * f;
@@ -153,15 +175,18 @@ void testMatching(string & filename, Matcher & matcher, Scope & scope)
     errs() << "\n";
 }
 
+Module *loadModule(const char *sourcename)
+{
+    if (src2obj(sourcename, objname, &objlen) == NULL) // skip header files for now
+        return NULL;
+    LLVMContext Context;
+    Module *module = ReadModule(Context, objname);
+    return module;
+}
+
+
 void test_PatchDecoder(char *input)
 {
-    /**
-    LLVMContext Context;
-    Module *module = ReadModule(Context, "mysqld.bc");
-    assert(module);
-    Matcher matcher(*module, 0, 6);
-    **/
-
     PatchDecoder * decoder = new PatchDecoder(input);
     assert(decoder);
     Patch *patch = NULL;
@@ -174,6 +199,13 @@ void test_PatchDecoder(char *input)
         while((chap = patch->next_chapter()) != NULL) {
             if (DEBUG)
                 cout << "chapter: " << chap->filename << endl;
+            Module *module = loadModule(chap->fullname.c_str());
+            if (module == NULL) {
+                cout << "cannot load module for this chapter " << endl;
+                chap->skip_rest_of_hunks();
+                continue;
+            }
+            Matcher matcher(*module, 0, STRIP_LEN);
             while((hunk = chap->next_hunk()) != NULL) {
                 if (DEBUG) {
                     cout << "hunk: " << hunk->start_line << endl;
@@ -182,8 +214,9 @@ void test_PatchDecoder(char *input)
                 assert(hunk->reduce());
                 if (DEBUG)
                     cout << hunk->enclosing_scope << endl;
-                /**
                 testMatching(chap->fullname, matcher, hunk->enclosing_scope);
+            
+                /**
                 for (Hunk::iterator I = hunk->begin(), E = hunk->end();
                     I != E; I++) {
                     mod = *I;
@@ -212,9 +245,10 @@ int main(int argc, char *argv[])
         cerr << "Usage: " << argv[0] << " FILE" << endl;
         exit(1);
     }
+    test_src2obj();
     //test_canonpath();
     //test_stripname();
-    test_PatchDecoder(argv[1]);
+    //test_PatchDecoder(argv[1]);
     //test_ScopeFinder();
     return 0;
 }

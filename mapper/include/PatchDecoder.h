@@ -100,6 +100,7 @@ class Chapter {
     public:
         Chapter(PatchDecoder *, const char *, const char *);
         Hunk * next_hunk();
+        bool skip_rest_of_hunks();
 
 
     protected:

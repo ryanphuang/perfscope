@@ -373,6 +373,24 @@ Hunk * Chapter::next_hunk()
     return hunk;
 }
 
+bool Chapter::skip_rest_of_hunks()
+{
+    if (decoder == NULL) {
+        warn("Decoder is NULL");
+        return false;
+    }
+    size_t chars_read;
+    const char * line;
+    while ((line = decoder->next_line(chars_read)) != NULL) {
+        if (strncmp(line, PHEADER, PLEN) == 0 ||
+                strncmp(line, FHEADER, FLEN) == 0) {
+                unget_line(); //unget the line.
+                break;
+        }
+    }
+    return true;
+}
+
 void Chapter::unget_line()
 {
     if (decoder && !decoder->unget_line()) { 

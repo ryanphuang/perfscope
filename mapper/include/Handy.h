@@ -35,6 +35,8 @@
 
 size_t fgetline(FILE *, char *, size_t & , unsigned &);
 
+bool isempty(const char *);
+bool endswith(const char*, const char*);
 const char *strnchr(const char *, size_t, char);
 const char *lastof(const char *, char);
 unsigned countnchr(const char *, size_t, char);
@@ -43,6 +45,8 @@ const char *stripname(const char *, int);
 char * canonpath (const char *, char *);
 bool pathnmeq(const char *, const char *, int , int);
 bool pathneq(const char *, const char *, int);
+
+char *src2obj(const char *, char *, int *);
 
 char * cpp_demangle(const char *);
 

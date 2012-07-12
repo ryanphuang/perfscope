@@ -6,6 +6,23 @@ static char PBUF2[MAX_PATH];
 static char *MBUF = NULL;
 static size_t MBUF_LEN = 0;
 
+static const char *SOURCE_SUFFIX[] = {
+    ".c",
+    ".cc",
+    ".cpp",
+    ".C",
+    ".hpp",
+    0
+};
+
+static const int SUFFIX_LEN[] = {
+    1,
+    2,
+    3,
+    1,
+    3
+};
+
 void diegrace(const char * format, ...)
 {
     va_list args;
@@ -73,6 +90,38 @@ size_t fgetline(FILE * fp, char *buf, size_t & bufsize, unsigned &lineno)
         buf[i++] = c;
     }
     return i;
+}
+
+char *src2obj(const char *name, char *outbuf, int *buflen)
+{
+    if (outbuf != NULL && buflen == NULL)
+        return NULL;
+    const char **suffix = SOURCE_SUFFIX;
+    const int*slen = SUFFIX_LEN;
+    while(*suffix) {
+        if(endswith(name, *suffix)) {
+            char *dst;
+            int baselen = strlen(name) - *slen;
+            if (outbuf == NULL) {
+                dst = (char *) xmalloc(baselen + 2);
+                if (buflen != NULL)
+                    *buflen = baselen + 2;
+            }
+            else {
+                if (baselen + 2 > *buflen)
+                    dst = (char *) realloc(outbuf, baselen + 2);
+                else
+                    dst = outbuf;
+            }
+            strncpy(dst, name, baselen);
+            dst[baselen] = 'o'; // obj suffix
+            dst[baselen + 1] = '\0';
+            return dst;
+        }
+        suffix++;
+        slen++;
+    }
+    return NULL;
 }
 
 const char *strnchr(const char *str, size_t n, char ch)
@@ -275,6 +324,29 @@ unsigned countnchr(const char *str, size_t n, char ch)
             cnt++;
     }
     return cnt;
+}
+
+bool endswith(const char *s, const char *ending)
+{
+    if (NULL == s || NULL == ending) {
+        return false;
+    }
+    int l1 = strlen(s);
+    int l2 = strlen(ending);
+    if (l1 < l2) {
+        return false;
+    }
+    return (strncmp(s + (l1 - l2), ending, l2) == 0);
+}
+
+bool isempty(const char * str)
+{
+    if (str == NULL || *str == '\0') {
+        return true;
+    }
+    else {
+        return false;
+    }
 }
 
 /** A simple wrapper for demangling C++ ABI name **/
