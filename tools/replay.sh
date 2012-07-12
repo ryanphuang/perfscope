@@ -12,7 +12,7 @@ PARSER=./parser
 BUILDDIR=bld
 MAXREV=$(bzr revno)
 ENVFILE=llvm_env.sh
-DRYRUN=
+DRYRUN=1
 REMAKE=0
 
 function die()
@@ -117,7 +117,7 @@ fi
 
 echo "" > .replay/replay.log
 echo "" > .replay/replay.err
-NOOBJ=1
+#NOOBJ=1
 for (( i = $1; i <= $2; i++))
 do
     echo "========Transaction begin for revision $i ============" 
@@ -149,11 +149,11 @@ do
     fi
     log "\tDiffs parsed"
 
-    #if [ ! -s $REPLAYDIR/$DIFFDIR/$i.diff.id ]; then
-    #    log "@@Revision $i didn't touch any source files. Skipping..."
-    #    echo "********Transaction end  for revision $i ************" 
-    #    continue
-    #fi
+    if [ ! -s $REPLAYDIR/$DIFFDIR/$i.diff.id ]; then
+        log "@@Revision $i didn't touch any source files. Skipping..."
+        echo "********Transaction end  for revision $i ************" 
+        continue
+    fi
 
     ####Switch Revision####
     log "[[Switching to revision $i..."
@@ -167,13 +167,13 @@ do
     log "\tNow at revision $i"
 
     ####Backing up previous revision####
-    if [ $NOOBJ -eq 1 ]; then
+    
+    #if [ $NOOBJ -eq 1 ]; then
         ####First Time Build####
-        log "@@$i is the start revision and doesn't have old object files."
-    else
+    #    log "@@$i is the start revision and doesn't have old object files."
+    #else
+    if [ $i -ne $1 ]; then
         ##TODO programmatic
-        j=$((i - 1))
-        echo $j
         log "[[Backing up revision $j object files..."
         if [ -z "$DRYRUN" ]; then
             cp $BUILDDIR/sql/mysqld.bc $REPLAYDIR/$OBJDIR/mysqld.bc.$j 2>/dev/null
@@ -186,7 +186,8 @@ do
 
     ####Build Revision####
     build $i
-    NOOBJ=0
+    j=$i  # only back up the built ones, not necessarily last revision.
+    #NOOBJ=0
     echo "********Transaction end  for revision $i ************" 
     ####Impact Analysis####
 done
