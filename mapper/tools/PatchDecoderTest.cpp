@@ -20,9 +20,9 @@
 
 using namespace std;
 
-#define DEBUG false
+#define DEBUG true
 
-#define STRIP_LEN 6 // define number of components(slashes) to strip of the full path in debug info 
+#define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
 
 struct stat sourcestat;
 
@@ -199,7 +199,12 @@ void test_PatchDecoder(char *input)
         while((chap = patch->next_chapter()) != NULL) {
             if (DEBUG)
                 cout << "chapter: " << chap->filename << endl;
-            Module *module = loadModule(chap->fullname.c_str());
+            Module *module; 
+            LLVMContext Context;
+            if (src2obj(chap->fullname.c_str(), objname, &objlen) == NULL) // skip header files for now
+                module = NULL;
+            else
+                module = ReadModule(Context, objname);
             if (module == NULL) {
                 cout << "cannot load module for this chapter " << endl;
                 chap->skip_rest_of_hunks();
@@ -245,10 +250,10 @@ int main(int argc, char *argv[])
         cerr << "Usage: " << argv[0] << " FILE" << endl;
         exit(1);
     }
-    test_src2obj();
+    //test_src2obj();
     //test_canonpath();
     //test_stripname();
-    //test_PatchDecoder(argv[1]);
+    test_PatchDecoder(argv[1]);
     //test_ScopeFinder();
     return 0;
 }
