@@ -3,7 +3,7 @@
 LEVEL = ../../..
 LIBRARYNAME = LLVMMDMap
 LOADABLE_MODULE = 1
-USEDLIBS = patchdecoder.a
+USEDLIBS = mappercore.a
 
 ifneq ($(REQUIRES_RTTI), 1)
 ifneq ($(REQUIRES_EH), 1)

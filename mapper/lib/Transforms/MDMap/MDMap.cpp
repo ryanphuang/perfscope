@@ -225,6 +225,9 @@ namespace {
 
         virtual bool runOnModule(Module &M) 
         {
+            ScopeInfoFinder finder;
+            finder.processSubprograms(M);
+            /*
             for (Module::iterator I = M.begin(), E = M.end(); I != E; I++) {
                 //DISubprogram DIS(f);
                 if (I->begin() == I->end())
@@ -239,6 +242,7 @@ namespace {
                 else
                     errs() << Loc.getLine() << "\n";
             }
+            */
             return false;
         }
 

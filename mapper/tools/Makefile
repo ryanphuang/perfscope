@@ -9,9 +9,9 @@ LEVEL=..
 # List all of the subdirectories that we will compile.
 #
 
-TOOLNAME=testdecoder
+TOOLNAME=testmapper
 
-LIBRARYNAME=patchdecoder
+USEDLIBS=mappercore.a
 
 #LLVMLIBS=LLVMSupport.a LLVMCore.a LLVMSupport.a LLVMCore.a LLVMBitReader.a LLVMAsmParser.a LLVMAnalysis.a LLVMTransformUtils.a LLVMScalarOpts.a LLVMTarget.a
 

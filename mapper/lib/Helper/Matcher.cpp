@@ -1,7 +1,7 @@
 #include "Matcher.h"
 #include "Handy.h"
 
-static bool DEBUG = false;
+static bool LOCAL_DEBUG = false;
 
 bool cmpDIS(const DISubprogram & SP1, const DISubprogram & SP2) 
 { 
@@ -110,7 +110,7 @@ void ScopeInfoFinder::processSubprograms(Module &M)
     if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu"))
         for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
             DICompileUnit DICU(CU_Nodes->getOperand(i));
-            if (DEBUG)
+            if (LOCAL_DEBUG)
                 errs() << "CU: " << DICU.getDirectory() << "/" << DICU.getFilename() << "\n";
             if (DICU.getVersion() > LLVMDebugVersion10) {
                 DIArray SPs = DICU.getSubprograms();
@@ -126,7 +126,7 @@ void ScopeInfoFinder::processSubprograms(Module &M)
     if (NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.sp"))
         for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
             DISubprogram DIS(NMD->getOperand(i));
-            if (DEBUG)
+            if (LOCAL_DEBUG)
                 errs() << "DIS: " << DIS.getName() << ", " << DIS.getDisplayName() << "\n";
         }
 
@@ -134,10 +134,11 @@ void ScopeInfoFinder::processSubprograms(Module &M)
     std::sort(MySPs.begin(), MySPs.end(), cmpDIS);
     std::vector<DISubprogram>::iterator I, E;
     for (I = MySPs.begin(), E = MySPs.end(); I != E; I++) {
-        if (DEBUG)
-            errs() << "@" << I->getDirectory() << "/" << I->getFilename() << 
-              ":" << I->getLineNumber() << "# " << I->getLinkageName() << 
-              "(" << I->getName() << ") \n";
+        //if (LOCAL_DEBUG) {
+            errs() << "@" << I->getDirectory() << "/" << I->getFilename();
+            errs() << ":" << I->getLineNumber() << "# " << I->getLinkageName();
+            errs() << "(" << I->getName() << ") \n";
+        //}
     }
 }
 
@@ -173,7 +174,7 @@ unsigned ScopeInfoFinder::getInstLine(Instruction *I)
 {
     DebugLoc Loc = I->getDebugLoc();
     if (Loc.isUnknown()) {
-        if (DEBUG) {
+        if (LOCAL_DEBUG) {
             errs() << "Unknown LOC" << "\n";
         }
         return 0;
@@ -268,14 +269,14 @@ Loop * Matcher::matchLoop(LoopInfo &li, Scope & scope)
         // dump loops including all subloops
         // (*LII)->dump();
         if (ScopeInfoFinder::getLoopScope(ls, *LII)) { //Top level loops
-            if (DEBUG)
+            if (LOCAL_DEBUG)
                 errs() << ls<< "\n";
         }
         if (ls.includes(scope)) {
             found = *LII; // at least should be this Top level loop
             for (Loop::iterator LIBI = (*LII)->begin(), LIBE = (*LII)->end(); LIBI != LIBE; LIBI++) {
                 if (ScopeInfoFinder::getLoopScope(ls, *LIBI)) { //Sub loops
-                    if (DEBUG)
+                    if (LOCAL_DEBUG)
                         errs() << ls << "\n";
                 }
                 if (ls.includes(scope))
