@@ -8,6 +8,6 @@ LEVEL=..
 #
 # List all of the subdirectories that we will compile.
 #
-DIRS=Helper Transforms 
+DIRS=Helper Analysis
 
 include $(LEVEL)/Makefile.common

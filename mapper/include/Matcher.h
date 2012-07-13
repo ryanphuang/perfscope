@@ -66,11 +66,13 @@ class MetadataTree {
 bool cmpDIS(const DISubprogram &, const DISubprogram &);
 bool skipFunction(Function *);
 
+typedef Pair<DISubprogram, int> DISPExt;
 
 class ScopeInfoFinder {
     protected:
         //DebugInfoFinder Finder;
         std::vector<DISubprogram> MySPs;
+        //std::vector<DISPExt> MySPs;
     public:
         typedef std::vector<DISubprogram>::const_iterator sp_iterator;
 
@@ -84,6 +86,7 @@ class ScopeInfoFinder {
         void processDomTree(DominatorTree &);
 
         static unsigned getInstLine(Instruction *);
+        static unsigned getLastLine(Function *);
         static bool getBlockScope(Scope & , BasicBlock *);
         static bool getLoopScope(Scope & , Loop *);
 

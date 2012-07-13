@@ -117,8 +117,7 @@ void ScopeInfoFinder::processSubprograms(Module &M)
                 for (unsigned i = 0, e = SPs.getNumElements(); i != e; i++) {
                     DISubprogram DIS(SPs.getElement(i));
                     MySPs.push_back(DIS);
-                    //errs() << "SP@" << DIS.getLineNumber() << ": " << 
-                    //    DIS.getLinkageName() << "(" << DIS.getName() << ") \n";
+                    errs() << "SP@" << DIS.getLineNumber() << ": " << DIS.getName() << "\n";
                 }
             }
         }
@@ -136,8 +135,8 @@ void ScopeInfoFinder::processSubprograms(Module &M)
     for (I = MySPs.begin(), E = MySPs.end(); I != E; I++) {
         //if (LOCAL_DEBUG) {
             errs() << "@" << I->getDirectory() << "/" << I->getFilename();
-            errs() << ":" << I->getLineNumber() << "# " << I->getLinkageName();
-            errs() << "(" << I->getName() << ") \n";
+            errs() << ":" << I->getName();
+            errs() << "([" << I->getLineNumber() << "," << getLastLine(I->getFunction()) << "]) \n";
         //}
     }
 }
@@ -182,8 +181,24 @@ unsigned ScopeInfoFinder::getInstLine(Instruction *I)
     return Loc.getLine();
 }
 
+unsigned ScopeInfoFinder::getLastLine(Function *F)
+{
+    if (F == NULL || F->begin() == F->end()) //empty block
+        return 0;
+    const BasicBlock & BB = F->back();
+    const Instruction & I = BB.back();
+    DebugLoc Loc = I.getDebugLoc();
+    if (Loc.isUnknown()) 
+        return 0;
+    return Loc.getLine();
+}
+
+
 bool ScopeInfoFinder::getBlockScope(Scope & scope, BasicBlock *B)
 {
+    if (B->begin() == B->end()) // empty block
+        return false;
+   
     /** Use first and last instruction to get the scope information **/
     Instruction *first = & B->front();
     Instruction *last = & B->back();
@@ -203,6 +218,8 @@ bool ScopeInfoFinder::getBlockScope(Scope & scope, BasicBlock *B)
 
 bool ScopeInfoFinder::getLoopScope(Scope & scope, Loop * L) 
 {
+    if (L == NULL)
+        return false;
     BasicBlock * header= L->getHeader();
     if (getBlockScope(scope, header)) {
         /*
