@@ -44,6 +44,10 @@ static cl::opt<std::string>  ClScopeListFile("diffout",
        cl::desc("File containing the parsed result of diff"
                 ), cl::Hidden);
 
+static cl::opt<int>  StripLen("strips",
+       cl::desc("Levels to strips of path in debug info "
+                ));
+
 namespace {
     
     static bool DEBUG = false;
@@ -107,8 +111,10 @@ namespace {
             DT.print(errs()); // DFS print
         }
 
-        virtual bool runOnModule(Module &M) 
+
+        void testAnalyzer(Module &M)
         {
+
             matcher.init(M);
             matcher.setstrips(0, 6); // Set the strips of path in the debug info
 
@@ -212,6 +218,27 @@ namespace {
                 //}
             }
             **/
+
+
+        }
+
+
+        virtual bool runOnModule(Module &M) 
+        {
+            for (Module::iterator I = M.begin(), E = M.end(); I != E; I++) {
+                //DISubprogram DIS(f);
+                if (I->begin() == I->end())
+                    continue;
+                const BasicBlock & BB = I->back();
+                const Instruction & IB = BB.back();
+                DebugLoc Loc = IB.getDebugLoc();
+                errs() << I->getName() << "\t";
+                if (Loc.isUnknown()) {
+                    errs() << "Unknown LOC" << "\n";
+                }
+                else
+                    errs() << Loc.getLine() << "\n";
+            }
             return false;
         }
 

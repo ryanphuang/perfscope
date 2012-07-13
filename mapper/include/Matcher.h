@@ -131,6 +131,7 @@ class Matcher {
 
         void preTraversal(Function *);
         void succTraversal(Function *);
+
 };
 
 #endif

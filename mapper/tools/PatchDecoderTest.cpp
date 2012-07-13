@@ -4,10 +4,14 @@
 
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
+#include "llvm/PassManager.h"
 #include "llvm/Type.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/IRReader.h"
+#include "llvm/Support/ManagedStatic.h"
+#include "llvm/Target/TargetData.h"
 
 #include <iostream>
 #include <limits.h>
@@ -23,6 +27,88 @@ using namespace std;
 #define DEBUG true
 
 #define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
+
+static SmallVector<Scope, 4> funcLoops;
+
+struct LoopInfoPrinter : public FunctionPass {
+    static char ID;
+    std::string PassName;
+
+    LoopInfoPrinter() : FunctionPass(ID) {
+            PassName = "LoopInfo Printer: ";
+    }
+
+    virtual bool runOnFunction(Function &F) {
+        LoopInfo &li = getAnalysis<LoopInfo>();
+        funcLoops.clear();
+        Scope ls;
+        for (LoopInfo::iterator LII = li.begin(),  LIE = li.end(); LII != LIE; LII++) {
+            if (ScopeInfoFinder::getLoopScope(ls, *LII)) { 
+                funcLoops.push_back(ls);
+            }
+        }
+        /*
+        int s = 0;
+        Scope scope = hunk->enclosing_scope;
+        errs() << hunk->enclosing_scope << " might touch ";
+        ScopeInfoFinder::sp_iterator I = matcher.initMatch(chap->fullname);
+        Hunk::iterator HI = hunk->begin(), HE = hunk->end();
+        Scope ls;
+        while ((f = matcher.matchFunction(I, scope)) != NULL ) {
+            s++;
+            errs() << "scope #" << s << ": " << cpp_demangle(f->getName().data())<< " |=> " << scope << ", ";
+            FPasses->run(*f);
+            errs() << "\t";
+            if (li == NULL) {
+                errs() << "NULL loopinfo" << "\n";
+                continue;
+            }
+            if (li->begin() == li->end()) {
+                errs() << "no loop in this function" << "\n";
+            }
+            else {
+                //TODO more elegant
+                //TODO get function scope
+                //TODO loop finder no need to restart
+                Loop * loop = NULL;
+                while(HI != HE) {
+                    mod = *HI;
+                    // if there are multiple functions and this mod
+                    // crossed the current function's scope, we break
+                    // the loop
+                    if (scope.end != 0  && mod->scope.begin > scope.begin)
+                        break;
+                    loop = Matcher::matchLoop(*li, scope);
+                    if (loop != NULL) {
+                        ScopeInfoFinder::getLoopScope(ls, loop);
+                        errs() << "loop: " << ls;
+                    }
+                    HI++;
+                }
+                if (loop == NULL)
+                    errs() << "loop: none" << "\n";
+                else
+                    errs() << "\n";
+            }
+        }
+        if (s == 0) {
+            errs() << "insignificant scope";
+        }
+        errs() << "\n";
+        */
+        return false;
+    }
+
+    virtual const char *getPassName() const { return PassName.c_str(); }
+
+    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+        AU.setPreservesAll();
+        AU.addRequired<DominatorTree>();
+        AU.addRequired<LoopInfo>();
+    }
+};
+
+char LoopInfoPrinter::ID = 0;
 
 struct stat sourcestat;
 
@@ -185,14 +271,38 @@ Module *loadModule(const char *sourcename)
 }
 
 
+void moduleDriver()
+{
+
+}
+
 void test_PatchDecoder(char *input)
 {
+    LLVMContext & Context = getGlobalContext();
+    llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
     PatchDecoder * decoder = new PatchDecoder(input);
     assert(decoder);
     Patch *patch = NULL;
     Chapter *chap = NULL;
     Hunk * hunk = NULL;
     Mod * mod = NULL;
+    // Create a PassManager to hold and optimize the collection of passes we are
+    // about to build.
+    //
+    //PassManager Passes;
+
+    OwningPtr<FunctionPassManager> FPasses;
+    // Initialize passes
+    PassRegistry &Registry = *PassRegistry::getPassRegistry();
+    initializeCore(Registry);
+    initializeScalarOpts(Registry);
+    initializeIPO(Registry);
+    initializeAnalysis(Registry);
+    initializeIPA(Registry);
+    initializeTransformUtils(Registry);
+    initializeInstCombine(Registry);
+    initializeInstrumentation(Registry);
+    initializeTarget(Registry);
     while((patch = decoder->next_patch()) != NULL) {
         if (DEBUG)
             cout << "patch: " << patch->patchname << endl;
@@ -200,7 +310,6 @@ void test_PatchDecoder(char *input)
             if (DEBUG)
                 cout << "chapter: " << chap->filename << endl;
             Module *module; 
-            LLVMContext Context;
             if (src2obj(chap->fullname.c_str(), objname, &objlen) == NULL) // skip header files for now
                 module = NULL;
             else
@@ -210,7 +319,11 @@ void test_PatchDecoder(char *input)
                 chap->skip_rest_of_hunks();
                 continue;
             }
+            FPasses.reset(new FunctionPassManager(module));
+            FPasses->add(new LoopInfoPrinter());
+            FPasses->doInitialization();
             Matcher matcher(*module, 0, STRIP_LEN);
+            ScopeInfoFinder::sp_iterator I = matcher.initMatch(chap->fullname);
             while((hunk = chap->next_hunk()) != NULL) {
                 if (DEBUG) {
                     cout << "hunk: " << hunk->start_line << endl;
@@ -219,8 +332,26 @@ void test_PatchDecoder(char *input)
                 assert(hunk->reduce());
                 if (DEBUG)
                     cout << hunk->enclosing_scope << endl;
-                testMatching(chap->fullname, matcher, hunk->enclosing_scope);
-            
+                Function *f;
+                int s = 0;
+                Scope scope = hunk->enclosing_scope;
+                errs() << hunk->enclosing_scope << " might touch ";
+                Scope ls;
+                while ((f = matcher.matchFunction(I, scope)) != NULL ) {
+                    s++;
+                    errs() << "scope #" << s << ": " << cpp_demangle(f->getName().data())<< " |=> " << scope << ", ";
+                    FPasses->run(*f);
+                    errs() << "\t";
+                    for (SmallVector<Scope, 4>::iterator I = funcLoops.begin(), E = funcLoops.end();
+                            I != E; I++) {
+                        errs() << *I << " ";
+                    }
+                    errs() << "\n";
+                }
+                if (s == 0) {
+                    errs() << "insignificant scope";
+                }
+                errs() << "\n";
                 /**
                 for (Hunk::iterator I = hunk->begin(), E = hunk->end();
                     I != E; I++) {
@@ -231,6 +362,9 @@ void test_PatchDecoder(char *input)
                 }
                 **/
             }
+            FPasses->doFinalization();
+            delete module;
+            module = NULL;
         }
     }
 }
