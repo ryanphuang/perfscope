@@ -63,18 +63,49 @@ class MetadataTree {
         MetadataNode *search(unsigned key);
 };
 
-bool cmpDIS(const DISubprogram &, const DISubprogram &);
+typedef Pair<DISubprogram, int> DISPExt;
+
+class DISPCopy {
+    public:
+        /*
+        StringRef directory;
+        StringRef filename;
+        StringRef name;
+        */
+        std::string directory;
+        std::string filename;
+        std::string name;
+        unsigned linenumber;
+        unsigned lastline;
+        Function *function;
+        
+    public:
+        DISPCopy(DISubprogram & DISP)
+        {
+            directory = DISP.getDirectory();
+            filename = DISP.getFilename();
+            name = DISP.getName();
+            linenumber = DISP.getLineNumber();
+            lastline = 0;
+            function = DISP.getFunction();
+        }
+};
+
+bool cmpDISP(const DISubprogram &, const DISubprogram &);
+bool cmpDISPCopy(const DISPCopy &, const DISPCopy &);
+
 bool skipFunction(Function *);
 
-typedef Pair<DISubprogram, int> DISPExt;
 
 class ScopeInfoFinder {
     protected:
         //DebugInfoFinder Finder;
-        std::vector<DISubprogram> MySPs;
+        //std::vector<DISubprogram> MySPs;
+        //std::vector<DISPCopy> MySPs;
+        std::vector<DISPCopy> MySPs;
         //std::vector<DISPExt> MySPs;
     public:
-        typedef std::vector<DISubprogram>::const_iterator sp_iterator;
+        typedef std::vector<DISPCopy>::const_iterator sp_iterator;
 
     public:
 

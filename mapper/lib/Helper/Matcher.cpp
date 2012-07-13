@@ -3,7 +3,7 @@
 
 static bool LOCAL_DEBUG = false;
 
-bool cmpDIS(const DISubprogram & SP1, const DISubprogram & SP2) 
+bool cmpDISP(const DISubprogram & SP1, const DISubprogram & SP2) 
 { 
     int cmp = SP1.getDirectory().compare(SP2.getDirectory());
     if (cmp == 0) {
@@ -13,6 +13,19 @@ bool cmpDIS(const DISubprogram & SP1, const DISubprogram & SP2)
         }
     }
     return cmp > 0 ? false : true;
+}
+
+bool cmpDISPCopy(const DISPCopy & SP1, const DISPCopy & SP2) 
+{ 
+    int cmp = SP1.directory.compare(SP2.directory);
+    if (cmp == 0) {
+        cmp = SP1.filename.compare(SP2.filename);
+        if (cmp == 0) {
+            cmp = SP1.linenumber - SP2.linenumber;
+        }
+    }
+    return cmp > 0 ? false : true;
+    //return cmp >= 0 ? false : true;
 }
 
 bool skipFunction(Function *F)
@@ -116,8 +129,8 @@ void ScopeInfoFinder::processSubprograms(Module &M)
                 DIArray SPs = DICU.getSubprograms();
                 for (unsigned i = 0, e = SPs.getNumElements(); i != e; i++) {
                     DISubprogram DIS(SPs.getElement(i));
-                    MySPs.push_back(DIS);
-                    errs() << "SP@" << DIS.getLineNumber() << ": " << DIS.getName() << "\n";
+                    MySPs.push_back(DISPCopy(DIS));
+                    //errs() << "SP@" << DIS.getLineNumber() << ": " << DIS.getName() << "\n";
                 }
             }
         }
@@ -125,20 +138,23 @@ void ScopeInfoFinder::processSubprograms(Module &M)
     if (NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.sp"))
         for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
             DISubprogram DIS(NMD->getOperand(i));
+            errs() << "From SP!! \n";
             if (LOCAL_DEBUG)
                 errs() << "DIS: " << DIS.getName() << ", " << DIS.getDisplayName() << "\n";
         }
 
     /** Sort based on file name, directory and line number **/
-    std::sort(MySPs.begin(), MySPs.end(), cmpDIS);
-    std::vector<DISubprogram>::iterator I, E;
+    //std::sort(MySPs.begin(), MySPs.end(), cmpDISPCopy);
+    //std::vector<DISPCopy>::iterator I, E;
+    sp_iterator I, E;
     for (I = MySPs.begin(), E = MySPs.end(); I != E; I++) {
         //if (LOCAL_DEBUG) {
-            errs() << "@" << I->getDirectory() << "/" << I->getFilename();
-            errs() << ":" << I->getName();
-            errs() << "([" << I->getLineNumber() << "," << getLastLine(I->getFunction()) << "]) \n";
+            errs() << "@" << I->directory << "/" << I->filename;
+            errs() << ":" << I->name;
+            errs() << "([" << I->linenumber << "," << getLastLine(I->function) << "]) \n";
         //}
     }
+    std::sort(MySPs.begin(), MySPs.end(), cmpDISPCopy);
 }
 
 void ScopeInfoFinder::processDomTree(DominatorTree & DT)
@@ -266,8 +282,8 @@ ScopeInfoFinder::sp_iterator Matcher::initMatch(StringRef fname)
     const char *patchname = stripname(filename.c_str(), patchstrips);
     for (I = Finder.subprogram_begin(), E = Finder.subprogram_end(); 
         I != E; I++) {
-        DISubprogram DIS(*I);
-        std::string debugname = DIS.getDirectory().str() + "/" + DIS.getFilename().str();
+        //std::string debugname = I->directory.str() + "/" + I->filename.str();
+        std::string debugname = I->directory + "/" + I->filename;
         if (pathneq(debugname.c_str(), patchname, debugstrips)) {
             break;
         }
@@ -331,15 +347,15 @@ Function * Matcher::matchFunction(ScopeInfoFinder::sp_iterator I, Scope &scope)
     ScopeInfoFinder::sp_iterator E;
     const char *patchname = stripname(filename.c_str(), patchstrips);
     for (E = Finder.subprogram_end(); I != E; I++) {
-        DISubprogram DIS(*I);
         if (filename.size() > 0) {
-            std::string debugname = DIS.getDirectory().str() + "/" + DIS.getFilename().str();
+            //std::string debugname = I->directory.str() + "/" + I->filename.str();
+            std::string debugname = I->directory + "/" + I->filename;
             if (!pathneq(debugname.c_str(), patchname,  debugstrips))
                 continue; // Should break here, because initMatch already adjust the iterator to the matching file.
         }
-        e = DIS.getLineNumber();
+        e = I->linenumber;
         f1 = f2;
-        f2 = DIS.getFunction();
+        f2 = I->function;
         if (scope.begin < e) {
           if (f1 == NULL) { 
             // boundary case, the modification begins before the first function
