@@ -248,8 +248,11 @@ namespace {
 
         virtual void getAnalysisUsage(AnalysisUsage &AU) const {
             AU.setPreservesAll();
-            AU.addRequired<DominatorTree>();
+            //AU.addRequired<DominatorTree>();
             AU.addRequired<LoopInfo>();
+        }
+        virtual void print(raw_ostream &O, const Module *M) const {
+                O << "This is MDMap !\n";
         }
     };
 
