@@ -13,24 +13,14 @@
 #include <string.h>
 #include <assert.h>
 
+#include "Scope.h"
+
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SmallVector.h"
 
 using namespace llvm;
 
 #define BUFSIZE 8 * 1024
-
-typedef struct Scope {
-    unsigned long begin;
-    unsigned long end;
-    
-    Scope() : begin(0), end(0) {}
-    Scope(unsigned long b, unsigned long e) : begin(b), end(e) {}
-    Scope(const Scope &another) : begin(another.begin), end(another.end) {}
-
-    bool includes(const Scope &another) { return (another.begin >= begin) && (another.end <= end); }
-
-} Scope;
 
 enum MODTYPE {ADD, DEL, REP};
 
@@ -39,9 +29,6 @@ typedef struct Mod {
     MODTYPE type;
 } Mod; 
 
-
-raw_ostream & operator<<(raw_ostream &, const Scope &);
-std::ostream & operator<<(std::ostream &, const Scope &);
 
 std::ostream & operator<<(std::ostream &, const MODTYPE &);
 raw_ostream & operator<<(raw_ostream &, const MODTYPE &);

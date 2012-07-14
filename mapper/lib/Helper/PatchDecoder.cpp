@@ -24,18 +24,6 @@ static char * gBuf = (char *) xmalloc(gBufSize);
 
 static const char *MODSTR[3] = { "ADD", "DELETE", "REPLACE" };
 
-raw_ostream & operator<<(raw_ostream& os, const Scope & scope)
-{
-    os << "[#" << scope.begin << ",#" << scope.end <<"]";
-    return os;
-}
-
-std::ostream & operator<<(std::ostream& os, const Scope & scope)
-{
-    os << "[#" << scope.begin << ",#" << scope.end <<"]";
-    return os;
-}
-
 raw_ostream & operator<<(raw_ostream& os, const MODTYPE & type)
 {
     os << MODSTR[type];

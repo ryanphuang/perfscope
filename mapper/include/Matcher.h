@@ -6,7 +6,6 @@
 
 #include "llvm/Pass.h"
 #include "llvm/Function.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/Statistic.h"
 
 #include "llvm/Analysis/DebugInfo.h"
@@ -25,7 +24,7 @@
 #include <vector>
 #include <deque>
 
-#include "PatchDecoder.h"
+#include "Scope.h"
 
 using namespace llvm;
 
@@ -67,14 +66,14 @@ typedef Pair<DISubprogram, int> DISPExt;
 
 class DISPCopy {
     public:
-        /*
         StringRef directory;
         StringRef filename;
         StringRef name;
-        */
+        /*
         std::string directory;
         std::string filename;
         std::string name;
+        */
         unsigned linenumber;
         unsigned lastline;
         Function *function;
@@ -101,7 +100,6 @@ class ScopeInfoFinder {
     protected:
         //DebugInfoFinder Finder;
         //std::vector<DISubprogram> MySPs;
-        //std::vector<DISPCopy> MySPs;
         std::vector<DISPCopy> MySPs;
         //std::vector<DISPExt> MySPs;
     public:
@@ -134,19 +132,22 @@ class Matcher {
     protected:
         ScopeInfoFinder Finder;
         bool initialized;
+        bool processed;
         std::string filename;
+        const char *patchname;
 
     public:
-        Matcher(Module &M, int p_strips = 0, int d_strips = 0) 
+        Matcher(Module &M, int p_strips, int d_strips) 
         {
             patchstrips = p_strips; 
             debugstrips = d_strips; 
             initialized = false;
-            init(M); 
+            process(M); 
+            processed = true;
         }
-        Matcher() {initialized = false; patchstrips = 0; debugstrips = 0; }
+        Matcher() {initialized = false; processed = false; patchstrips = 0; debugstrips = 0; }
         
-        void init(Module &M) { Finder.processSubprograms(M); } 
+        void process(Module &M) { Finder.processSubprograms(M); processed = true; } 
         void setstrips(int p_strips, int d_strips) 
         {
             patchstrips = p_strips; 
@@ -165,6 +166,9 @@ class Matcher {
 
         void preTraversal(Function *);
         void succTraversal(Function *);
+
+    protected:
+        Function * __matchFunction(ScopeInfoFinder::sp_iterator, Scope &);
 
 };
 

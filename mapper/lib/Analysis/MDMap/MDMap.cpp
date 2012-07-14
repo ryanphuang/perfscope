@@ -67,13 +67,13 @@ namespace {
             return NULL;
         }
 
-        void testMatching(unsigned long begin, unsigned long end)
+        void match(unsigned long begin, unsigned long end)
         {
             Scope scope(begin, end);
             Function * f;
             int s = 0;
             errs() << "[" << begin << "," << end << "] might touch ";
-            ScopeInfoFinder::sp_iterator I = matcher.initMatch("");
+            ScopeInfoFinder::sp_iterator I = matcher.initMatch("a.c");
             while ((f = matcher.matchFunction(I, scope)) != NULL ) {
                 s++;
                 errs() << "scope #" << s << ": " << f->getName() << " |=> " << scope << ", ";
@@ -84,17 +84,22 @@ namespace {
             errs() << "\n";
         }
 
-        void testDriver()
+        void testMatching(Module &M)
         {
-            testMatching(1, 3);
-            testMatching(7, 24);
-            testMatching(7, 29);
-            testMatching(24, 26);
-            testMatching(1, 38);
-            testMatching(37, 40);
-
-            // actually we don't know the end of last function, so the result will be last function
-            testMatching(40, 45); 
+            matcher.process(M);
+            matcher.setstrips(0, 6); // Set the strips of path in the debug info
+            match(1, 3);
+            match(1, 38);
+            match(1, 48); 
+            match(7, 24);
+            match(7, 29);
+            match(18, 32);
+            match(24, 26);
+            match(31, 37);
+            match(32, 35);
+            match(33, 35);
+            match(37, 40);
+            match(43, 48); 
         }
 
 
@@ -115,7 +120,7 @@ namespace {
         void testAnalyzer(Module &M)
         {
 
-            matcher.init(M);
+            matcher.process(M);
             matcher.setstrips(0, 6); // Set the strips of path in the debug info
 
             //Finder.processModule(M);
@@ -141,7 +146,7 @@ namespace {
                             errs() << hunk->ctrlseq << "\n";
                         }
                         assert(hunk->reduce());
-                        //testMatching(chap->fullname, matcher, hunk->enclosing_scope);
+                        //match(chap->fullname, matcher, hunk->enclosing_scope);
                         Function * f;
                         int s = 0;
                         ScopeInfoFinder::sp_iterator I = matcher.initMatch(chap->fullname);
@@ -222,27 +227,15 @@ namespace {
 
         }
 
-
-        virtual bool runOnModule(Module &M) 
+        void testScopeFinder(Module &M)
         {
             ScopeInfoFinder finder;
             finder.processSubprograms(M);
-            /*
-            for (Module::iterator I = M.begin(), E = M.end(); I != E; I++) {
-                //DISubprogram DIS(f);
-                if (I->begin() == I->end())
-                    continue;
-                const BasicBlock & BB = I->back();
-                const Instruction & IB = BB.back();
-                DebugLoc Loc = IB.getDebugLoc();
-                errs() << I->getName() << "\t";
-                if (Loc.isUnknown()) {
-                    errs() << "Unknown LOC" << "\n";
-                }
-                else
-                    errs() << Loc.getLine() << "\n";
-            }
-            */
+        }
+
+        virtual bool runOnModule(Module &M) 
+        {
+            testMatching(M);
             return false;
         }
 
