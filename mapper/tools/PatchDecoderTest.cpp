@@ -262,35 +262,38 @@ void test_PatchDecoder(char *input)
     initializeInstCombine(Registry);
     initializeInstrumentation(Registry);
     initializeTarget(Registry);
-    bool single_bc_loaded = false;
+    Module *module; 
+    if (bc_fname) {
+        module = ReadModule(Context, bc_fname);
+        if (module == NULL)  {
+            cout << "cannot load module for this chapter " << endl;
+            return;
+        }
+        FPasses.reset(new FunctionPassManager(module));
+        FPasses->add(new LoopInfoPrinter());
+        FPasses->doInitialization();
+    }
     while((patch = decoder->next_patch()) != NULL) {
         if (LOCAL_DEBUG)
             cout << "patch: " << patch->patchname << endl;
         while((chap = patch->next_chapter()) != NULL) {
             if (LOCAL_DEBUG)
                 cout << "chapter: " << chap->filename << endl;
-            Module *module; 
-            if (src2obj(chap->fullname.c_str(), objname, &objlen) == NULL) // skip header files for now
-                module = NULL;
-            else {
-                if (bc_fname != NULL && !single_bc_loaded) {
-                    module = ReadModule(Context, bc_fname);
-                    single_bc_loaded = true;
-                }
-                else
-                    module = ReadModule(Context, objname);
-            }
-            if (module == NULL) {
-                cout << "cannot load module for this chapter " << endl;
-                if (bc_fname) { // Failed already
-                    return;
-                }
+            if (src2obj(chap->fullname.c_str(), objname, &objlen) == NULL) { // skip header files for now
                 chap->skip_rest_of_hunks();
                 continue;
             }
-            FPasses.reset(new FunctionPassManager(module));
-            FPasses->add(new LoopInfoPrinter());
-            FPasses->doInitialization();
+            if (bc_fname == NULL) {
+                module = ReadModule(Context, objname);
+                if (module == NULL) {
+                    cout << "cannot load module for this chapter " << endl;
+                    chap->skip_rest_of_hunks();
+                    continue;
+                }
+                FPasses.reset(new FunctionPassManager(module));
+                FPasses->add(new LoopInfoPrinter());
+                FPasses->doInitialization();
+            }
             Matcher matcher(*module, 0, STRIP_LEN);
             ScopeInfoFinder::sp_iterator I = matcher.initMatch(chap->fullname);
             while((hunk = chap->next_hunk()) != NULL) {
@@ -374,10 +377,17 @@ void test_PatchDecoder(char *input)
                         cout << "insignificant scope";
                 }
             }
-            FPasses->doFinalization();
-            delete module;
-            module = NULL;
+            if (bc_fname == NULL) {
+                FPasses->doFinalization();
+                delete module;
+                module = NULL;
+            }
         }
+    }
+    if (bc_fname) {
+        FPasses->doFinalization();
+        delete module;
+        module = NULL;
     }
 }
 
