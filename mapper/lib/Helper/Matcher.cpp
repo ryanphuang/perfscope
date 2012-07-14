@@ -340,6 +340,7 @@ Loop * Matcher::matchLoop(LoopInfo &li, const Scope & scope)
                 //if (ls.includes(scope))
                     found = *LIBI; // return the innermost loop
             }
+            break; // Return the first matching in top level
         }
     }
     return found;

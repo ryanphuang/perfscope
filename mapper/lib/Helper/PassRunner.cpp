@@ -506,33 +506,32 @@ int Run(int argc, char **argv)
             errs() << argv[0] << ": cannot create pass: "
                 << PassInf->getPassName() << "\n";
         if (P) {
-            PassKind Kind = P->getPassKind();
             addPass(Passes, P);
-
             /*
-               if (AnalyzeOnly) {
-               switch (Kind) {
-               case PT_BasicBlock:
-               Passes.add(new BasicBlockPassPrinter(PassInf, Out->os()));
-               break;
-               case PT_Region:
-               Passes.add(new RegionPassPrinter(PassInf, Out->os()));
-               break;
-               case PT_Loop:
-               Passes.add(new LoopPassPrinter(PassInf, Out->os()));
-               break;
-               case PT_Function:
-               Passes.add(new FunctionPassPrinter(PassInf, Out->os()));
-               break;
-               case PT_CallGraphSCC:
-               Passes.add(new CallGraphSCCPassPrinter(PassInf, Out->os()));
-               break;
-               default:
-               Passes.add(new ModulePassPrinter(PassInf, Out->os()));
-               break;
-               }
-               }
-               */
+            PassKind Kind = P->getPassKind();
+            if (AnalyzeOnly) {
+                switch (Kind) {
+                    case PT_BasicBlock:
+                        Passes.add(new BasicBlockPassPrinter(PassInf, Out->os()));
+                        break;
+                    case PT_Region:
+                        Passes.add(new RegionPassPrinter(PassInf, Out->os()));
+                        break;
+                    case PT_Loop:
+                        Passes.add(new LoopPassPrinter(PassInf, Out->os()));
+                        break;
+                    case PT_Function:
+                        Passes.add(new FunctionPassPrinter(PassInf, Out->os()));
+                        break;
+                    case PT_CallGraphSCC:
+                        Passes.add(new CallGraphSCCPassPrinter(PassInf, Out->os()));
+                        break;
+                    default:
+                        Passes.add(new ModulePassPrinter(PassInf, Out->os()));
+                        break;
+                }
+            }
+            */
         }
     }
     Passes.add(new LoopInfoFinder()); 

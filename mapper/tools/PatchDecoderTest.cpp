@@ -29,6 +29,7 @@ using namespace std;
 #define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
 
 static SmallVector<Scope, 4> funcLoops;
+typedef SmallVector<Scope, 4>::iterator loop_iterator;
 
 struct LoopInfoPrinter : public FunctionPass {
     static char ID;
@@ -47,55 +48,6 @@ struct LoopInfoPrinter : public FunctionPass {
                 funcLoops.push_back(ls);
             }
         }
-        /*
-        int s = 0;
-        Scope scope = hunk->enclosing_scope;
-        errs() << hunk->enclosing_scope << " might touch ";
-        ScopeInfoFinder::sp_iterator I = matcher.initMatch(chap->fullname);
-        Hunk::iterator HI = hunk->begin(), HE = hunk->end();
-        Scope ls;
-        while ((f = matcher.matchFunction(I, scope)) != NULL ) {
-            s++;
-            errs() << "scope #" << s << ": " << cpp_demangle(f->getName().data())<< " |=> " << scope << ", ";
-            FPasses->run(*f);
-            errs() << "\t";
-            if (li == NULL) {
-                errs() << "NULL loopinfo" << "\n";
-                continue;
-            }
-            if (li->begin() == li->end()) {
-                errs() << "no loop in this function" << "\n";
-            }
-            else {
-                //TODO more elegant
-                //TODO get function scope
-                //TODO loop finder no need to restart
-                Loop * loop = NULL;
-                while(HI != HE) {
-                    mod = *HI;
-                    // if there are multiple functions and this mod
-                    // crossed the current function's scope, we break
-                    // the loop
-                    if (scope.end != 0  && mod->scope.begin > scope.begin)
-                        break;
-                    loop = Matcher::matchLoop(*li, scope);
-                    if (loop != NULL) {
-                        ScopeInfoFinder::getLoopScope(ls, loop);
-                        errs() << "loop: " << ls;
-                    }
-                    HI++;
-                }
-                if (loop == NULL)
-                    errs() << "loop: none" << "\n";
-                else
-                    errs() << "\n";
-            }
-        }
-        if (s == 0) {
-            errs() << "insignificant scope";
-        }
-        errs() << "\n";
-        */
         return false;
     }
 
@@ -103,7 +55,7 @@ struct LoopInfoPrinter : public FunctionPass {
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
         AU.setPreservesAll();
-        AU.addRequired<DominatorTree>();
+        //AU.addRequired<DominatorTree>();
         AU.addRequired<LoopInfo>();
     }
 };
@@ -285,7 +237,6 @@ void test_PatchDecoder(char *input)
     Patch *patch = NULL;
     Chapter *chap = NULL;
     Hunk * hunk = NULL;
-    Mod * mod = NULL;
     // Create a PassManager to hold and optimize the collection of passes we are
     // about to build.
     //
@@ -337,30 +288,60 @@ void test_PatchDecoder(char *input)
                 Scope scope = hunk->enclosing_scope;
                 errs() << hunk->enclosing_scope << " might touch ";
                 Scope ls;
+                Hunk::iterator HI = hunk->begin(), HE = hunk->end();
                 while ((f = matcher.matchFunction(I, scope)) != NULL ) {
+                    // The enclosing scope is a rough estimation:
+                    // We need to rely on the actual modification
+
+                    // Hunk: [  (..M1..)       (..M2..)  (..M3..) ]
+                    //                   {f1}
+
+                    // Skip the modifications didn't reach function's beginning
+                    while(HI != HE && (*HI)->scope.end < I->linenumber)
+                        HI++;
+
+                    // no need to test the loop scope
+                    if (HI == HE || (*HI)->scope.begin > I->lastline)
+                        continue;
+
                     s++;
-                    errs() << "scope #" << s << ": " << cpp_demangle(f->getName().data())<< " |=> " << scope << ", ";
+                    char *dname = cpp_demangle(f->getName().data());
+                    errs() << "scope #" << s << ": " << dname;
+                    errs() << " |=> " << scope << ", ";
                     FPasses->run(*f);
                     errs() << "\t";
-                    for (SmallVector<Scope, 4>::iterator I = funcLoops.begin(), E = funcLoops.end();
-                            I != E; I++) {
-                        errs() << *I << " ";
+                    if (funcLoops.begin() == funcLoops.end()) {
+                        errs() << "loop: none" << "\n";
+                        continue;
                     }
-                    errs() << "\n";
+
+                    // Only look into overlapping modifications when
+                    // there's loop inside this function.
+
+                    //TODO more elegant
+                    //TODO loop finder no need to restart
+                    bool match_loop = false;
+                    while(HI != HE && (*HI)->scope.begin <= I->lastline) {
+                        // Will only match the *fist* in top level matching loop.
+                        // FIXME may need to get all the loops.
+                        for (loop_iterator I = funcLoops.begin(), E = funcLoops.end();
+                                I != E; I++) {
+                            if (I->intersects((*HI)->scope)) {
+                                match_loop = true;
+                                errs() << "loop: " << *I << " ";
+                            }
+                        }
+                        HI++;
+                    }
+                    if (!match_loop)
+                        errs() << "loop: none" << "\n";
+                    else
+                        errs() << "\n";
                 }
                 if (s == 0) {
                     errs() << "insignificant scope";
                 }
                 errs() << "\n";
-                /**
-                for (Hunk::iterator I = hunk->begin(), E = hunk->end();
-                    I != E; I++) {
-                    mod = *I;
-                    assert(mod);
-                    if (DEBUG)
-                        cout << "mod: " << *mod << endl;
-                }
-                **/
             }
             FPasses->doFinalization();
             delete module;

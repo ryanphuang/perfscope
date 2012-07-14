@@ -128,7 +128,6 @@ namespace {
             Patch *patch = NULL;
             Chapter *chap = NULL;
             Hunk * hunk = NULL;
-            Mod * mod = NULL;
             Scope ls;
             while((patch = decoder->next_patch()) != NULL) {
                 if (DEBUG)
@@ -150,38 +149,53 @@ namespace {
                         Scope tmps = hunk->enclosing_scope; // match function will modify scope.
                         Hunk::iterator HI = hunk->begin(), HE = hunk->end();
                         while ((f = matcher.matchFunction(I, tmps)) != NULL ) {
+
+                            // The enclosing scope is a rough estimation:
+                            // We need to rely on the actual modification
+
+                            // Hunk: [  (..M1..)       (..M2..)  (..M3..) ]
+                            //                   {f1}
+
+                            // Skip the modifications didn't reach function's beginning
+                            while(HI != HE && (*HI)->scope.end < I->linenumber)
+                                HI++;
+
+                            // no need to test the loop scope
+                            if (HI == HE || (*HI)->scope.begin > I->lastline)
+                                continue;
+
                             s++;
                             char *dname = cpp_demangle(f->getName().data());
-                            errs() << "scope #" << s << ": ";
+                            errs() << "scope #" << s << ": " << dname;
                             errs()  << " |=> " << hunk->enclosing_scope << "\n";
                             LoopInfo &li = getAnalysis<LoopInfo>(*f);
                             errs() << "\t";
                             if (li.begin() == li.end()) {
                                 errs() << "loop: none" << "\n";
+                                continue;
                             }
-                            else {
-                                //TODO more elegant
-                                //TODO get function scope
-                                //TODO loop finder no need to restart
-                                Loop * loop = NULL;
 
-                                // Skip the modifications didn't reach function's beginning
-                                while(HI != HE && (*HI)->scope.end < I->linenumber)
-                                    HI++;
-                                
-                                while(HI != HE && (*HI)->scope.begin <= I->lastline) {
-                                    loop = Matcher::matchLoop(li, (*HI)->scope);
-                                    if (loop != NULL) {
-                                        ScopeInfoFinder::getLoopScope(ls, loop);
-                                        errs() << "loop: " << ls;
-                                    }
-                                    HI++;
+                            // Only look into overlapping modifications when
+                            // there's loop inside this function.
+                            
+                            //TODO more elegant
+                            //TODO loop finder no need to restart
+                            Loop * loop = NULL;
+                            while(HI != HE && (*HI)->scope.begin <= I->lastline) {
+                                // Will only match the *fist* in top level
+                                // and innermost nested matching loop.
+                                // FIXME may need to get all the loops.
+                                loop = Matcher::matchLoop(li, (*HI)->scope);
+                                if (loop != NULL) {
+                                    ScopeInfoFinder::getLoopScope(ls, loop);
+                                    errs() << "loop: " << ls;
                                 }
-                                if (loop == NULL)
-                                    errs() << "loop: none" << "\n";
-                                else
-                                    errs() << "\n";
+                                HI++;
                             }
+                            if (loop == NULL)
+                                errs() << "loop: none" << "\n";
+                            else
+                                errs() << "\n";
                         }
                         if (s == 0) {
                             errs() << "insignificant scope";
