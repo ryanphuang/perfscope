@@ -16,6 +16,7 @@
 #include <iostream>
 #include <limits.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -27,6 +28,13 @@ using namespace std;
 #define LOCAL_DEBUG false
 
 #define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
+
+static char * program_name;
+
+static int strip_len = STRIP_LEN;
+
+static char * bc_fname = NULL;
+static char * id_fname = NULL;
 
 static SmallVector<Scope, 4> funcLoops;
 typedef SmallVector<Scope, 4>::iterator loop_iterator;
@@ -254,6 +262,7 @@ void test_PatchDecoder(char *input)
     initializeInstCombine(Registry);
     initializeInstrumentation(Registry);
     initializeTarget(Registry);
+    bool single_bc_loaded = false;
     while((patch = decoder->next_patch()) != NULL) {
         if (LOCAL_DEBUG)
             cout << "patch: " << patch->patchname << endl;
@@ -263,10 +272,19 @@ void test_PatchDecoder(char *input)
             Module *module; 
             if (src2obj(chap->fullname.c_str(), objname, &objlen) == NULL) // skip header files for now
                 module = NULL;
-            else
-                module = ReadModule(Context, objname);
+            else {
+                if (bc_fname != NULL && !single_bc_loaded) {
+                    module = ReadModule(Context, bc_fname);
+                    single_bc_loaded = true;
+                }
+                else
+                    module = ReadModule(Context, objname);
+            }
             if (module == NULL) {
                 cout << "cannot load module for this chapter " << endl;
+                if (bc_fname) { // Failed already
+                    return;
+                }
                 chap->skip_rest_of_hunks();
                 continue;
             }
@@ -372,16 +390,67 @@ void test_ScopeFinder()
     //finder.processSubprograms(*module);
 }
 
+static char const * option_help[] =
+{
+" -f BCFILE  A single BC file to be used. If this option is not specified. The BC file will be infered from the source name.",
+" -p STRIPLEN Level of components to be striped of the path inside the debug symbol.",
+ 0
+};
+
+void usage(FILE *fp = stderr)
+{
+    const char **p = option_help;
+    fprintf(fp, "Usage: %s IDFILE", program_name);
+    fprintf(fp, "\n");
+    while (*p) {
+        fprintf(fp, "%s\n\n", *p);
+        p++;
+    }
+}
+
 int main(int argc, char *argv[])
 {
+    program_name = argv[0];
+
     if (argc <= 1) {
-        cerr << "Usage: " << argv[0] << " FILE" << endl;
+        usage();
         exit(1);
     }
+    int opt;
+    int plen;
+    while((opt = getopt(argc, argv, "f:p:")) != -1) {
+        switch(opt) {
+            case 'f':
+                bc_fname = dupstr(optarg);
+                break;
+            case 'p':
+                plen = atoi(optarg);
+                if (plen <= 0) {
+                    fprintf(stderr, "Strip len must be positive integer\n");
+                    exit(1);
+                }
+                strip_len = plen;
+                break;
+            case '?':
+                if (optopt == 'f')
+                    fprintf(stderr, "Must specify the bitcode file argument\n");
+                else if (optopt == 'p')
+                    fprintf(stderr, "Must specify the bitcode file argument\n");
+                return 1;
+            default:
+                usage();
+                exit(1);
+        }
+    }
+    if (optind >= argc) {
+        usage();
+        exit(1);
+    }
+    id_fname = dupstr(argv[optind]);
     //test_src2obj();
     //test_canonpath();
     //test_stripname();
-    test_PatchDecoder(argv[1]);
+    test_PatchDecoder(id_fname);
     //test_ScopeFinder();
     return 0;
 }

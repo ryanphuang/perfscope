@@ -35,6 +35,8 @@
 
 size_t fgetline(FILE *, char *, size_t & , unsigned &);
 
+char *dupstr(const char *);
+
 bool isempty(const char *);
 bool endswith(const char*, const char*);
 const char *strnchr(const char *, size_t, char);

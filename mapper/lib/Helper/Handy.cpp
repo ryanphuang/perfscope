@@ -23,6 +23,17 @@ static const int SUFFIX_LEN[] = {
     3
 };
 
+char *dupstr(const char *src)
+{
+    if (NULL == src) {
+        return NULL;
+    }
+    size_t size = strlen(src) + 1;
+    char *dst = (char *) xmalloc(size);
+    memcpy(dst, src, size);
+    return dst;
+}
+
 void diegrace(const char * format, ...)
 {
     va_list args;
