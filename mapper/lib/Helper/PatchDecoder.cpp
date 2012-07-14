@@ -1,7 +1,6 @@
 #include "Handy.h"
 #include "PatchDecoder.h"
 
-
 static bool DEBUG = false;
 
 static const char * PHEADER = "****";
@@ -66,7 +65,7 @@ void Hunk::dumpBuf(size_t len)
     printf("\n");
 }
 
-Mod * Hunk::newMod(unsigned line, char c)
+Mod * Hunk::newMod(unsigned start, unsigned end, char c)
 {
     MODTYPE type;
     switch (c) {
@@ -86,11 +85,10 @@ Mod * Hunk::newMod(unsigned line, char c)
     if (m == NULL)
         diegrace("out of memory");
     m->type = type;
-    m->scope.begin = line;
-    m->scope.end = line;
+    m->scope.begin = start;
+    m->scope.end = end;
     return m;
 }
-
 
 /**
  * Reduce the original control sequence to a list of Mods.
@@ -260,27 +258,29 @@ bool Hunk::reduce()
     return true;
 }
 
-bool Hunk::merge(unsigned start_line, size_t pos)
+bool Hunk::merge(unsigned start_line, size_t len)
 {
-    if (start_line == 0 || pos == 0)
+    if (start_line == 0 || len == 0)
         return false;
     size_t i;
-    char c = gBuf[0];
-    unsigned line = start_line;
-    Mod * m = newMod(line, c);
-    unsigned prev_line;
-    for (i = 1; i < pos; i++) {
-        prev_line = line;
-        if (gBuf[i] != ADDC) { // don't increment line on ADD
-                line++;
-        }
-        if (c != gBuf[i]) {
-            m->scope.end = prev_line; // only update scope end for non-add
-            c = gBuf[i];
+    char c1 = gBuf[0], c2;
+    unsigned start = start_line, end = start_line;
+    Mod * m;
+    bool newregion;
+    for (i = 0; i < len - 1; i++) {
+        c2 = gBuf[i + 1];
+        newregion = (c1 != c2);
+        if (newregion) {
+            m = newMod(start, end, c1);
             mods.push_back(m);
-            m = newMod(line, c);
         }
+        if (c1 != ADDC) // don't increment line on ADD
+            end++;
+        if (newregion) 
+            start = end;
+        c1 = c2;
     }
+    m = newMod(start, end, c1);
     mods.push_back(m);
     return true;
 }
@@ -306,7 +306,7 @@ Chapter::Chapter(PatchDecoder * p = NULL, const char *full = NULL, const char *f
 Hunk * Chapter::next_hunk()
 {
     if (decoder == NULL) {
-        warn("Decoder is NULL");
+        warns("Decoder is NULL");
         return NULL;
     }
     size_t chars_read;
@@ -364,7 +364,7 @@ Hunk * Chapter::next_hunk()
 bool Chapter::skip_rest_of_hunks()
 {
     if (decoder == NULL) {
-        warn("Decoder is NULL");
+        warns("Decoder is NULL");
         return false;
     }
     size_t chars_read;
@@ -404,7 +404,7 @@ Patch::Patch(PatchDecoder * p = NULL, const char *name = NULL)
 Chapter * Patch::next_chapter()
 {
     if (decoder == NULL) {
-        warn("Decoder is null");
+        warns("Decoder is null");
         return NULL;
     }
     size_t chars_read;
@@ -471,7 +471,7 @@ void PatchDecoder::syntaxError(const char *format, ...)
 Patch * PatchDecoder::next_patch()
 {
     if (fp == NULL) {
-        warn("File pointer is null");
+        warns("File pointer is null");
         return NULL;
     }
     size_t chars_read;

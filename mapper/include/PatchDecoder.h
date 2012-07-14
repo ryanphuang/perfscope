@@ -70,7 +70,8 @@ class Hunk {
 
 private:
         void putBuf(char, size_t &);
-        Mod * newMod(unsigned, char);
+        Mod * newMod(unsigned line, char c) { return newMod(line, line, c); }
+        Mod * newMod(unsigned, unsigned, char);
         bool merge(unsigned, size_t);
 
 };

@@ -20,6 +20,7 @@ typedef struct Scope {
     Scope(const Scope &another) : begin(another.begin), end(another.end) {}
 
     bool includes(const Scope &another) { return (another.begin >= begin) && (another.end <= end); }
+    bool intersects(const Scope &another) { return (another.end >= begin && another.begin <= end); }
 
     bool operator==(const Scope & another) const { return begin == another.begin && end == another.end; }
 

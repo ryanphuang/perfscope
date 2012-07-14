@@ -121,11 +121,7 @@ namespace {
         {
 
             matcher.process(M);
-            matcher.setstrips(0, 6); // Set the strips of path in the debug info
-
-            //Finder.processModule(M);
-            //processSubprograms(M);
-            //errs() << ClScopeListFile << "\n";
+            matcher.setstrips(0, 7); // Set the strips of path in the debug info
 
             PatchDecoder * decoder = new PatchDecoder(ClScopeListFile);
             assert(decoder);
@@ -155,9 +151,9 @@ namespace {
                         Hunk::iterator HI = hunk->begin(), HE = hunk->end();
                         while ((f = matcher.matchFunction(I, tmps)) != NULL ) {
                             s++;
-                            errs() << "scope #" << s << ": " << cpp_demangle(f->getName().data()) << " |=> " << 
-                                    hunk->enclosing_scope << "\n";
-                            /**
+                            char *dname = cpp_demangle(f->getName().data());
+                            errs() << "scope #" << s << ": ";
+                            errs()  << " |=> " << hunk->enclosing_scope << "\n";
                             LoopInfo &li = getAnalysis<LoopInfo>(*f);
                             errs() << "\t";
                             if (li.begin() == li.end()) {
@@ -168,14 +164,13 @@ namespace {
                                 //TODO get function scope
                                 //TODO loop finder no need to restart
                                 Loop * loop = NULL;
-                                while(HI != HE) {
-                                    mod = *HI;
-                                    // if there are multiple functions and this mod
-                                    // crossed the current function's scope, we break
-                                    // the loop
-                                    if (tmps.end != 0  && mod->scope.begin > tmps.begin)
-                                        break;
-                                    loop = Matcher::matchLoop(li, tmps);
+
+                                // Skip the modifications didn't reach function's beginning
+                                while(HI != HE && (*HI)->scope.end < I->linenumber)
+                                    HI++;
+                                
+                                while(HI != HE && (*HI)->scope.begin <= I->lastline) {
+                                    loop = Matcher::matchLoop(li, (*HI)->scope);
                                     if (loop != NULL) {
                                         ScopeInfoFinder::getLoopScope(ls, loop);
                                         errs() << "loop: " << ls;
@@ -187,7 +182,6 @@ namespace {
                                 else
                                     errs() << "\n";
                             }
-                            **/
                         }
                         if (s == 0) {
                             errs() << "insignificant scope";
@@ -206,25 +200,6 @@ namespace {
                 }
             }
 
-            /**
-            for (Module::iterator I = M.begin(), E = M.end(); I != E; I++) {
-                if (skipFunction(I))
-                    continue;
-                //processLoops(I);
-                //succTraversal(I);
-                //processInst(I);
-                errs() << "Function: " << I->getName() << "\n";
-                //if (I->getName().equals("_ZL23test_if_skip_sort_orderP13st_join_tableP8st_ordermb") || 
-                //    I->getName().equals("_ZL23remove_dup_with_compareP3THDP8st_tablePP5FieldmP4Item")) {
-                    //processBasicBlock(I);
-                    //processDomTree(I);
-                    //preTraversal(I);
-                    processLoops(I);
-                //}
-            }
-            **/
-
-
         }
 
         void testScopeFinder(Module &M)
@@ -235,7 +210,8 @@ namespace {
 
         virtual bool runOnModule(Module &M) 
         {
-            testMatching(M);
+            //testMatching(M);
+            testAnalyzer(M);
             return false;
         }
 

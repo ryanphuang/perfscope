@@ -152,7 +152,7 @@ void ScopeInfoFinder::processSubprograms(Module &M)
     //std::sort(MySPs.begin(), MySPs.end(), cmpDISP);
     sp_iterator I, E;
     for (I = MySPs.begin(), E = MySPs.end(); I != E; I++) {
-        //if (LOCAL_DEBUG) {
+        if (LOCAL_DEBUG) {
             errs() << "@" << I->directory << "/" << I->filename;
             errs() << ":" << I->name;
             errs() << "([" << I->linenumber << "," << I->lastline << "]) \n";
@@ -161,7 +161,7 @@ void ScopeInfoFinder::processSubprograms(Module &M)
             errs() << ":" << I->getName();
             errs() << "([" << I->getLineNumber()<< "," << getLastLine(I->getFunction()) << "]) \n";
             */
-        //}
+        }
     }
 }
 
@@ -300,30 +300,11 @@ ScopeInfoFinder::sp_iterator Matcher::initMatch(StringRef fname)
     }
 
     ScopeInfoFinder::sp_iterator I = Finder.subprogram_begin(), E = Finder.subprogram_end();
-    /* TODO use binary search here
-    ScopeInfoFInder::sp_iterator M, MP;
-    //iterator_traits<ForwardIterator>::difference_type count, step;
-    while (I != E) {
-        M = I + (E - I) >> 1;
-        std::string debugname = M->directory.str() + "/" + M->filename.str();
-        if (pathneq(debugname.c_str(), patchname, debugstrips)) {
-            // need to get to the beginning of this region
-            // could use another binary search here, but...
-            while (M != I) {
-                MP = M - 1;
-                debugname = MP->directory.str() + "/" + MP->filename.str();
-                if(pathneq(debugname.c_str(), patchname, debugstrips))
-                    M--;
-            }
-            return M;
-        }
-        //TODO
-    }
-    */
     
+    /* TODO use binary search here */
     while(I != E) {
         //std::string debugname = I->getDirectory().str() + "/" + I->getFilename().str();
-        std::string debugname = I->directory.str() + "/" + I->filename.str();
+        std::string debugname = I->directory + "/" + I->filename;
         if (pathneq(debugname.c_str(), patchname, debugstrips)) {
             break;
         }
@@ -335,10 +316,11 @@ ScopeInfoFinder::sp_iterator Matcher::initMatch(StringRef fname)
 }
 
 
-Loop * Matcher::matchLoop(LoopInfo &li, Scope & scope)
+Loop * Matcher::matchLoop(LoopInfo &li, const Scope & scope)
 {
     Scope ls;
     Loop * found = NULL;
+    //TODO make loop matching also progressive
     for (LoopInfo::iterator LII = li.begin(),  LIE = li.end(); LII != LIE; LII++) {
         // dump loops including all subloops
         // (*LII)->dump();
@@ -346,14 +328,16 @@ Loop * Matcher::matchLoop(LoopInfo &li, Scope & scope)
             if (LOCAL_DEBUG)
                 errs() << ls<< "\n";
         }
-        if (ls.includes(scope)) {
+        if (ls.intersects(scope)) {
+        //if (ls.includes(scope)) {
             found = *LII; // at least should be this Top level loop
             for (Loop::iterator LIBI = (*LII)->begin(), LIBE = (*LII)->end(); LIBI != LIBE; LIBI++) {
                 if (ScopeInfoFinder::getLoopScope(ls, *LIBI)) { //Sub loops
                     if (LOCAL_DEBUG)
                         errs() << ls << "\n";
                 }
-                if (ls.includes(scope))
+                if (ls.intersects(scope))
+                //if (ls.includes(scope))
                     found = *LIBI; // return the innermost loop
             }
         }
@@ -383,7 +367,7 @@ Function * Matcher::__matchFunction(ScopeInfoFinder::sp_iterator I, Scope &scope
     patchname = stripname(filename.c_str(), patchstrips);
     for (E = Finder.subprogram_end(); I != E; I++) {
         //std::string debugname = I->getDirectory().str() + "/" + I->getFilename().str();
-        std::string debugname = I->directory.str() + "/" + I->filename.str();
+        std::string debugname = I->directory + "/" + I->filename;
         if (!pathneq(debugname.c_str(), patchname,  debugstrips))
             continue; // Should break here, because initMatch already adjust the iterator to the matching file.
         //e = I->getLineNumber();
@@ -491,7 +475,7 @@ Function * Matcher::__matchFunction(ScopeInfoFinder::sp_iterator I, Scope &scope
  *  Note: finder.processModule(M) should be called before the first call of matchFunction.
  *
  * **/
-Function * Matcher::matchFunction(ScopeInfoFinder::sp_iterator I, Scope &scope)
+Function * Matcher::matchFunction(ScopeInfoFinder::sp_iterator & I, Scope &scope)
 {
     if (!initialized) {
         errs() << "Matcher is not initialized\n";
@@ -504,31 +488,29 @@ Function * Matcher::matchFunction(ScopeInfoFinder::sp_iterator I, Scope &scope)
     
     /** Off-the-shelf SP finder **/
     ScopeInfoFinder::sp_iterator E = Finder.subprogram_end();
-    unsigned lastline = 0;
     while (I != E) {
-        std::string debugname = I->directory.str() + "/" + I->filename.str();
+        std::string debugname = I->directory + "/" + I->filename;
         if (!pathneq(debugname.c_str(), patchname,  debugstrips))
             return NULL; // Should break here, because initMatch already adjust the iterator to the matching file.
-        lastline = I->lastline;
-        if (lastline == 0) {
+        if (I->lastline == 0) {
             if (I + 1 == E)
                 return I->function; // It's tricky to return I here. Maybe NULL is better
             // Line number is guaranteed to be positive, no need to check overflow here.
-            lastline = (I + 1)->linenumber - 1;             
-            assert(lastline >= I->linenumber); // Unless the two are modifying the same line.
+            I->lastline = (I + 1)->linenumber - 1;             
+            assert(I->lastline >= I->linenumber); // Unless the two are modifying the same line.
         }
         // For boundary case, we only break if that function is one line function.
-        if (lastline > scope.begin || (lastline == scope.begin && lastline == I->linenumber))
+        if (I->lastline > scope.begin || (I->lastline == scope.begin && I->lastline == I->linenumber))
             break;
         I++;
     }
     if (I == E)
         return NULL;
     // Lies in the gap
-    if (I->linenumber > scope.end || (I->linenumber == scope.end && lastline > I->linenumber))
+    if (I->linenumber > scope.end || (I->linenumber == scope.end && I->lastline > I->linenumber))
         return NULL;
-    if (lastline < scope.end)
-        scope.begin = lastline + 1;  // Multiple functions
+    if (I->lastline < scope.end)
+        scope.begin = I->lastline + 1;  // Multiple functions
     else
         scope.begin = 0;
     return I->function;

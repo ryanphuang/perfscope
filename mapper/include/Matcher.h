@@ -66,14 +66,15 @@ typedef Pair<DISubprogram, int> DISPExt;
 
 class DISPCopy {
     public:
+        /*
         StringRef directory;
         StringRef filename;
         StringRef name;
-        /*
+        */
         std::string directory;
         std::string filename;
         std::string name;
-        */
+
         unsigned linenumber;
         unsigned lastline;
         Function *function;
@@ -103,7 +104,7 @@ class ScopeInfoFinder {
         std::vector<DISPCopy> MySPs;
         //std::vector<DISPExt> MySPs;
     public:
-        typedef std::vector<DISPCopy>::const_iterator sp_iterator;
+        typedef std::vector<DISPCopy>::iterator sp_iterator;
 
     public:
 
@@ -120,8 +121,8 @@ class ScopeInfoFinder {
         static bool getLoopScope(Scope & , Loop *);
 
 
-        sp_iterator subprogram_begin() const { return MySPs.begin(); }
-        sp_iterator subprogram_end() const { return MySPs.end(); }
+        sp_iterator subprogram_begin() { return MySPs.begin(); }
+        sp_iterator subprogram_end() { return MySPs.end(); }
 };
 
 class Matcher {
@@ -157,9 +158,9 @@ class Matcher {
         ScopeInfoFinder::sp_iterator initMatch(StringRef filename);
 
 
-        Function * matchFunction(ScopeInfoFinder::sp_iterator, Scope &);
+        Function * matchFunction(ScopeInfoFinder::sp_iterator &, Scope &);
 
-        static Loop * matchLoop(LoopInfo &li, Scope &);
+        static Loop * matchLoop(LoopInfo &li, const Scope &);
 
         ScopeInfoFinder & getFinder() { return Finder; }
 
