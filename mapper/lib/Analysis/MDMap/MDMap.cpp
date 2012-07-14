@@ -165,7 +165,9 @@ namespace {
                                 continue;
 
                             s++;
-                            char *dname = cpp_demangle(f->getName().data());
+                            const char *dname = cpp_demangle(I->name.c_str());
+                            if (dname == NULL)
+                                dname = I->name.c_str();
                             errs() << "scope #" << s << ": " << dname;
                             errs()  << " |=> " << hunk->enclosing_scope << "\n";
                             LoopInfo &li = getAnalysis<LoopInfo>(*f);

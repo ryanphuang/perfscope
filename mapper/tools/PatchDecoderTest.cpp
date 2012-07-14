@@ -24,7 +24,7 @@
 
 using namespace std;
 
-#define DEBUG true
+#define LOCAL_DEBUG false
 
 #define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
 
@@ -255,10 +255,10 @@ void test_PatchDecoder(char *input)
     initializeInstrumentation(Registry);
     initializeTarget(Registry);
     while((patch = decoder->next_patch()) != NULL) {
-        if (DEBUG)
+        if (LOCAL_DEBUG)
             cout << "patch: " << patch->patchname << endl;
         while((chap = patch->next_chapter()) != NULL) {
-            if (DEBUG)
+            if (LOCAL_DEBUG)
                 cout << "chapter: " << chap->filename << endl;
             Module *module; 
             if (src2obj(chap->fullname.c_str(), objname, &objlen) == NULL) // skip header files for now
@@ -276,17 +276,18 @@ void test_PatchDecoder(char *input)
             Matcher matcher(*module, 0, STRIP_LEN);
             ScopeInfoFinder::sp_iterator I = matcher.initMatch(chap->fullname);
             while((hunk = chap->next_hunk()) != NULL) {
-                if (DEBUG) {
+                if (LOCAL_DEBUG) {
                     cout << "hunk: " << hunk->start_line << endl;
                     cout << hunk->ctrlseq << endl;
                 }
                 assert(hunk->reduce());
-                if (DEBUG)
+                if (LOCAL_DEBUG)
                     cout << hunk->enclosing_scope << endl;
                 Function *f;
                 int s = 0;
                 Scope scope = hunk->enclosing_scope;
-                errs() << hunk->enclosing_scope << " might touch ";
+                if (LOCAL_DEBUG) 
+                    cout << hunk->enclosing_scope << " might touch ";
                 Scope ls;
                 Hunk::iterator HI = hunk->begin(), HE = hunk->end();
                 while ((f = matcher.matchFunction(I, scope)) != NULL ) {
@@ -305,13 +306,21 @@ void test_PatchDecoder(char *input)
                         continue;
 
                     s++;
-                    char *dname = cpp_demangle(f->getName().data());
-                    errs() << "scope #" << s << ": " << dname;
-                    errs() << " |=> " << scope << ", ";
+                    const char *dname = cpp_demangle(I->name.c_str());
+                    if (dname == NULL)
+                        dname = I->name.c_str();
+                    if (LOCAL_DEBUG) {
+                        cout << "scope #" << s << ": " << dname;
+                        cout << " |=> " << scope << "\n";
+                        cout << "\t";
+                    }
+                    else 
+                        cout << dname << ":"; // Structued output
                     FPasses->run(*f);
-                    errs() << "\t";
                     if (funcLoops.begin() == funcLoops.end()) {
-                        errs() << "loop: none" << "\n";
+                        if (LOCAL_DEBUG)
+                            cout << "loop: none";
+                        cout << "\n";
                         continue;
                     }
 
@@ -328,20 +337,24 @@ void test_PatchDecoder(char *input)
                                 I != E; I++) {
                             if (I->intersects((*HI)->scope)) {
                                 match_loop = true;
-                                errs() << "loop: " << *I << " ";
+                                if (LOCAL_DEBUG)
+                                    cout << "loop: " << *I << " ";
+                                else
+                                    cout << *I << " ";
                             }
                         }
                         HI++;
                     }
-                    if (!match_loop)
-                        errs() << "loop: none" << "\n";
-                    else
-                        errs() << "\n";
+                    if (!match_loop) {
+                        if (LOCAL_DEBUG)
+                            cout << "loop: none";
+                    }
+                    cout << "\n";
                 }
                 if (s == 0) {
-                    errs() << "insignificant scope";
+                    if (LOCAL_DEBUG)
+                        cout << "insignificant scope";
                 }
-                errs() << "\n";
             }
             FPasses->doFinalization();
             delete module;
