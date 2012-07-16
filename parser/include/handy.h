@@ -64,6 +64,7 @@ char *dupbuf(const char *, size_t);
 bool endswith(const char*, const char*);
 void remove_prefix (char *, size_t);
 bool issource(const char *);
+bool ignore(const char *);
 
 void diegrace(const char *, ...) __attribute__ ((noreturn, format (printf, 1, 2)));
 

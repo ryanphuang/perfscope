@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
             diegrace("Cannot get input files from %s\n", directory.c_str());
         }
     }
-    else{
+    else {
         lst = (filenode *) malloc(sizeof(filenode));
         lst->file = argv[optind];
         lst->next = NULL;
@@ -132,17 +132,13 @@ int main(int argc, char *argv[])
     int newfile = 0;
     int delfile = 0;
     std::string fullname;
-    FILE *fnonsource = fopen("non.txt", "w");
-    FILE *fnew = fopen("new.txt", "w");
-    FILE *fdel = fopen("del.txt", "w");
-    if (fnonsource == NULL || fnew == NULL || fdel == NULL) {
-        diegrace("Faile to open file\n");
-    }
-    
+
     errstay = true;
-    for (p = lst; p; p = p->next){
+    for (p = lst; p; p = p->next) {
         PatchParser *parser; 
         FILE *gobblefp = NULL;
+        FILE *logfp = NULL;
+        FILE *srcfp = NULL;
         if (!p->file) {
             parser = new PatchParser(NULL, NULL, UNI_DIFF); 
         }
@@ -159,6 +155,18 @@ int main(int argc, char *argv[])
             gobblefp = fopen(gobblef.c_str(), "w");
             if (gobblefp == NULL) {
                 WARN("Cannot setup gobble output file. Using stdout instead.");
+            }
+            std::string logf = fullname + ".log";
+            logfp = fopen(logf.c_str(), "w");
+            if (logfp == NULL) {
+                WARN("Cannot setup log output file. Using stdout instead.");
+                logfp = stdout;
+            }
+            std::string srcf = fullname + ".src";
+            srcfp = fopen(srcf.c_str(), "w");
+            if (srcfp == NULL) {
+                WARN("Cannot setup source output file. Using stdout instead.");
+                srcfp = stdout;
             }
         }
         if (NULL == parser) {
@@ -179,18 +187,20 @@ int main(int argc, char *argv[])
             skipreason reason = parser->gobble(gobblefp);
             switch (reason) {
                 case NO_REASON:
+                    if (!ignore(parser->inname))
+                        fprintf(srcfp, "%s\n", parser->inname);
                     break;
                 case NEW_FILE:
                     newfile++;
-                    fprintf(fnew, "%s\n", parser->inname);
+                    fprintf(logfp, "+ %s\n", parser->inname);
                     break;
                 case DEL_FILE:
                     delfile++;
-                    fprintf(fdel, "%s\n", parser->inname);
+                    fprintf(logfp, "- %s\n", parser->inname);
                     break;
                 case NON_SOURCE:
                     nonsources++;
-                    fprintf(fnonsource, "%s\n", parser->inname);
+                    fprintf(logfp, "$ %s\n", parser->inname);
                     break;
                 default:
                     WARN("Unknown reason %d\n", reason);
@@ -205,11 +215,16 @@ int main(int argc, char *argv[])
         current_parser = NULL;
         if (gobblefp)
             fclose(gobblefp);
+        if (srcfp && srcfp != stdout)
+            fclose(srcfp);
+        fprintf(logfp, "Scanned total: %d; Non-source: %d; Delete: %d; Create: %d\n", files, nonsources,
+            delfile, newfile);
+        if (logfp && logfp != stdout)
+            fclose(logfp);
     }
     if (gbuf) {
         free(gbuf);
     }
-    fclose(fnonsource);
     fprintf(stderr, "Scanned total: %d; Non-source: %d; Delete: %d; Create: %d\n", files, nonsources,
     delfile, newfile);
     // save the effort to free file list

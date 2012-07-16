@@ -25,6 +25,13 @@ static const char *SOURCE_SUFFIX[] = {
     0
 };
 
+static const char *IGNORE_SUFFIX[] = {
+    ".h",
+    ".hpp",
+    ".cs",
+    0
+};
+
 char *dupstr(const char *src)
 {
     if (NULL == src) {
@@ -77,6 +84,18 @@ bool isempty(const char * str)
 bool issource(const char *name)
 {
     const char **suffix = SOURCE_SUFFIX;
+    while(*suffix) {
+        if(endswith(name, *suffix)) {
+            return true;
+        }
+        suffix++;
+    }
+    return false;
+}
+
+bool ignore(const char *name)
+{
+    const char **suffix = IGNORE_SUFFIX;
     while(*suffix) {
         if(endswith(name, *suffix)) {
             return true;
