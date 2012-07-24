@@ -1,5 +1,6 @@
 #include "Handy.h"
 #include "PatchDecoder.h"
+#include "CallSiteFinder.h"
 #include "Matcher.h"
 
 #include "llvm/LLVMContext.h"
@@ -11,6 +12,8 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/IRReader.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/CallSite.h"
+#include "llvm/Support/InstVisitor.h"
 #include "llvm/Target/TargetData.h"
 
 #include <iostream>
@@ -39,6 +42,8 @@ static char * id_fname = NULL;
 static SmallVector<Scope, 4> funcLoops;
 typedef SmallVector<Scope, 4>::iterator loop_iterator;
 
+static SmallVector<Function *, 16> targetFuncs;
+
 struct LoopInfoPrinter : public FunctionPass {
     static char ID;
     std::string PassName;
@@ -65,6 +70,17 @@ struct LoopInfoPrinter : public FunctionPass {
         AU.setPreservesAll();
         //AU.addRequired<DominatorTree>();
         AU.addRequired<LoopInfo>();
+    }
+};
+
+struct CallSiteVisitor : public InstVisitor<CallSiteVisitor> {
+    unsigned Count;
+    
+    CallSiteVisitor() : Count(0) {}
+    void visitCallInst(CallInst &I)
+    {
+        cout << "Call Inst Encountered! " << endl;
+        Count++;
     }
 };
 
@@ -400,10 +416,17 @@ void test_ScopeFinder()
     //finder.processSubprograms(*module);
 }
 
+void test_CallGraph()
+{
+
+
+}
+
 static char const * option_help[] =
 {
 " -f BCFILE  A single BC file to be used. If this option is not specified. The BC file will be infered from the source name.",
 " -p STRIPLEN Level of components to be striped of the path inside the debug symbol.",
+" -h Print this message.",
  0
 };
 
@@ -428,7 +451,7 @@ int main(int argc, char *argv[])
     }
     int opt;
     int plen;
-    while((opt = getopt(argc, argv, "f:p:")) != -1) {
+    while((opt = getopt(argc, argv, "f:p:h")) != -1) {
         switch(opt) {
             case 'f':
                 bc_fname = dupstr(optarg);
@@ -441,11 +464,16 @@ int main(int argc, char *argv[])
                 }
                 strip_len = plen;
                 break;
+            case 'h':
+                usage();
+                exit(1);
             case '?':
                 if (optopt == 'f')
                     fprintf(stderr, "Must specify the bitcode file argument\n");
                 else if (optopt == 'p')
                     fprintf(stderr, "Must specify the bitcode file argument\n");
+                else
+                    usage();
                 return 1;
             default:
                 usage();
@@ -460,7 +488,34 @@ int main(int argc, char *argv[])
     //test_src2obj();
     //test_canonpath();
     //test_stripname();
-    test_PatchDecoder(id_fname);
+    //test_PatchDecoder(id_fname);
     //test_ScopeFinder();
+    //CallSiteVisitor CSV;
+    LLVMContext ctx;
+    Module * module = ReadModule(ctx, bc_fname);
+    if (module != NULL) {
+        Function* func = module->getFunction("_ZL23test_if_skip_sort_orderP13st_join_tableP8st_ordermbP6BitmapILj64EE");
+        if (func == NULL) {
+            cout << "Cannot find function!" << endl;
+            return 0;
+        }
+        CallSiteFinder::cs_iterator i = csf.begin(), e = csf.end();
+        if(i == e) {
+            cout << "No function";
+        }
+        else {
+            cout << "The following functions";
+        }
+        const char *name = func->getName().data();
+        cout << " called " << cpp_demangle(name) << endl;
+        CallSiteFinder csf(func);
+        for ( i != e; i++) {
+            name = (*i)->getName().data();
+            cout << cpp_demangle(name) << endl;
+        }
+    }
+    else {
+        cout << "Cannot load " << bc_fname << endl;
+    }
     return 0;
 }

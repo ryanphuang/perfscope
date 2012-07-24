@@ -50,7 +50,7 @@ bool pathneq(const char *, const char *, int);
 
 char *src2obj(const char *, char *, int *);
 
-char * cpp_demangle(const char *);
+const char * cpp_demangle(const char *);
 
 #define streq(a,b) (!strcmp((a), (b)))
 

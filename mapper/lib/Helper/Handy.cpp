@@ -361,13 +361,16 @@ bool isempty(const char * str)
 }
 
 /** A simple wrapper for demangling C++ ABI name **/
-char * cpp_demangle(const char *name)
+const char * cpp_demangle(const char *name)
 {
     if (MBUF == NULL) {
         MBUF = (char *) xmalloc(MANGLE_LEN);
         MBUF_LEN = MANGLE_LEN;
     }
     int status;
-    return abi::__cxa_demangle(name, MBUF, &MBUF_LEN, &status);
+    char * ret = abi::__cxa_demangle(name, MBUF, &MBUF_LEN, &status);
+    if (ret == NULL) // normal C names will be demangled to NULL
+        return name;
+    return ret;
 }
 
