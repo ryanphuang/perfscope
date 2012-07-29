@@ -330,7 +330,10 @@ unsigned countnchr(const char *str, size_t n, char ch)
 {
     const char * s = str;
     unsigned cnt = 0;
-    while (n-- && *s != '\0') {
+    size_t sn = n;
+    while (*s != '\0') {
+        if (sn > 0 && n-- <= 0)
+            break;
         if (ch == *s++)
             cnt++;
     }
@@ -348,6 +351,26 @@ bool endswith(const char *s, const char *ending)
         return false;
     }
     return (strncmp(s + (l1 - l2), ending, l2) == 0);
+}
+
+char * common_prefix(char * buf, size_t & len, const char *str1, const char *str2)                             
+{                                                                                    
+    const char *p1 = str1, *p2 = str2;
+    size_t pos = 0;
+    for (; p1 && p2 && *p1 && *p2 && *p1 == *p2; p1++, p2++)
+    {
+        if (pos >= len) {
+            len *= 2;
+            buf = (char *) realloc(buf, len);
+        }
+        buf[pos++] = *p1;
+    }
+    if (pos >= len) {
+        len *= 2;
+        buf = (char *) realloc(buf, len);
+    }
+    buf[pos] = '\0';
+    return buf;
 }
 
 bool isempty(const char * str)

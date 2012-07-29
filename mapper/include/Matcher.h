@@ -102,9 +102,11 @@ class ScopeInfoFinder {
         //DebugInfoFinder Finder;
         //std::vector<DISubprogram> MySPs;
         std::vector<DISPCopy> MySPs;
+        std::vector<DICompileUnit> MyCUs;
         //std::vector<DISPExt> MySPs;
     public:
         typedef std::vector<DISPCopy>::iterator sp_iterator;
+        typedef std::vector<DICompileUnit>::iterator cu_iterator;
 
     public:
 
@@ -157,6 +159,7 @@ class Matcher {
 
         ScopeInfoFinder::sp_iterator initMatch(StringRef filename);
 
+        bool isEnd (const ScopeInfoFinder::sp_iterator & it) { return it == Finder.subprogram_end(); }
 
         Function * matchFunction(ScopeInfoFinder::sp_iterator &, Scope &);
 

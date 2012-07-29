@@ -42,6 +42,7 @@ bool endswith(const char*, const char*);
 const char *strnchr(const char *, size_t, char);
 const char *lastof(const char *, char);
 unsigned countnchr(const char *, size_t, char);
+char * common_prefix(char *, size_t &, const char *, const char *);                             
 
 const char *stripname(const char *, int);
 char * canonpath (const char *, char *);

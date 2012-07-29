@@ -3,6 +3,14 @@
 
 static bool LOCAL_DEBUG = false;
 
+bool cmpDICU(const DICompileUnit & CU1, const DICompileUnit & CU2) 
+{ 
+    int cmp = CU1.getDirectory().compare(CU2.getDirectory());
+    if (cmp == 0)
+        cmp = CU1.getFilename().compare(CU2.getFilename());
+    return cmp >= 0 ? false : true;
+}
+
 bool cmpDISP(const DISubprogram & SP1, const DISubprogram & SP2) 
 { 
     int cmp = SP1.getDirectory().compare(SP2.getDirectory());
@@ -125,6 +133,7 @@ void ScopeInfoFinder::processSubprograms(Module &M)
             if (LOCAL_DEBUG)
                 errs() << "CU: " << DICU.getDirectory() << "/" << DICU.getFilename() << "\n";
             if (DICU.getVersion() > LLVMDebugVersion10) {
+                MyCUs.push_back(DICU);
                 DIArray SPs = DICU.getSubprograms();
                 for (unsigned i = 0, e = SPs.getNumElements(); i != e; i++) {
                     DISubprogram DISP(SPs.getElement(i));
@@ -149,17 +158,17 @@ void ScopeInfoFinder::processSubprograms(Module &M)
 
     /** Sort based on file name, directory and line number **/
     std::sort(MySPs.begin(), MySPs.end(), cmpDISPCopy);
-    //std::sort(MySPs.begin(), MySPs.end(), cmpDISP);
-    sp_iterator I, E;
-    for (I = MySPs.begin(), E = MySPs.end(); I != E; I++) {
-        if (LOCAL_DEBUG) {
+    std::sort(MyCUs.begin(), MyCUs.end(), cmpDICU);
+    if (LOCAL_DEBUG) {
+        sp_iterator I, E;
+        for (I = MySPs.begin(), E = MySPs.end(); I != E; I++) {
             errs() << "@" << I->directory << "/" << I->filename;
             errs() << ":" << I->name;
             errs() << "([" << I->linenumber << "," << I->lastline << "]) \n";
             /*
-            errs() << "@" << I->getDirectory() << "/" << I->getFilename();
-            errs() << ":" << I->getName();
-            errs() << "([" << I->getLineNumber()<< "," << getLastLine(I->getFunction()) << "]) \n";
+               errs() << "@" << I->getDirectory() << "/" << I->getFilename();
+               errs() << ":" << I->getName();
+               errs() << "([" << I->getLineNumber()<< "," << getLastLine(I->getFunction()) << "]) \n";
             */
         }
     }

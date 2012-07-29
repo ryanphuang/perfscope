@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include <vector>
+#include <list>
 
 using namespace std;
 
@@ -34,10 +35,11 @@ using namespace std;
 
 static char * program_name;
 
-static int strip_len = STRIP_LEN;
-
 static char * bc_fname = NULL;
 static char * id_fname = NULL;
+
+static list<Module *> lmodules;
+static list<int> lstrips;
 
 static SmallVector<Scope, 4> funcLoops;
 typedef SmallVector<Scope, 4>::iterator loop_iterator;
@@ -169,7 +171,7 @@ void test_canonpath()
 
 typedef struct stripname_T {
     const char * name;
-    int strips;
+    int lstrips;
 } stripname_T;
 
 static const stripname_T stripname_test [] = {
@@ -197,7 +199,7 @@ void test_stripname()
     const char **e = stripname_expect;
     const char *result, *expect;
     while (t->name && *e) {
-        result = stripname(t->name, t->strips);
+        result = stripname(t->name, t->lstrips);
         expect = *e;
         if((fail = (strcmp(result, expect) != 0))) {
             one_test(total, failed, fail, expect, result);
@@ -246,15 +248,80 @@ Module *loadModule(const char *sourcename)
     return module;
 }
 
-
-void moduleDriver()
+void test_ScopeFinder()
 {
+    LLVMContext context;
+    Module *module = ReadModule(context, "sql_select.o");
+    assert(module);
+    ScopeInfoFinder finder;
+    //finder.processSubprograms(*module);
+}
 
+void test_CallGraph()
+{
+    if (bc_fname == NULL) {
+        cout << "NULL bc_fname" << endl;
+    }
+    LLVMContext ctx;
+    Module * module = ReadModule(ctx, bc_fname);
+    if (module != NULL) {
+        Function* func = module->getFunction("_ZL23test_if_skip_sort_orderP13st_join_tableP8st_ordermbP6BitmapILj64EE");
+        if (func == NULL) {
+            cout << "Cannot find function!" << endl;
+            return;
+        }
+        CallSiteFinder csf(func);
+        CallSiteFinder::cs_iterator i = csf.begin(), e = csf.end();
+        if(i == e) {
+            cout << "No function";
+        }
+        else {
+            cout << "The following functions";
+        }
+        const char *name = func->getName().data();
+        cout << " called " << cpp_demangle(name) << endl;
+        for (; i != e; i++) {
+            name = (*i)->getName().data();
+            cout << cpp_demangle(name) << endl;
+        }
+    }
+    else {
+        cout << "Cannot load " << bc_fname << endl;
+    }
+}
+
+size_t count_strips(Module & M)
+{
+    if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu")) {
+        size_t buf_len = 128;
+        char *buf = (char *) malloc(buf_len);
+        for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
+            DICompileUnit CU1(CU_Nodes->getOperand(i));
+            if (i == 0) {
+                if (i + 1 != e) {
+                    i++;
+                    DICompileUnit CU2(CU_Nodes->getOperand(i));
+                    buf = common_prefix(buf, buf_len, CU1.getDirectory().data(), CU2.getDirectory().data());
+                }
+            }
+            else {
+                buf = common_prefix(buf, buf_len, buf, CU1.getDirectory().data());
+            }
+        }
+        unsigned cnt = countnchr(buf, -1, '/');
+        //TODO dirty hacks
+        // workaround problem where a single bc file inside the project's
+        // subdirectory is provided. e.g. /home/ryan/Project/mysql/storage/innodb_plugin
+        // will be the inferred root path.
+        if (endswith(buf, "innodb_plugin"))
+            cnt--;
+        return  cnt;
+    }
+    return 0;
 }
 
 void test_PatchDecoder(char *input)
 {
-    LLVMContext & Context = getGlobalContext();
     llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
     PatchDecoder * decoder = new PatchDecoder(input);
     assert(decoder);
@@ -278,17 +345,7 @@ void test_PatchDecoder(char *input)
     initializeInstCombine(Registry);
     initializeInstrumentation(Registry);
     initializeTarget(Registry);
-    Module *module; 
-    if (bc_fname) {
-        module = ReadModule(Context, bc_fname);
-        if (module == NULL)  {
-            cout << "cannot load module for this chapter " << endl;
-            return;
-        }
-        FPasses.reset(new FunctionPassManager(module));
-        FPasses->add(new LoopInfoPrinter());
-        FPasses->doInitialization();
-    }
+    Module *module = NULL; 
     while((patch = decoder->next_patch()) != NULL) {
         if (LOCAL_DEBUG)
             cout << "patch: " << patch->patchname << endl;
@@ -299,141 +356,127 @@ void test_PatchDecoder(char *input)
                 chap->skip_rest_of_hunks();
                 continue;
             }
-            if (bc_fname == NULL) {
-                module = ReadModule(Context, objname);
-                if (module == NULL) {
-                    cout << "cannot load module for this chapter " << endl;
-                    chap->skip_rest_of_hunks();
+            bool found = false;
+            list<int>::iterator ii = lstrips.begin(), ie = lstrips.end();
+            for(list<Module *>::iterator mi = lmodules.begin(), me = lmodules.end(); mi != me && ii != ie; mi++, ii++) {
+                module = *mi;
+                if (module == NULL)
+                    continue;
+                Matcher matcher(*module, 0, *ii);
+                ScopeInfoFinder::sp_iterator I = matcher.initMatch(chap->fullname);
+                if (matcher.isEnd(I)) {
                     continue;
                 }
-                FPasses.reset(new FunctionPassManager(module));
-                FPasses->add(new LoopInfoPrinter());
-                FPasses->doInitialization();
-            }
-            Matcher matcher(*module, 0, STRIP_LEN);
-            ScopeInfoFinder::sp_iterator I = matcher.initMatch(chap->fullname);
-            while((hunk = chap->next_hunk()) != NULL) {
-                if (LOCAL_DEBUG) {
-                    cout << "hunk: " << hunk->start_line << endl;
-                    cout << hunk->ctrlseq << endl;
-                }
-                assert(hunk->reduce());
-                if (LOCAL_DEBUG)
-                    cout << hunk->enclosing_scope << endl;
-                Function *f;
-                int s = 0;
-                Scope scope = hunk->enclosing_scope;
-                if (LOCAL_DEBUG) 
-                    cout << hunk->enclosing_scope << " might touch ";
-                Scope ls;
-                Hunk::iterator HI = hunk->begin(), HE = hunk->end();
-                while ((f = matcher.matchFunction(I, scope)) != NULL ) {
-                    // The enclosing scope is a rough estimation:
-                    // We need to rely on the actual modification
-
-                    // Hunk: [  (..M1..)       (..M2..)  (..M3..) ]
-                    //                   {f1}
-
-                    // Skip the modifications didn't reach function's beginning
-                    while(HI != HE && (*HI)->scope.end < I->linenumber)
-                        HI++;
-
-                    // no need to test the loop scope
-                    if (HI == HE || (*HI)->scope.begin > I->lastline)
-                        continue;
-
-                    s++;
-                    const char *dname = cpp_demangle(I->name.c_str());
-                    if (dname == NULL)
-                        dname = I->name.c_str();
-                    if (LOCAL_DEBUG) {
-                        cout << "scope #" << s << ": " << dname;
-                        cout << " |=> " << scope << "\n";
-                        cout << "\t";
-                    }
-                    else 
-                        cout << dname << ":"; // Structued output
-                    FPasses->run(*f);
-                    if (funcLoops.begin() == funcLoops.end()) {
-                        if (LOCAL_DEBUG)
-                            cout << "loop: none";
-                        cout << "\n";
-                        continue;
-                    }
-
-                    // Only look into overlapping modifications when
-                    // there's loop inside this function.
-
-                    //TODO more elegant
-                    //TODO loop finder no need to restart
-                    bool match_loop = false;
-                    while(HI != HE && (*HI)->scope.begin <= I->lastline) {
-                        // Will only match the *fist* in top level matching loop.
-                        // FIXME may need to get all the loops.
-                        for (loop_iterator I = funcLoops.begin(), E = funcLoops.end();
-                                I != E; I++) {
-                            if (I->intersects((*HI)->scope)) {
-                                match_loop = true;
-                                if (LOCAL_DEBUG)
-                                    cout << "loop: " << *I << " ";
-                                else
-                                    cout << *I << " ";
-                            }
+                else {
+                    found = true;
+                    FPasses.reset(new FunctionPassManager(module));
+                    FPasses->add(new LoopInfoPrinter());
+                    FPasses->doInitialization();
+                    while((hunk = chap->next_hunk()) != NULL) {
+                        if (LOCAL_DEBUG) {
+                            cout << "hunk: " << hunk->start_line << endl;
+                            cout << hunk->ctrlseq << endl;
                         }
-                        HI++;
-                    }
-                    if (!match_loop) {
+                        assert(hunk->reduce());
                         if (LOCAL_DEBUG)
-                            cout << "loop: none";
+                            cout << hunk->enclosing_scope << endl;
+                        Function *f;
+                        int s = 0;
+                        Scope scope = hunk->enclosing_scope;
+                        if (LOCAL_DEBUG) 
+                            cout << hunk->enclosing_scope << " might touch ";
+                        Scope ls;
+                        Hunk::iterator HI = hunk->begin(), HE = hunk->end();
+                        while ((f = matcher.matchFunction(I, scope)) != NULL ) {
+                            // The enclosing scope is a rough estimation:
+                            // We need to rely on the actual modification
+
+                            // Hunk: [  (..M1..)       (..M2..)  (..M3..) ]
+                            //                   {f1}
+
+                            // Skip the modifications didn't reach function's beginning
+                            while(HI != HE && (*HI)->scope.end < I->linenumber)
+                                HI++;
+
+                            // no need to test the loop scope
+                            if (HI == HE || (*HI)->scope.begin > I->lastline)
+                                continue;
+
+                            s++;
+                            const char *dname = cpp_demangle(I->name.c_str());
+                            if (dname == NULL)
+                                dname = I->name.c_str();
+                            if (LOCAL_DEBUG) {
+                                cout << "scope #" << s << ": " << dname;
+                                cout << " |=> " << scope << "\n";
+                                cout << "\t";
+                            }
+                            else 
+                                cout << dname << ":"; // Structued output
+                            FPasses->run(*f);
+                            if (funcLoops.begin() == funcLoops.end()) {
+                                if (LOCAL_DEBUG)
+                                    cout << "loop: none";
+                                cout << "\n";
+                                continue;
+                            }
+
+                            // Only look into overlapping modifications when
+                            // there's loop inside this function.
+
+                            //TODO more elegant
+                            //TODO loop finder no need to restart
+                            bool match_loop = false;
+                            while(HI != HE && (*HI)->scope.begin <= I->lastline) {
+                                // Will only match the *fist* in top level matching loop.
+                                // FIXME may need to get all the loops.
+                                for (loop_iterator I = funcLoops.begin(), E = funcLoops.end();
+                                        I != E; I++) {
+                                    if (I->intersects((*HI)->scope)) {
+                                        match_loop = true;
+                                        if (LOCAL_DEBUG)
+                                            cout << "loop: " << *I << " ";
+                                        else
+                                            cout << *I << " ";
+                                    }
+                                }
+                                HI++;
+                            }
+                            if (!match_loop) {
+                                if (LOCAL_DEBUG)
+                                    cout << "loop: none";
+                            }
+                            cout << "\n";
+                        }
+                        if (s == 0) {
+                            if (LOCAL_DEBUG)
+                                cout << "insignificant scope";
+                        }
                     }
-                    cout << "\n";
-                }
-                if (s == 0) {
-                    if (LOCAL_DEBUG)
-                        cout << "insignificant scope";
+                    FPasses->doFinalization();
+                    break;
                 }
             }
-            if (bc_fname == NULL) {
-                FPasses->doFinalization();
-                delete module;
-                module = NULL;
-            }
+            if (!found) 
+                chap->skip_rest_of_hunks();
         }
     }
-    if (bc_fname) {
-        FPasses->doFinalization();
-        delete module;
-        module = NULL;
-    }
-}
-
-void test_ScopeFinder()
-{
-    LLVMContext context;
-    Module *module = ReadModule(context, "sql_select.o");
-    assert(module);
-    ScopeInfoFinder finder;
-    //finder.processSubprograms(*module);
-}
-
-void test_CallGraph()
-{
-
-
 }
 
 static char const * option_help[] =
 {
-" -f BCFILE  A single BC file to be used. If this option is not specified. The BC file will be infered from the source name.",
-" -p STRIPLEN Level of components to be striped of the path inside the debug symbol.",
-" -h Print this message.",
- 0
+//  " -f BCFILE A single BC file to be used. If this option is not 
+//    specified. The BC file will be infered from the source name.",
+    " -d Intermediate diff file. Required.",
+    " -p STRIPLEN Level of components to be striped of the path inside the debug symbol.",
+    " -h Print this message.",
+     0
 };
 
 void usage(FILE *fp = stderr)
 {
     const char **p = option_help;
-    fprintf(fp, "Usage: %s IDFILE", program_name);
+    fprintf(fp, "Usage: %s BCFILE...", program_name);
     fprintf(fp, "\n");
     while (*p) {
         fprintf(fp, "%s\n\n", *p);
@@ -451,10 +494,11 @@ int main(int argc, char *argv[])
     }
     int opt;
     int plen;
-    while((opt = getopt(argc, argv, "f:p:h")) != -1) {
+    int strip_len = -1;
+    while((opt = getopt(argc, argv, "d:p:h")) != -1) {
         switch(opt) {
-            case 'f':
-                bc_fname = dupstr(optarg);
+            case 'd':
+                id_fname = dupstr(optarg);
                 break;
             case 'p':
                 plen = atoi(optarg);
@@ -480,42 +524,32 @@ int main(int argc, char *argv[])
                 exit(1);
         }
     }
-    if (optind >= argc) {
+    if (id_fname == NULL || optind >= argc) {
         usage();
         exit(1);
     }
-    id_fname = dupstr(argv[optind]);
+    int i;
+    LLVMContext & Context = getGlobalContext();
+    for (i = optind ; i < argc; i++) {
+        Module *module = ReadModule(Context, argv[i]);
+        if (module == NULL)  {
+            cout << "cannot load module " << argv[i] << endl;
+            return 1;
+        }
+        lmodules.push_back(module);
+        if (strip_len < 0) {
+            size_t s =  count_strips(*module);
+            lstrips.push_back(s);
+            if (LOCAL_DEBUG)
+                cout << "Calculated lstrips: " << s << " for " << argv[i] << endl;
+        }
+        else
+            lstrips.push_back(strip_len);
+    }
+    test_PatchDecoder(id_fname);
     //test_src2obj();
     //test_canonpath();
     //test_stripname();
-    //test_PatchDecoder(id_fname);
     //test_ScopeFinder();
-    //CallSiteVisitor CSV;
-    LLVMContext ctx;
-    Module * module = ReadModule(ctx, bc_fname);
-    if (module != NULL) {
-        Function* func = module->getFunction("_ZL23test_if_skip_sort_orderP13st_join_tableP8st_ordermbP6BitmapILj64EE");
-        if (func == NULL) {
-            cout << "Cannot find function!" << endl;
-            return 0;
-        }
-        CallSiteFinder::cs_iterator i = csf.begin(), e = csf.end();
-        if(i == e) {
-            cout << "No function";
-        }
-        else {
-            cout << "The following functions";
-        }
-        const char *name = func->getName().data();
-        cout << " called " << cpp_demangle(name) << endl;
-        CallSiteFinder csf(func);
-        for ( i != e; i++) {
-            name = (*i)->getName().data();
-            cout << cpp_demangle(name) << endl;
-        }
-    }
-    else {
-        cout << "Cannot load " << bc_fname << endl;
-    }
     return 0;
 }
