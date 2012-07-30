@@ -460,7 +460,7 @@ void test_PatchDecoder(char *input)
                         }
                         if (s == 0) {
                             if (LOCAL_DEBUG)
-                                cout << "insignificant scope";
+                                cout << "insignificant scope\n";
                         }
                     }
                     FPasses->doFinalization();

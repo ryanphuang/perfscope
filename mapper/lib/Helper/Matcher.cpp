@@ -1,7 +1,7 @@
 #include "Matcher.h"
 #include "Handy.h"
 
-static bool LOCAL_DEBUG = false;
+static bool LOCAL_DEBUG = true;
 
 bool cmpDICU(const DICompileUnit & CU1, const DICompileUnit & CU2) 
 { 

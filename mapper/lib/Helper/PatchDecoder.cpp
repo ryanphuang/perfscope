@@ -129,7 +129,7 @@ bool Hunk::reduce()
         return false;
 
     unsigned line = start_line - 1; // start one line before the beginning
-    unsigned chunk_line = 0; 
+    unsigned chunk_line = 1; 
      
     char c;
     size_t i, j, chunk_beg, buf_len;
