@@ -29,7 +29,7 @@
 
 using namespace std;
 
-#define LOCAL_DEBUG false
+#define LOCAL_DEBUG true
 
 #define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
 
@@ -303,18 +303,28 @@ size_t count_strips(Module & M)
                     DICompileUnit CU2(CU_Nodes->getOperand(i));
                     buf = common_prefix(buf, buf_len, CU1.getDirectory().data(), CU2.getDirectory().data());
                 }
+                else {
+                    size_t cu_len = CU1.getDirectory().size();
+                    if (cu_len > buf_len) {
+                        buf = (char *) realloc(buf, cu_len);
+                        buf_len = cu_len;
+                    }
+                    strcpy(buf, CU1.getDirectory().data()); 
+                }
             }
             else {
                 buf = common_prefix(buf, buf_len, buf, CU1.getDirectory().data());
             }
         }
         unsigned cnt = countnchr(buf, -1, '/');
+        if (buf[strlen(buf) - 1] != '/')
+            cnt++;
         //TODO dirty hacks
         // workaround problem where a single bc file inside the project's
         // subdirectory is provided. e.g. /home/ryan/Project/mysql/storage/innodb_plugin
         // will be the inferred root path.
         if (endswith(buf, "innodb_plugin"))
-            cnt--;
+            cnt -= 2;
         return  cnt;
     }
     return 0;
