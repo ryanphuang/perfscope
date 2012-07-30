@@ -228,7 +228,7 @@ void testMatching(string & filename, Matcher & matcher, Scope & scope)
     Function * f;
     int s = 0;
     errs() << scope << " might touch ";
-    ScopeInfoFinder::sp_iterator I = matcher.initMatch(filename);
+    Matcher::sp_iterator I = matcher.initMatch(filename);
     while ((f = matcher.matchFunction(I, scope)) != NULL ) {
         s++;
         errs() << "scope #" << s << ": " << f->getName() << " |=> " << scope << ", ";
@@ -246,15 +246,6 @@ Module *loadModule(const char *sourcename)
     LLVMContext Context;
     Module *module = ReadModule(Context, objname);
     return module;
-}
-
-void test_ScopeFinder()
-{
-    LLVMContext context;
-    Module *module = ReadModule(context, "sql_select.o");
-    assert(module);
-    ScopeInfoFinder finder;
-    //finder.processSubprograms(*module);
 }
 
 void test_CallGraph()
@@ -373,8 +364,8 @@ void test_PatchDecoder(char *input)
                 if (module == NULL)
                     continue;
                 Matcher matcher(*module, 0, *ii);
-                ScopeInfoFinder::sp_iterator I = matcher.initMatch(chap->fullname);
-                if (matcher.isEnd(I)) {
+                Matcher::sp_iterator I = matcher.initMatch(chap->fullname);
+                if (I == matcher.sp_end()) {
                     continue;
                 }
                 else {
@@ -560,6 +551,5 @@ int main(int argc, char *argv[])
     //test_src2obj();
     //test_canonpath();
     //test_stripname();
-    //test_ScopeFinder();
     return 0;
 }

@@ -237,11 +237,12 @@ void assess(char *input)
                 if (module == NULL)
                     continue;
                 Matcher matcher(*module, 0, *ii);
-                ScopeInfoFinder::sp_iterator I = matcher.initMatch(chap->fullname);
-                if (matcher.isEnd(I)) {
+                Matcher::cu_iterator ci  = matcher.matchCompileUnit(chap->fullname);
+                if (ci == matcher.cu_end()) {
                     continue;
                 }
                 else {
+                    Matcher::sp_iterator I = matcher.initMatch(ci);
                     found = true;
                     FPasses.reset(new FunctionPassManager(module));
                     FPasses->add(new LoopInfoPrinter());
@@ -441,9 +442,6 @@ int main(int argc, char *argv[])
     LLVMContext & Context = getGlobalContext();
     load(Context, as, false);
     load(Context, bs, true);
-    Module * module = *(bmodules.begin());
-    ScopeInfoFinder finder;
-    finder.processSubprograms(*module);
-    //assess(id_fname);
+    assess(id_fname);
     return 0;
 }

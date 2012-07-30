@@ -45,180 +45,6 @@ bool skipFunction(Function *F)
     return false;
 }
 
-
-void ScopeInfoFinder::processInst(Function *F)
-{
-    for (Function::iterator FI = F->begin(), FE = F->end(); FI != FE; FI++) {
-        /** Get each instruction's scope information **/
-        for (BasicBlock::iterator BI = FI->begin(), BE = FI->end(); BI != BE; BI++) {
-            DebugLoc Loc = BI->getDebugLoc();
-            if (Loc.isUnknown())
-                continue;
-            LLVMContext & Ctx = BI->getContext();
-
-            DIDescriptor Scope(Loc.getScope(Ctx));
-            if (Scope.isLexicalBlock()) {
-                DILexicalBlock DILB(Scope);
-                errs() << "Block :" << DILB.getLineNumber() << ", " << DILB.getColumnNumber() << "\n";
-            }
-        }
-    }
-}
-
-void ScopeInfoFinder::processBasicBlock(Function *F)
-{
-    for (Function::iterator FI = F->begin(), FE = F->end(); FI != FE; FI++) {
-        /** Use first and last instruction to get the scope information **/
-        Instruction *first = & FI->front();
-        Instruction *last = & FI->back();
-        if (first == NULL || last == NULL) {
-            errs() << "NULL scope instructions " << "\n";
-            continue;
-        }
-        DebugLoc Loc = first->getDebugLoc();
-        if (Loc.isUnknown()) {
-            errs() << "Unknown LOC information" << "\n";
-            continue;
-        }
-        errs() << "Block :" << Loc.getLine();
-        Loc = last->getDebugLoc();
-        if (Loc.isUnknown()) {
-            errs() << "Unknown LOC information" << "\n";
-            continue;
-        }
-        errs() << ", " << Loc.getLine() << "\n";
-    }
-}
-void ScopeInfoFinder::processLoops(LoopInfo & li)
-{
-    Scope scope;
-    for (LoopInfo::iterator LII = li.begin(),  LIE = li.end(); LII != LIE; LII++) {
-        // dump loops including all subloops
-        // (*LII)->dump();
-        if (getLoopScope(scope, *LII)) { //Top level loops
-            errs() << scope << "\n";
-        }
-        for (Loop::iterator LIBI = (*LII)->begin(), LIBE = (*LII)->end(); LIBI != LIBE; LIBI++) {
-            if (getLoopScope(scope, *LIBI)) { //Sub loops
-                errs() << scope << "\n";
-            }
-        }
-    }
-}
-
-void ScopeInfoFinder::processCompileUnits(Module &M)
-{
-    MyCUs.clear();
-    if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu"))
-        for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
-            DICompileUnit DICU(CU_Nodes->getOperand(i));
-            if (DICU.getVersion() > LLVMDebugVersion10)
-                MyCUs.push_back(DICU);
-        }
-
-    /** Sort based on file name, directory and line number **/
-    std::sort(MyCUs.begin(), MyCUs.end(), cmpDICU);
-    if (LOCAL_DEBUG) {
-        cu_iterator I, E;
-        for (I = MyCUs.begin(), E = MyCUs.end(); I != E; I++) {
-            errs() << "CU: " << I->getDirectory() << "/" << I->getFilename() << "\n";
-        }
-    }
-}
-
-
-void ScopeInfoFinder::processSubprograms(Module &M)
-{
-    //////////////Off-the-shelf SP finder Begin//////////////////////
-    ////////////////////////////////////////////////////////////////
-
-
-    //place the following call before invoking this method
-    //Finder.processModule(M);
-
-    /*
-    for (DebugInfoFinder::iterator I = Finder.sp_begin(), E = 
-          Finder.sp_end(); I != E; I++) {
-        DISubprogram DIS(*I);
-        errs() << "@" << DIS.getDirectory() << "/" << DIS.getFilename() << 
-          ":" << DIS.getLineNumber() << "# " << DIS.getLinkageName() << 
-          "(" << DIS.getName() << ") \n";
-    }
-    */
-
-    ////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////
-
-
-    /** DIY SP finder **/
-    MySPs.clear();
-    if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu"))
-        for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
-            DICompileUnit DICU(CU_Nodes->getOperand(i));
-            if (LOCAL_DEBUG)
-                errs() << "CU: " << DICU.getDirectory() << "/" << DICU.getFilename() << "\n";
-            if (DICU.getVersion() > LLVMDebugVersion10) {
-                DIArray SPs = DICU.getSubprograms();
-                for (unsigned i = 0, e = SPs.getNumElements(); i != e; i++) {
-                    DISubprogram DISP(SPs.getElement(i));
-                    DISPCopy Copy(DISP);
-                    if (Copy.name.empty() || Copy.filename.empty() || Copy.linenumber == 0)
-                        continue;
-                    Copy.lastline = getLastLine(Copy.function);
-                    MySPs.push_back(Copy);
-                    //MySPs.push_back(DIS);
-                }
-            }
-        }
-
-    if (NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.sp"))
-        for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
-            DISubprogram DIS(NMD->getOperand(i));
-            errs() << "From SP!! \n";
-            if (LOCAL_DEBUG)
-                errs() << "DIS: " << DIS.getName() << ", " << DIS.getDisplayName() << "\n";
-        }
-
-    /** Sort based on file name, directory and line number **/
-    std::sort(MySPs.begin(), MySPs.end(), cmpDISPCopy);
-    if (LOCAL_DEBUG) {
-        sp_iterator I, E;
-        for (I = MySPs.begin(), E = MySPs.end(); I != E; I++) {
-            errs() << "@" << I->directory << "/" << I->filename;
-            errs() << ":" << I->name;
-            errs() << "([" << I->linenumber << "," << I->lastline << "]) \n";
-        }
-    }
-}
-
-void ScopeInfoFinder::processDomTree(DominatorTree & DT)
-{
-
-    /** BFS Traversal  **/
-    BBNode *Node = DT.getRootNode();
-    std::deque< Pair<BBNode *, unsigned> > ques;
-    ques.push_back(Pair<BBNode *, unsigned>(Node, 1));
-    while (!ques.empty()) {
-        Pair<BBNode *, unsigned> pair = ques.front();
-        Node = pair.first;
-        ques.pop_front();
-        if (Node) {
-            BasicBlock * BB = Node->getBlock();
-            errs() << "[" << pair.second << "] " << BB->getName();
-            Scope scope;
-            if (getBlockScope(scope, BB)) {
-                errs() << ": " << scope << "\n";
-            }
-            for (BBNode::iterator BI = Node->begin(), BE = Node->end(); BI != BE; BI++) {
-                BBNode * N = *BI;
-                ques.push_back(Pair<BBNode *, unsigned>(N, pair.second + 1));
-            }
-        }
-    }
-}
-
-
-
 unsigned ScopeInfoFinder::getInstLine(Instruction *I)
 {
     DebugLoc Loc = I->getDebugLoc();
@@ -242,7 +68,6 @@ unsigned ScopeInfoFinder::getLastLine(Function *F)
         return 0;
     return Loc.getLine();
 }
-
 
 bool ScopeInfoFinder::getBlockScope(Scope & scope, BasicBlock *B)
 {
@@ -306,14 +131,194 @@ bool ScopeInfoFinder::getLoopScope(Scope & scope, Loop * L)
     return false;
 }
 
-ScopeInfoFinder::cu_iterator ScopeInfoFinder::findCompileUnit(StringRef & fullname, int dstrips, int pstrips)
+
+void Matcher::processInst(Function *F)
+{
+    for (Function::iterator FI = F->begin(), FE = F->end(); FI != FE; FI++) {
+        /** Get each instruction's scope information **/
+        for (BasicBlock::iterator BI = FI->begin(), BE = FI->end(); BI != BE; BI++) {
+            DebugLoc Loc = BI->getDebugLoc();
+            if (Loc.isUnknown())
+                continue;
+            LLVMContext & Ctx = BI->getContext();
+
+            DIDescriptor Scope(Loc.getScope(Ctx));
+            if (Scope.isLexicalBlock()) {
+                DILexicalBlock DILB(Scope);
+                errs() << "Block :" << DILB.getLineNumber() << ", " << DILB.getColumnNumber() << "\n";
+            }
+        }
+    }
+}
+
+void Matcher::processBasicBlock(Function *F)
+{
+    for (Function::iterator FI = F->begin(), FE = F->end(); FI != FE; FI++) {
+        /** Use first and last instruction to get the scope information **/
+        Instruction *first = & FI->front();
+        Instruction *last = & FI->back();
+        if (first == NULL || last == NULL) {
+            errs() << "NULL scope instructions " << "\n";
+            continue;
+        }
+        DebugLoc Loc = first->getDebugLoc();
+        if (Loc.isUnknown()) {
+            errs() << "Unknown LOC information" << "\n";
+            continue;
+        }
+        errs() << "Block :" << Loc.getLine();
+        Loc = last->getDebugLoc();
+        if (Loc.isUnknown()) {
+            errs() << "Unknown LOC information" << "\n";
+            continue;
+        }
+        errs() << ", " << Loc.getLine() << "\n";
+    }
+}
+void Matcher::processLoops(LoopInfo & li)
+{
+    Scope scope;
+    for (LoopInfo::iterator LII = li.begin(),  LIE = li.end(); LII != LIE; LII++) {
+        // dump loops including all subloops
+        // (*LII)->dump();
+        if (ScopeInfoFinder::getLoopScope(scope, *LII)) { //Top level loops
+            errs() << scope << "\n";
+        }
+        for (Loop::iterator LIBI = (*LII)->begin(), LIBE = (*LII)->end(); LIBI != LIBE; LIBI++) {
+            if (ScopeInfoFinder::getLoopScope(scope, *LIBI)) { //Sub loops
+                errs() << scope << "\n";
+            }
+        }
+    }
+}
+
+void Matcher::processCompileUnits(Module &M)
+{
+    MyCUs.clear();
+    if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu"))
+        for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
+            DICompileUnit DICU(CU_Nodes->getOperand(i));
+            if (DICU.getVersion() > LLVMDebugVersion10)
+                MyCUs.push_back(DICU);
+        }
+
+    /** Sort based on file name, directory and line number **/
+    std::sort(MyCUs.begin(), MyCUs.end(), cmpDICU);
+    if (LOCAL_DEBUG) {
+        cu_iterator I, E;
+        for (I = MyCUs.begin(), E = MyCUs.end(); I != E; I++) {
+            errs() << "CU: " << I->getDirectory() << "/" << I->getFilename() << "\n";
+        }
+    }
+}
+
+void Matcher::processSubprograms(DICompileUnit &DICU)
+{
+    if (DICU.getVersion() > LLVMDebugVersion10) {
+        DIArray SPs = DICU.getSubprograms();
+        for (unsigned i = 0, e = SPs.getNumElements(); i != e; i++) {
+            DISubprogram DISP(SPs.getElement(i));
+            DISPCopy Copy(DISP);
+            if (Copy.name.empty() || Copy.filename.empty() || Copy.linenumber == 0)
+                continue;
+            Copy.lastline = ScopeInfoFinder::getLastLine(Copy.function);
+            MySPs.push_back(Copy);
+            //MySPs.push_back(DIS);
+        }
+    }
+}
+
+void Matcher::dumpSPs()
+{
+    sp_iterator I, E;
+    for (I = MySPs.begin(), E = MySPs.end(); I != E; I++) {
+        errs() << "@" << I->directory << "/" << I->filename;
+        errs() << ":" << I->name;
+        errs() << "([" << I->linenumber << "," << I->lastline << "]) \n";
+    }
+}
+
+void Matcher::processSubprograms(Module &M)
+{
+    //////////////Off-the-shelf SP finder Begin//////////////////////
+    ////////////////////////////////////////////////////////////////
+
+
+    //place the following call before invoking this method
+    //processModule(M);
+
+    /*
+    for (DebugInfoFinder::iterator I = sp_begin(), E = sp_end(); I != E; I++) {
+        DISubprogram DIS(*I);
+        errs() << "@" << DIS.getDirectory() << "/" << DIS.getFilename() << 
+          ":" << DIS.getLineNumber() << "# " << DIS.getLinkageName() << 
+          "(" << DIS.getName() << ") \n";
+    }
+    */
+
+    ////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////
+
+
+    /** DIY SP finder **/
+    MySPs.clear();
+    if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu"))
+        for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
+            DICompileUnit DICU(CU_Nodes->getOperand(i));
+            if (LOCAL_DEBUG)
+                errs() << "CU: " << DICU.getDirectory() << "/" << DICU.getFilename() << "\n";
+            processSubprograms(DICU);
+        }
+
+    if (NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.sp"))
+        for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
+            DISubprogram DIS(NMD->getOperand(i));
+            errs() << "From SP!! \n";
+            if (LOCAL_DEBUG)
+                errs() << "DIS: " << DIS.getName() << ", " << DIS.getDisplayName() << "\n";
+        }
+
+    /** Sort based on file name, directory and line number **/
+    std::sort(MySPs.begin(), MySPs.end(), cmpDISPCopy);
+    if (LOCAL_DEBUG) {
+        dumpSPs();
+    }
+}
+
+void Matcher::processDomTree(DominatorTree & DT)
+{
+    /** BFS Traversal  **/
+    BBNode *Node = DT.getRootNode();
+    std::deque< Pair<BBNode *, unsigned> > ques;
+    ques.push_back(Pair<BBNode *, unsigned>(Node, 1));
+    while (!ques.empty()) {
+        Pair<BBNode *, unsigned> pair = ques.front();
+        Node = pair.first;
+        ques.pop_front();
+        if (Node) {
+            BasicBlock * BB = Node->getBlock();
+            errs() << "[" << pair.second << "] " << BB->getName();
+            Scope scope;
+            if (ScopeInfoFinder::getBlockScope(scope, BB)) {
+                errs() << ": " << scope << "\n";
+            }
+            for (BBNode::iterator BI = Node->begin(), BE = Node->end(); BI != BE; BI++) {
+                BBNode * N = *BI;
+                ques.push_back(Pair<BBNode *, unsigned>(N, pair.second + 1));
+            }
+        }
+    }
+}
+
+
+Matcher::cu_iterator Matcher::matchCompileUnit(StringRef fullname)
 {
     char *canon = canonpath(fullname.data(), NULL);  
     if (canon == NULL) {
         errs() << "Warning: patchname is NULL\n";
         return MyCUs.end();
     }
-    const char *patchname = stripname(canon, pstrips);
+    patchname = stripname(canon, patchstrips);
     if (strlen(patchname) == 0) {
         errs() << "Warning: patchname is empty after strip\n";
         return MyCUs.end();
@@ -325,7 +330,7 @@ ScopeInfoFinder::cu_iterator ScopeInfoFinder::findCompileUnit(StringRef & fullna
     
     while(I != E) {
         std::string debugname = I->getDirectory().str() + "/" + I->getFilename().str();
-        if (pathneq(debugname.c_str(), patchname, dstrips)) {
+        if (pathneq(debugname.c_str(), patchname, debugstrips)) {
             break;
         }
         I++;
@@ -335,28 +340,38 @@ ScopeInfoFinder::cu_iterator ScopeInfoFinder::findCompileUnit(StringRef & fullna
     return I;
 }
 
-ScopeInfoFinder::sp_iterator Matcher::initMatch(StringRef fname)
+Matcher::sp_iterator Matcher::initMatch(cu_iterator & ci)
+{
+    initialized = true;
+    MySPs.clear();
+    processSubprograms(*ci);
+    std::sort(MySPs.begin(), MySPs.end(), cmpDISPCopy);
+    dumpSPs();
+    return MySPs.begin();
+}
+
+Matcher::sp_iterator Matcher::initMatch(StringRef fname)
 {
     if (!processed) {
-        errs() << "Warning: Matcher is not initialized\n";
-        return Finder.sp_end();
+        errs() << "Warning: Matcher hasn't processed module\n";
+        return sp_end();
     }
     initialized = true;
     char *canon = canonpath(fname.data(), NULL);  
     if (canon == NULL) {
         errs() << "Warning: patchname is NULL\n";
-        return Finder.sp_end();
+        return sp_end();
     }
     filename.assign(canon);
     patchname = stripname(filename.c_str(), patchstrips);
     if (strlen(patchname) == 0) {
         errs() << "Warning: patchname is empty after strip\n";
-        return Finder.sp_end();
+        return sp_end();
     }
 
     /* TODO use binary search here */
 
-    ScopeInfoFinder::sp_iterator I = Finder.sp_begin(), E = Finder.sp_end();
+    sp_iterator I = sp_begin(), E = sp_end();
     
     while(I != E) {
         //std::string debugname = I->getDirectory().str() + "/" + I->getFilename().str();
@@ -406,7 +421,7 @@ Loop * Matcher::matchLoop(LoopInfo &li, const Scope & scope)
  * @Deprecated
  *
  */
-Function * Matcher::__matchFunction(ScopeInfoFinder::sp_iterator I, Scope &scope)
+Function * Matcher::__matchFunction(sp_iterator I, Scope &scope)
 {
     if (!initialized) {
         errs() << "Matcher is not initialized\n";
@@ -420,9 +435,9 @@ Function * Matcher::__matchFunction(ScopeInfoFinder::sp_iterator I, Scope &scope
     /** Off-the-shelf SP finder **/
     unsigned long e;
     Function *f1 = NULL, *f2 = NULL;
-    ScopeInfoFinder::sp_iterator E;
+    sp_iterator E;
     patchname = stripname(filename.c_str(), patchstrips);
-    for (E = Finder.sp_end(); I != E; I++) {
+    for (E = sp_end(); I != E; I++) {
         //std::string debugname = I->getDirectory().str() + "/" + I->getFilename().str();
         std::string debugname = I->directory + "/" + I->filename;
         if (!pathneq(debugname.c_str(), patchname,  debugstrips))
@@ -521,7 +536,6 @@ Function * Matcher::__matchFunction(ScopeInfoFinder::sp_iterator I, Scope &scope
     return f1;
 }
 
-
 /** A progressive method to match the function(s) in a given scope.
  *  When there are more than one function in the scope, the first function
  *  will be returned and scope's beginning is *modified* to the end of this 
@@ -532,7 +546,7 @@ Function * Matcher::__matchFunction(ScopeInfoFinder::sp_iterator I, Scope &scope
  *  Note: finder.processModule(M) should be called before the first call of matchFunction.
  *
  * **/
-Function * Matcher::matchFunction(ScopeInfoFinder::sp_iterator & I, Scope &scope)
+Function * Matcher::matchFunction(sp_iterator & I, Scope &scope)
 {
     if (!initialized) {
         errs() << "Matcher is not initialized\n";
@@ -544,11 +558,11 @@ Function * Matcher::matchFunction(ScopeInfoFinder::sp_iterator & I, Scope &scope
     }
     
     /** Off-the-shelf SP finder **/
-    ScopeInfoFinder::sp_iterator E = Finder.sp_end();
+    sp_iterator E = sp_end();
     while (I != E) {
         std::string debugname = I->directory + "/" + I->filename;
-        if (!pathneq(debugname.c_str(), patchname,  debugstrips))
-            return NULL; // Should break here, because initMatch already adjust the iterator to the matching file.
+        //if (!pathneq(debugname.c_str(), patchname,  debugstrips))
+        //    return NULL; 
         if (I->lastline == 0) {
             if (I + 1 == E)
                 return I->function; // It's tricky to return I here. Maybe NULL is better
@@ -601,7 +615,7 @@ void Matcher::preTraversal(Function *F)
         if (BB) {
             errs() << "[" << pair.second << "] " << BB->getName();
             Scope scope;
-            if (Finder.getBlockScope(scope, BB)) {
+            if (ScopeInfoFinder::getBlockScope(scope, BB)) {
                 errs() << ": " << scope << "\n";
             }
             for (succ_iterator SI = succ_begin(pair.first), SE = succ_end(pair.first); SI != SE; SI++) {

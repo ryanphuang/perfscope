@@ -73,7 +73,7 @@ namespace {
             Function * f;
             int s = 0;
             errs() << "[" << begin << "," << end << "] might touch ";
-            ScopeInfoFinder::sp_iterator I = matcher.initMatch("a.c");
+            Matcher::sp_iterator I = matcher.initMatch("a.c");
             while ((f = matcher.matchFunction(I, scope)) != NULL ) {
                 s++;
                 errs() << "scope #" << s << ": " << f->getName() << " |=> " << scope << ", ";
@@ -106,7 +106,7 @@ namespace {
         void processLoops(Function *F)
         {
             LoopInfo &li = getAnalysis<LoopInfo>(*F);
-            matcher.getFinder().processLoops(li);
+            matcher.processLoops(li);
         }
 
         void processDomTree(Function *F)
@@ -144,7 +144,7 @@ namespace {
                         //match(chap->fullname, matcher, hunk->enclosing_scope);
                         Function * f;
                         int s = 0;
-                        ScopeInfoFinder::sp_iterator I = matcher.initMatch(chap->fullname);
+                        Matcher::sp_iterator I = matcher.initMatch(chap->fullname);
                         errs() << "[" << hunk->enclosing_scope << "] might touch ";
                         Scope tmps = hunk->enclosing_scope; // match function will modify scope.
                         Hunk::iterator HI = hunk->begin(), HE = hunk->end();
@@ -214,12 +214,6 @@ namespace {
                 }
             }
 
-        }
-
-        void testScopeFinder(Module &M)
-        {
-            ScopeInfoFinder finder;
-            finder.processSubprograms(M);
         }
 
         virtual bool runOnModule(Module &M) 

@@ -101,47 +101,35 @@ class ScopeInfoFinder {
     protected:
         //DebugInfoFinder Finder;
         //std::vector<DISubprogram> MySPs;
-        std::vector<DISPCopy> MySPs;
-        std::vector<DICompileUnit> MyCUs;
         //std::vector<DISPExt> MySPs;
     public:
-        typedef std::vector<DISPCopy>::iterator sp_iterator;
-        typedef std::vector<DICompileUnit>::iterator cu_iterator;
 
     public:
-        void processCompileUnits(Module &M);
-        cu_iterator findCompileUnit(StringRef & fullname, int dstrips, int pstrips);
-
-        void processSubprograms(Module &M);
-        void processInst(Function *);
-        void processBasicBlock(Function *);
-        void processLoops(LoopInfo &);
-        void processDomTree(DominatorTree &);
-
         static unsigned getInstLine(Instruction *);
         static unsigned getLastLine(Function *);
         static bool getBlockScope(Scope & , BasicBlock *);
         static bool getLoopScope(Scope & , Loop *);
 
 
-        sp_iterator sp_begin() { return MySPs.begin(); }
-        sp_iterator sp_end() { return MySPs.end(); }
-
-        cu_iterator cu_begin() { return MyCUs.begin(); }
-        cu_iterator cu_end() { return MyCUs.end(); }
 };
 
 class Matcher {
     public:
-        int patchstrips;
-        int debugstrips;
+        typedef std::vector<DISPCopy>::iterator sp_iterator;
+        typedef std::vector<DICompileUnit>::iterator cu_iterator;
 
     protected:
-        ScopeInfoFinder Finder;
         bool initialized;
         bool processed;
         std::string filename;
         const char *patchname;
+
+    public:
+        std::vector<DISPCopy> MySPs;
+        std::vector<DICompileUnit> MyCUs;
+
+        int patchstrips;
+        int debugstrips;
 
     public:
         Matcher(Module &M, int p_strips, int d_strips) 
@@ -149,34 +137,55 @@ class Matcher {
             patchstrips = p_strips; 
             debugstrips = d_strips; 
             initialized = false;
-            process(M); 
+            processCompileUnits(M); 
+            //processSubprograms(M); 
             processed = true;
         }
         Matcher() {initialized = false; processed = false; patchstrips = 0; debugstrips = 0; }
         
-        void process(Module &M) { Finder.processSubprograms(M); processed = true; } 
+        void processCompileUnits(Module &);
+
+        void processSubprograms(Module &);
+        void processSubprograms(DICompileUnit &);
+        void processInst(Function *);
+        void processBasicBlock(Function *);
+        void processLoops(LoopInfo &);
+        void processDomTree(DominatorTree &);
+
+        cu_iterator matchCompileUnit(StringRef);
+        Function * matchFunction(sp_iterator &, Scope &);
+        static Loop * matchLoop(LoopInfo &li, const Scope &);
+
+
+        void process(Module &M) 
+        { 
+            processCompileUnits(M); 
+            //processSubprograms(M); 
+            processed = true; 
+        } 
+
         void setstrips(int p_strips, int d_strips) 
         {
             patchstrips = p_strips; 
             debugstrips = d_strips; 
         }
 
-        ScopeInfoFinder::sp_iterator initMatch(StringRef filename);
+        sp_iterator initMatch(StringRef);
+        sp_iterator initMatch(cu_iterator &);
 
-        bool isEnd (const ScopeInfoFinder::sp_iterator & it) { return it == Finder.sp_end(); }
+        sp_iterator sp_begin() { return MySPs.begin(); }
+        sp_iterator sp_end() { return MySPs.end(); }
 
-        Function * matchFunction(ScopeInfoFinder::sp_iterator &, Scope &);
-
-        static Loop * matchLoop(LoopInfo &li, const Scope &);
-
-        ScopeInfoFinder & getFinder() { return Finder; }
+        cu_iterator cu_begin() { return MyCUs.begin(); }
+        cu_iterator cu_end() { return MyCUs.end(); }
 
 
         void preTraversal(Function *);
         void succTraversal(Function *);
 
     protected:
-        Function * __matchFunction(ScopeInfoFinder::sp_iterator, Scope &);
+        Function * __matchFunction(sp_iterator, Scope &);
+        void dumpSPs();
 
 };
 
