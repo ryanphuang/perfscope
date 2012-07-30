@@ -109,9 +109,10 @@ class ScopeInfoFinder {
         typedef std::vector<DICompileUnit>::iterator cu_iterator;
 
     public:
+        void processCompileUnits(Module &M);
+        cu_iterator findCompileUnit(StringRef & fullname, int dstrips, int pstrips);
 
         void processSubprograms(Module &M);
-        void processSubprograms();
         void processInst(Function *);
         void processBasicBlock(Function *);
         void processLoops(LoopInfo &);
@@ -123,8 +124,11 @@ class ScopeInfoFinder {
         static bool getLoopScope(Scope & , Loop *);
 
 
-        sp_iterator subprogram_begin() { return MySPs.begin(); }
-        sp_iterator subprogram_end() { return MySPs.end(); }
+        sp_iterator sp_begin() { return MySPs.begin(); }
+        sp_iterator sp_end() { return MySPs.end(); }
+
+        cu_iterator cu_begin() { return MyCUs.begin(); }
+        cu_iterator cu_end() { return MyCUs.end(); }
 };
 
 class Matcher {
@@ -159,7 +163,7 @@ class Matcher {
 
         ScopeInfoFinder::sp_iterator initMatch(StringRef filename);
 
-        bool isEnd (const ScopeInfoFinder::sp_iterator & it) { return it == Finder.subprogram_end(); }
+        bool isEnd (const ScopeInfoFinder::sp_iterator & it) { return it == Finder.sp_end(); }
 
         Function * matchFunction(ScopeInfoFinder::sp_iterator &, Scope &);
 

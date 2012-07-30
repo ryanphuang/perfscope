@@ -105,26 +105,51 @@ void ScopeInfoFinder::processLoops(LoopInfo & li)
         }
     }
 }
-/** Off-the-shelf SP finder **/
-void ScopeInfoFinder::processSubprograms()
+
+void ScopeInfoFinder::processCompileUnits(Module &M)
 {
-    // place the following call before invoking this method
+    MyCUs.clear();
+    if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu"))
+        for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
+            DICompileUnit DICU(CU_Nodes->getOperand(i));
+            if (DICU.getVersion() > LLVMDebugVersion10)
+                MyCUs.push_back(DICU);
+        }
+
+    /** Sort based on file name, directory and line number **/
+    std::sort(MyCUs.begin(), MyCUs.end(), cmpDICU);
+    if (LOCAL_DEBUG) {
+        cu_iterator I, E;
+        for (I = MyCUs.begin(), E = MyCUs.end(); I != E; I++) {
+            errs() << "CU: " << I->getDirectory() << "/" << I->getFilename() << "\n";
+        }
+    }
+}
+
+
+void ScopeInfoFinder::processSubprograms(Module &M)
+{
+    //////////////Off-the-shelf SP finder Begin//////////////////////
+    ////////////////////////////////////////////////////////////////
+
+
+    //place the following call before invoking this method
     //Finder.processModule(M);
 
-    /***
-    for (DebugInfoFinder::iterator I = Finder.subprogram_begin(), E = 
-          Finder.subprogram_end(); I != E; I++) {
+    /*
+    for (DebugInfoFinder::iterator I = Finder.sp_begin(), E = 
+          Finder.sp_end(); I != E; I++) {
         DISubprogram DIS(*I);
         errs() << "@" << DIS.getDirectory() << "/" << DIS.getFilename() << 
           ":" << DIS.getLineNumber() << "# " << DIS.getLinkageName() << 
           "(" << DIS.getName() << ") \n";
     }
-    ***/
-    //TODO 
-}
+    */
 
-void ScopeInfoFinder::processSubprograms(Module &M)
-{
+    ////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////
+
+
     /** DIY SP finder **/
     MySPs.clear();
     if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu"))
@@ -133,7 +158,6 @@ void ScopeInfoFinder::processSubprograms(Module &M)
             if (LOCAL_DEBUG)
                 errs() << "CU: " << DICU.getDirectory() << "/" << DICU.getFilename() << "\n";
             if (DICU.getVersion() > LLVMDebugVersion10) {
-                MyCUs.push_back(DICU);
                 DIArray SPs = DICU.getSubprograms();
                 for (unsigned i = 0, e = SPs.getNumElements(); i != e; i++) {
                     DISubprogram DISP(SPs.getElement(i));
@@ -143,7 +167,6 @@ void ScopeInfoFinder::processSubprograms(Module &M)
                     Copy.lastline = getLastLine(Copy.function);
                     MySPs.push_back(Copy);
                     //MySPs.push_back(DIS);
-                    //errs() << "SP@" << DIS.getLineNumber() << ": " << DIS.getName() << "\n";
                 }
             }
         }
@@ -158,18 +181,12 @@ void ScopeInfoFinder::processSubprograms(Module &M)
 
     /** Sort based on file name, directory and line number **/
     std::sort(MySPs.begin(), MySPs.end(), cmpDISPCopy);
-    std::sort(MyCUs.begin(), MyCUs.end(), cmpDICU);
     if (LOCAL_DEBUG) {
         sp_iterator I, E;
         for (I = MySPs.begin(), E = MySPs.end(); I != E; I++) {
             errs() << "@" << I->directory << "/" << I->filename;
             errs() << ":" << I->name;
             errs() << "([" << I->linenumber << "," << I->lastline << "]) \n";
-            /*
-               errs() << "@" << I->getDirectory() << "/" << I->getFilename();
-               errs() << ":" << I->getName();
-               errs() << "([" << I->getLineNumber()<< "," << getLastLine(I->getFunction()) << "]) \n";
-            */
         }
     }
 }
@@ -289,28 +306,58 @@ bool ScopeInfoFinder::getLoopScope(Scope & scope, Loop * L)
     return false;
 }
 
+ScopeInfoFinder::cu_iterator ScopeInfoFinder::findCompileUnit(StringRef & fullname, int dstrips, int pstrips)
+{
+    char *canon = canonpath(fullname.data(), NULL);  
+    if (canon == NULL) {
+        errs() << "Warning: patchname is NULL\n";
+        return MyCUs.end();
+    }
+    const char *patchname = stripname(canon, pstrips);
+    if (strlen(patchname) == 0) {
+        errs() << "Warning: patchname is empty after strip\n";
+        return MyCUs.end();
+    }
+
+    /* TODO use binary search here */
+
+    cu_iterator I = cu_begin(), E = cu_end();
+    
+    while(I != E) {
+        std::string debugname = I->getDirectory().str() + "/" + I->getFilename().str();
+        if (pathneq(debugname.c_str(), patchname, dstrips)) {
+            break;
+        }
+        I++;
+    }
+    if (I == E)
+        errs() << "Warning: no matching file(" << patchname << ") was found in the current module \n";
+    return I;
+}
+
 ScopeInfoFinder::sp_iterator Matcher::initMatch(StringRef fname)
 {
     if (!processed) {
         errs() << "Warning: Matcher is not initialized\n";
-        return Finder.subprogram_end();
+        return Finder.sp_end();
     }
     initialized = true;
     char *canon = canonpath(fname.data(), NULL);  
     if (canon == NULL) {
         errs() << "Warning: patchname is NULL\n";
-        return Finder.subprogram_end();
+        return Finder.sp_end();
     }
     filename.assign(canon);
     patchname = stripname(filename.c_str(), patchstrips);
     if (strlen(patchname) == 0) {
         errs() << "Warning: patchname is empty after strip\n";
-        return Finder.subprogram_end();
+        return Finder.sp_end();
     }
 
-    ScopeInfoFinder::sp_iterator I = Finder.subprogram_begin(), E = Finder.subprogram_end();
-    
     /* TODO use binary search here */
+
+    ScopeInfoFinder::sp_iterator I = Finder.sp_begin(), E = Finder.sp_end();
+    
     while(I != E) {
         //std::string debugname = I->getDirectory().str() + "/" + I->getFilename().str();
         std::string debugname = I->directory + "/" + I->filename;
@@ -375,7 +422,7 @@ Function * Matcher::__matchFunction(ScopeInfoFinder::sp_iterator I, Scope &scope
     Function *f1 = NULL, *f2 = NULL;
     ScopeInfoFinder::sp_iterator E;
     patchname = stripname(filename.c_str(), patchstrips);
-    for (E = Finder.subprogram_end(); I != E; I++) {
+    for (E = Finder.sp_end(); I != E; I++) {
         //std::string debugname = I->getDirectory().str() + "/" + I->getFilename().str();
         std::string debugname = I->directory + "/" + I->filename;
         if (!pathneq(debugname.c_str(), patchname,  debugstrips))
@@ -497,7 +544,7 @@ Function * Matcher::matchFunction(ScopeInfoFinder::sp_iterator & I, Scope &scope
     }
     
     /** Off-the-shelf SP finder **/
-    ScopeInfoFinder::sp_iterator E = Finder.subprogram_end();
+    ScopeInfoFinder::sp_iterator E = Finder.sp_end();
     while (I != E) {
         std::string debugname = I->directory + "/" + I->filename;
         if (!pathneq(debugname.c_str(), patchname,  debugstrips))
