@@ -191,22 +191,8 @@ size_t count_strips(Module & M)
     return 0;
 }
 
-void assess(char *input)
+void initPassRegistry(PassRegistry & Registry)
 {
-    llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
-    PatchDecoder * decoder = new PatchDecoder(input);
-    assert(decoder);
-    Patch *patch = NULL;
-    Chapter *chap = NULL;
-    Hunk * hunk = NULL;
-    // Create a PassManager to hold and optimize the collection of passes we are
-    // about to build.
-    //
-    //PassManager Passes;
-
-    OwningPtr<FunctionPassManager> FPasses;
-    // Initialize passes
-    PassRegistry &Registry = *PassRegistry::getPassRegistry();
     initializeCore(Registry);
     initializeScalarOpts(Registry);
     initializeIPO(Registry);
@@ -216,6 +202,23 @@ void assess(char *input)
     initializeInstCombine(Registry);
     initializeInstrumentation(Registry);
     initializeTarget(Registry);
+}
+
+
+void assess(char *input)
+{
+    llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
+    PatchDecoder * decoder = new PatchDecoder(input);
+    assert(decoder);
+    Patch *patch = NULL;
+    Chapter *chap = NULL;
+    Hunk * hunk = NULL;
+
+    OwningPtr<FunctionPassManager> FPasses;
+    // Initialize passes
+    PassRegistry &Registry = *PassRegistry::getPassRegistry();
+    initPassRegistry(Registry);
+
     Module *module = NULL; 
     while((patch = decoder->next_patch()) != NULL) {
         if (LOCAL_DEBUG)
@@ -438,7 +441,9 @@ int main(int argc, char *argv[])
     LLVMContext & Context = getGlobalContext();
     load(Context, as, false);
     load(Context, bs, true);
-
-    assess(id_fname);
+    Module * module = *(bmodules.begin());
+    ScopeInfoFinder finder;
+    finder.processSubprograms(*module);
+    //assess(id_fname);
     return 0;
 }
