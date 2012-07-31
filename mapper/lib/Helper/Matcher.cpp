@@ -1,7 +1,7 @@
 #include "Matcher.h"
 #include "Handy.h"
 
-static bool LOCAL_DEBUG = true;
+static bool LOCAL_DEBUG = false;
 
 bool cmpDICU(const DICompileUnit & CU1, const DICompileUnit & CU2) 
 { 
@@ -280,9 +280,8 @@ void Matcher::processSubprograms(Module &M)
 
     /** Sort based on file name, directory and line number **/
     std::sort(MySPs.begin(), MySPs.end(), cmpDISPCopy);
-    if (LOCAL_DEBUG) {
+    if (LOCAL_DEBUG)
         dumpSPs();
-    }
 }
 
 void Matcher::processDomTree(DominatorTree & DT)
@@ -346,7 +345,8 @@ Matcher::sp_iterator Matcher::initMatch(cu_iterator & ci)
     MySPs.clear();
     processSubprograms(*ci);
     std::sort(MySPs.begin(), MySPs.end(), cmpDISPCopy);
-    dumpSPs();
+    if (LOCAL_DEBUG) 
+        dumpSPs();
     return MySPs.begin();
 }
 
@@ -386,6 +386,22 @@ Matcher::sp_iterator Matcher::initMatch(StringRef fname)
     return I;
 }
 
+
+Instruction * Matcher::matchInstruction(inst_iterator &fi, Function * f, unsigned line)
+{
+    Instruction * inst = NULL;
+    for (inst_iterator fe = inst_end(f); fi != fe; ++fi) {
+        inst = &*fi;
+        unsigned l = ScopeInfoFinder::getInstLine(inst);
+        if (l == 0)
+            continue;
+        if (l == line)
+            return inst;
+        if (l > line)
+            return NULL; // already passed
+    }
+    return NULL;
+}
 
 Loop * Matcher::matchLoop(LoopInfo &li, const Scope & scope)
 {

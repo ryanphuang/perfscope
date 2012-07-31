@@ -8,6 +8,6 @@ LEVEL=..
 #
 # List all of the subdirectories that we will compile.
 #
-DIRS=PerfScope DiffDriver MapperDriver
+DIRS=PerfScope DiffDriver MapperDriver DecoderDriver
 
 include $(LEVEL)/Makefile.common

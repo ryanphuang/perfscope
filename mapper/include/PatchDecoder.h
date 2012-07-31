@@ -26,6 +26,7 @@ enum MODTYPE {ADD, DEL, REP};
 
 typedef struct Mod {
     Scope scope;
+    Scope rep_scope;
     MODTYPE type;
 } Mod; 
 
@@ -50,8 +51,10 @@ class PatchDecoder;
 class Hunk {
     public:
         unsigned start_line;
+        unsigned rep_start_line;
         const char *ctrlseq;
         Scope enclosing_scope;
+        Scope rep_enclosing_scope;
         size_t seqlen;
         typedef SmallVector<Mod *, 16>::const_iterator iterator;
 
@@ -59,9 +62,12 @@ class Hunk {
         SmallVector<Mod *, 16> mods;
 
     public:
-        Hunk(unsigned start, const char *seq, size_t len) : start_line(start), ctrlseq(seq), 
-            seqlen(len) {}
+        Hunk(unsigned start, unsigned rep_start, const char *seq, size_t len) : start_line(start), 
+            rep_start_line(rep_start), ctrlseq(seq), seqlen(len) {}
         bool reduce();
+        bool translate(char *, size_t);
+        bool check(char *, size_t);
+
 
         iterator begin() { return mods.begin(); }
         iterator end() { return mods.end(); }
@@ -70,9 +76,12 @@ class Hunk {
 
 private:
         void putBuf(char, size_t &);
-        Mod * newMod(unsigned line, char c) { return newMod(line, line, c); }
-        Mod * newMod(unsigned, unsigned, char);
-        bool merge(unsigned, size_t);
+        inline Mod * newMod(unsigned line, unsigned repline, char c) 
+        { 
+            return newMod(line, line, repline, repline, c); 
+        }
+        Mod * newMod(unsigned, unsigned, unsigned, unsigned, char);
+        bool merge(unsigned &, unsigned &, size_t);
 
 };
 
@@ -89,7 +98,6 @@ class Chapter {
         Chapter(PatchDecoder *, const char *, const char *);
         Hunk * next_hunk();
         bool skip_rest_of_hunks();
-
 
     protected:
         void unget_line();

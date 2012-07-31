@@ -440,7 +440,8 @@ skipreason PatchParser::gobble(FILE *_outfp)
     char *outname = NULL;
     enum skipreason reason = NO_REASON;
 
-    char numbuf[LINENUM_LENGTH_BOUND + 1];
+    char numbuf1[LINENUM_LENGTH_BOUND + 1];
+    char numbuf2[LINENUM_LENGTH_BOUND + 1];
 
     FILE *outfp;
     if (_outfp == NULL)
@@ -498,13 +499,14 @@ skipreason PatchParser::gobble(FILE *_outfp)
                                     fprintf(outfp, "****\n%s\n", patchname);
                                     patchprinted = true;
                                 }
-                                fprintf(outfp, "====\n%s\n", inname);
+                                fprintf(outfp, "====\n%s\n", inname) ;
                             }
                     }
             } 
             if (!skip_rest_of_patch) {
                 if (p_nctrl > 0)
-                    fprintf(outfp, "####%s\n%s\n", format_linenum(numbuf, p_first), p_CtrlChar);
+                    fprintf(outfp, "####%s,%s\n%s\n", format_linenum(numbuf1, p_first), 
+                        format_linenum(numbuf2, p_newfirst), p_CtrlChar);
             }
             // We shouldn't break here, just let the parser gobble the rest of the patch
             // to move on to the next patch

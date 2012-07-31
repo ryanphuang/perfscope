@@ -15,6 +15,7 @@
 #include "llvm/Module.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/InstIterator.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Constants.h"
@@ -154,6 +155,7 @@ class Matcher {
 
         cu_iterator matchCompileUnit(StringRef);
         Function * matchFunction(sp_iterator &, Scope &);
+        Instruction * matchInstruction(inst_iterator &, Function *, unsigned);
         static Loop * matchLoop(LoopInfo &li, const Scope &);
 
 

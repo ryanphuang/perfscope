@@ -14,6 +14,7 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/InstVisitor.h"
+#include "llvm/Support/InstIterator.h"
 #include "llvm/Target/TargetData.h"
 
 #include <iostream>
@@ -29,7 +30,7 @@
 
 using namespace std;
 
-#define LOCAL_DEBUG true
+#define LOCAL_DEBUG false
 
 #define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
 
@@ -204,8 +205,19 @@ void initPassRegistry(PassRegistry & Registry)
     initializeTarget(Registry);
 }
 
+void assess(Instruction *I)
+{
+    if (isa<CmpInst>(I)) {
 
-void assess(char *input)
+    } else if (isa<CallInst>(I)) {
+        CallInst *ci = cast<CallInst>(I);
+        Function *func = ci->getCalledFunction();
+        const char *dname = cpp_demangle(func->getName().data());
+        cout << "call: " << dname << "\n";
+    }
+}
+
+void analyze(char *input)
 {
     llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
     PatchDecoder * decoder = new PatchDecoder(input);
@@ -268,6 +280,7 @@ void assess(char *input)
 
                             // Hunk: [  (..M1..)       (..M2..)  (..M3..) ]
                             //                   {f1}
+                            
 
                             // Skip the modifications didn't reach function's beginning
                             while(HI != HE && (*HI)->scope.end < I->linenumber)
@@ -276,7 +289,7 @@ void assess(char *input)
                             // no need to test the loop scope
                             if (HI == HE || (*HI)->scope.begin > I->lastline)
                                 continue;
-
+                            
                             s++;
                             const char *dname = cpp_demangle(I->name.c_str());
                             if (dname == NULL)
@@ -288,6 +301,51 @@ void assess(char *input)
                             }
                             else 
                                 cout << dname << ":"; // Structued output
+
+                            {
+                                // Four situations(top mod, bottom func):
+                                // 1):   |_________|
+                                //            |________|
+                                // 2):   |_________|
+                                //         |____|
+                                // 3):   |_________|
+                                //     |_______|
+                                // 4):   |_________|
+                                //     |_______________| 
+                                //
+                                
+                                Hunk::iterator hit = HI;
+                                while (hit != HE) {
+                                    unsigned beginl = (*hit)->scope.begin;
+                                    if (beginl > I->lastline) // reach the boundary
+                                        break;
+                                    unsigned endl = (*hit)->scope.end;
+                                    if (beginl < I->linenumber)
+                                        beginl = I->linenumber;
+                                    if (endl > I->lastline)
+                                        endl = I->lastline;
+                                    inst_iterator fi = inst_begin(f);
+                                    inst_iterator fe = inst_end(f);
+                                    Instruction *inst = matcher.matchInstruction(fi, f, beginl); 
+                                    //TODO may not skip the whole Mod
+                                    if (inst == NULL) {
+                                        errs() << "Can't locate instruction for mod @" << beginl << "\n";
+                                    }
+                                    else {
+                                        while(fi != fe) {
+                                            unsigned l = ScopeInfoFinder::getInstLine(&*fi);
+                                            if (l > endl)
+                                                break;
+                                            if (LOCAL_DEBUG)
+                                                cout << fi->getOpcodeName() << "@" << l << "\n";
+                                            assess(&*fi);
+                                            fi++;
+                                        } 
+                                    }
+                                    hit++;
+                                }
+                            }
+
                             FPasses->run(*f);
                             if (funcLoops.begin() == funcLoops.end()) {
                                 if (LOCAL_DEBUG)
@@ -442,6 +500,6 @@ int main(int argc, char *argv[])
     LLVMContext & Context = getGlobalContext();
     load(Context, as, false);
     load(Context, bs, true);
-    assess(id_fname);
+    analyze(id_fname);
     return 0;
 }

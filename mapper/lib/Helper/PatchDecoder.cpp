@@ -1,7 +1,7 @@
 #include "Handy.h"
 #include "PatchDecoder.h"
 
-static bool DEBUG = false;
+static bool DEBUG = true;
 
 static const char * PHEADER = "****";
 static const int PLEN = 4;
@@ -46,10 +46,36 @@ std::ostream & operator<<(std::ostream& os, const Mod & mod)
     return os;
 }
 
+unsigned parseInt(const char **s, PatchDecoder *decoder)
+{
+    char c;
+    unsigned lineno = 0;
+    unsigned no = 0;
+    int n;
+    const char *ss = *s;
+    while ((c = *ss) != '\0')
+    {
+        if (c == ',')
+            break;
+        n = c - '0';
+        if (n < 0 || n > 9) {
+            decoder->syntaxError("Invalid hunk line number");
+        }
+        lineno = no * 10 + n;
+        if (lineno / 10 != no) {
+            decoder->syntaxError("Hunk line number too big");
+        }
+        no = lineno;
+        ss++;
+    }
+    *s = ss;
+    return lineno;
+}
+
 void Hunk::putBuf(char c, size_t &len)
 {
-    if (len > 0 && c == ADDC && c == gBuf[len - 1]) // Don't add consecutive ADDC
-        return;
+    //if (len > 0 && c == ADDC && c == gBuf[len - 1]) // Don't add consecutive ADDC
+    //    return;
     if (len >= gBufSize) {
         gBufSize *= 2; // double the size
         gBuf = (char *) xrealloc(gBuf, gBufSize);
@@ -65,7 +91,7 @@ void Hunk::dumpBuf(size_t len)
     printf("\n");
 }
 
-Mod * Hunk::newMod(unsigned start, unsigned end, char c)
+Mod * Hunk::newMod(unsigned start, unsigned end, unsigned repstart, unsigned repend, char c)
 {
     MODTYPE type;
     switch (c) {
@@ -87,7 +113,25 @@ Mod * Hunk::newMod(unsigned start, unsigned end, char c)
     m->type = type;
     m->scope.begin = start;
     m->scope.end = end;
+    m->rep_scope.begin = repstart;
+    m->rep_scope.end = repend;
     return m;
+}
+
+bool Hunk::translate(char * buf, size_t len)
+{
+    return true;
+}
+
+bool Hunk::check(char * buf, size_t len)
+{
+    size_t i, j;
+    for (i = 0; i < len; i++) 
+        if (buf[i] == REPC)
+            for (j = 0; j < i; j++)
+                if (buf[j] == ADDC) // e.g. +++++^^
+                    return false;
+    return true;
 }
 
 /**
@@ -119,7 +163,7 @@ Mod * Hunk::newMod(unsigned start, unsigned end, char c)
  * But it might be error prone.
  * Second is to do two passes, which is less efficient but more safe: 
  * a). translate: for each chunk, reduce all pairs of '-' and '+' to '^' 
- * b). collapse: collapse all consecutive same chars to the corresponding region. 
+ * b). coalesce: coalesce all consecutive same chars to the corresponding region. 
  *
  *
  */
@@ -129,42 +173,23 @@ bool Hunk::reduce()
         return false;
 
     unsigned line = start_line - 1; // start one line before the beginning
-    unsigned chunk_line = 1; 
-     
+    unsigned repline = rep_start_line - 1; // start one line before the beginning
+    unsigned del_cnt = 0, add_cnt = 0;
+
     char c;
-    size_t i, j, chunk_beg, buf_len;
-    i = j = chunk_beg = buf_len = 0;
-    unsigned del_cnt, add_cnt;
-    del_cnt = add_cnt = 0;
+    size_t i = 0, j = 0, buf_len = 0;
+
     Mod *m = NULL;
     bool printed = false;
     for (; i < seqlen; i++) {
         c = ctrlseq[i];
         switch(c) {
             case SAMC:
-                line++; // SAMC belongs to OLD, so we increment line.
                 // Need to check chunk end first:
                 // example "~~~--++~+". If not, the first chunk won't be merged
-                if (i > 0 && ctrlseq[i - 1] != SAMC) { // chunk end boundary 
-                    ///////////////////////////////////////////////
-                    //           Second approach
-                    ///////////////////////////////////////////////
-                    if (DEBUG) {
-                        if (!printed) {
-                            printed = true;
-                            printf("*****Translation result*******\n");
-                        }
-                        dumpBuf(buf_len);
-                    }
-                    merge(chunk_line, buf_len);
-                    /////////////////////////////////////////////////
-                }
+                line++; // only increment line number for same, let the merge handling rest
+                repline++;
                 if (i != seqlen - 1 && ctrlseq[i + 1] != SAMC) { // chunk begin boundary
-                    if (ctrlseq[i + 1] == ADDC)
-                        chunk_line = line; // 
-                    else
-                        chunk_line = line + 1;
-                    chunk_beg = i + 1;
                     buf_len = 0;
                     del_cnt = 0;
                     add_cnt = 0;
@@ -195,49 +220,9 @@ bool Hunk::reduce()
                 }
                 /////////////////////////////////////////////////
 
-                ///////////////////////////////////////////////
-                //           First approach
-                ///////////////////////////////////////////////
-                /**********************************************
-                // no '-' remains and no '+' remains, it's the start of add region.
-                if (del_cnt == 0) {
-                    if (add_cnt == 1) {
-                        // start of add region.
-                        // if there is replace region before add, fill up its end.
-                        if (m != NULL) {
-                            assert(m->type == REP); // must be rep
-                            m->scope.end = line;
-                            mods.push_back(m);
-                        }
-
-                        m = new Mod();
-                        if (m == NULL)
-                            diegrace("out of memory");
-                        //ADD modification only stores the beginning boundary of add region.
-                        m->scope.begin = line;
-                        m->scope.end = line;
-                        m->type = ADD;
-                        mods.push_back(m);
-                        m = NULL; // reset m
-                    }
-                }
-                else { // del_cnt > 0
-                    // start of replace region.
-                    m = new Mod();
-                    if (m == NULL)
-                        diegrace("out of memory");
-                    //REP's scope end isn't known yet, needs to be filled up later.
-                    m->scope.begin = line;
-                    m->type = REP;
-                    // decrease both add and del cnt
-                    add_cnt--;
-                    del_cnt--; 
-                }
-                ********************************************/
                 break;
     
             case DELC:
-                line++; // DELC belongs to OLD, so we increment line.
                 del_cnt++;
                 ///////////////////////////////////////////////
                 //           Second approach
@@ -248,7 +233,21 @@ bool Hunk::reduce()
             default:
                 fprintf(stderr, "Invalid control character at position %d", i);
                 return false;
+        }
 
+        // when encounter last char which is not SAMC or next char is SAMC, do merge
+        if (ctrlseq[i] != SAMC && (i == seqlen - 1 || ctrlseq[i + 1] == SAMC)) {
+            assert(buf_len > 0);
+            if (i == seqlen - 1)
+                fprintf(stderr, "last chunk");
+            if (DEBUG) {
+                if (!printed) {
+                    printed = true;
+                    printf("*****Translation result*******\n");
+                }
+                dumpBuf(buf_len);
+            }
+            merge(line, repline, buf_len);
         }
     }
     if (!mods.empty()) {
@@ -258,30 +257,36 @@ bool Hunk::reduce()
     return true;
 }
 
-bool Hunk::merge(unsigned start_line, size_t len)
+bool Hunk::merge(unsigned & line, unsigned & rep_line, size_t len)
 {
-    if (start_line == 0 || len == 0)
-        return false;
+    assert(len != 0);
     size_t i;
-    char c1 = gBuf[0], c2;
-    unsigned start = start_line, end = start_line;
+    char c;
+    unsigned start = 0, end = line;
+    unsigned rep_start = 0, rep_end = rep_line;
     Mod * m;
-    bool newregion;
-    for (i = 0; i < len - 1; i++) {
-        c2 = gBuf[i + 1];
-        newregion = (c1 != c2);
-        if (newregion) {
-            m = newMod(start, end, c1);
-            mods.push_back(m);
-        }
-        if (c1 != ADDC) // don't increment line on ADD
+    bool newregion = true; // beginning is always a new region
+    for (i = 0; i < len; i++) {
+        c = gBuf[i];
+        if (c != ADDC) {
             end++;
-        if (newregion) 
+        }
+        if (c != DELC) {
+            rep_end++;
+        }
+        if (newregion) {
             start = end;
-        c1 = c2;
+            rep_start = rep_end;
+            newregion = false;
+        }
+        if (i == len - 1 || c != gBuf[i + 1]) { // mod end boundary
+            m = newMod(start, end, rep_start, rep_end, c);
+            mods.push_back(m);
+            newregion = true; // update start in next iteration
+        }
     }
-    m = newMod(start, end, c1);
-    mods.push_back(m);
+    line = end; // update the line
+    rep_line = rep_end; // update the replacement line
     return true;
 }
 /////////////////////////////////////////////////////////
@@ -327,25 +332,21 @@ Hunk * Chapter::next_hunk()
         decoder->syntaxError("Expecting hunk header");
     }
     unsigned lineno = 0;
-    unsigned no = 0;
+    unsigned replineno = 0;
     const char *s = line + PLEN;
-    char c;
-    int n;
-    while ((c = *s++) != '\0')
-    {
-        n = c - '0';
-        if (n < 0 || n > 9) {
-            decoder->syntaxError("Invalid hunk line number");
-        }
-        lineno = no * 10 + n;
-        if (lineno / 10 != no) {
-            decoder->syntaxError("Hunk line number too big");
-        }
-        no = lineno;
-    }
+    lineno = parseInt(&s, decoder);
     if (lineno <= 0) {
         decoder->syntaxError("Invalid hunk line number");
     }
+    if (*s != ',') {
+        decoder->syntaxError("Expecting replace hunk line number");
+    }
+    s++;
+    replineno = parseInt(&s, decoder);
+    if (replineno <= 0) {
+        decoder->syntaxError("Invalid hunk line number");
+    }
+
     line = decoder->next_line(chars_read);
     if (line == NULL) {
         decoder->syntaxError("Invalid hunk control sequence");
@@ -354,7 +355,7 @@ Hunk * Chapter::next_hunk()
         delete hunk;
         hunk = NULL;
     } 
-    hunk = new Hunk(lineno, line, chars_read);
+    hunk = new Hunk(lineno, replineno, line, chars_read);
     if (hunk == NULL) {
         diegrace("out of memory");
     }
