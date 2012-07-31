@@ -172,6 +172,7 @@ class Matcher {
             debugstrips = d_strips; 
         }
 
+        bool initName(StringRef);
         sp_iterator initMatch(StringRef);
         sp_iterator initMatch(cu_iterator &);
 

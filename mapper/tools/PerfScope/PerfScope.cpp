@@ -212,8 +212,10 @@ void assess(Instruction *I)
     } else if (isa<CallInst>(I)) {
         CallInst *ci = cast<CallInst>(I);
         Function *func = ci->getCalledFunction();
+        if (func == NULL || func->isIntrinsic())
+            return;
         const char *dname = cpp_demangle(func->getName().data());
-        cout << "call: " << dname << "\n";
+        cout << dname << ",";
     }
 }
 
@@ -244,7 +246,8 @@ void analyze(char *input)
             }
             bool found = false;
             list<int>::iterator ii = bstrips.begin(), ie = bstrips.end();
-            for(list<Module *>::iterator mi = bmodules.begin(), me = bmodules.end(); mi != me && ii != ie; mi++, ii++) {
+            for(list<Module *>::iterator mi = bmodules.begin(), me = bmodules.end(); 
+                mi != me && ii != ie; mi++, ii++) {
                 module = *mi;
                 if (module == NULL)
                     continue;
@@ -266,12 +269,12 @@ void analyze(char *input)
                         }
                         assert(hunk->reduce());
                         if (LOCAL_DEBUG)
-                            cout << hunk->enclosing_scope << endl;
+                            cout << hunk->rep_enclosing_scope << endl;
                         Function *f;
                         int s = 0;
-                        Scope scope = hunk->enclosing_scope;
+                        Scope scope = hunk->rep_enclosing_scope;
                         if (LOCAL_DEBUG) 
-                            cout << hunk->enclosing_scope << " might touch ";
+                            cout << hunk->rep_enclosing_scope << " might touch ";
                         Scope ls;
                         Hunk::iterator HI = hunk->begin(), HE = hunk->end();
                         while ((f = matcher.matchFunction(I, scope)) != NULL ) {
@@ -283,11 +286,11 @@ void analyze(char *input)
                             
 
                             // Skip the modifications didn't reach function's beginning
-                            while(HI != HE && (*HI)->scope.end < I->linenumber)
+                            while(HI != HE && (*HI)->rep_scope.end < I->linenumber)
                                 HI++;
 
                             // no need to test the loop scope
-                            if (HI == HE || (*HI)->scope.begin > I->lastline)
+                            if (HI == HE || (*HI)->rep_scope.begin > I->lastline)
                                 continue;
                             
                             s++;
@@ -316,10 +319,10 @@ void analyze(char *input)
                                 
                                 Hunk::iterator hit = HI;
                                 while (hit != HE) {
-                                    unsigned beginl = (*hit)->scope.begin;
+                                    unsigned beginl = (*hit)->rep_scope.begin;
                                     if (beginl > I->lastline) // reach the boundary
                                         break;
-                                    unsigned endl = (*hit)->scope.end;
+                                    unsigned endl = (*hit)->rep_scope.end;
                                     if (beginl < I->linenumber)
                                         beginl = I->linenumber;
                                     if (endl > I->lastline)
@@ -329,15 +332,14 @@ void analyze(char *input)
                                     Instruction *inst = matcher.matchInstruction(fi, f, beginl); 
                                     //TODO may not skip the whole Mod
                                     if (inst == NULL) {
-                                        errs() << "Can't locate instruction for mod @" << beginl << "\n";
+                                        if (LOCAL_DEBUG)
+                                            errs() << "Can't locate instruction for mod @" << beginl << "\n";
                                     }
                                     else {
                                         while(fi != fe) {
                                             unsigned l = ScopeInfoFinder::getInstLine(&*fi);
                                             if (l > endl)
                                                 break;
-                                            if (LOCAL_DEBUG)
-                                                cout << fi->getOpcodeName() << "@" << l << "\n";
                                             assess(&*fi);
                                             fi++;
                                         } 
@@ -345,6 +347,7 @@ void analyze(char *input)
                                     hit++;
                                 }
                             }
+                            cout << "$$";
 
                             FPasses->run(*f);
                             if (funcLoops.begin() == funcLoops.end()) {
@@ -360,12 +363,12 @@ void analyze(char *input)
                             //TODO more elegant
                             //TODO loop finder no need to restart
                             bool match_loop = false;
-                            while(HI != HE && (*HI)->scope.begin <= I->lastline) {
+                            while(HI != HE && (*HI)->rep_scope.begin <= I->lastline) {
                                 // Will only match the *fist* in top level matching loop.
                                 // FIXME may need to get all the loops.
                                 for (loop_iterator I = funcLoops.begin(), E = funcLoops.end();
                                         I != E; I++) {
-                                    if (I->intersects((*HI)->scope)) {
+                                    if (I->intersects((*HI)->rep_scope)) {
                                         match_loop = true;
                                         if (LOCAL_DEBUG)
                                             cout << "loop: " << *I << " ";

@@ -312,16 +312,10 @@ void Matcher::processDomTree(DominatorTree & DT)
 
 Matcher::cu_iterator Matcher::matchCompileUnit(StringRef fullname)
 {
-    char *canon = canonpath(fullname.data(), NULL);  
-    if (canon == NULL) {
-        errs() << "Warning: patchname is NULL\n";
+    if (!initName(fullname))
         return MyCUs.end();
-    }
-    patchname = stripname(canon, patchstrips);
-    if (strlen(patchname) == 0) {
-        errs() << "Warning: patchname is empty after strip\n";
-        return MyCUs.end();
-    }
+
+    initialized = true;
 
     /* TODO use binary search here */
 
@@ -329,25 +323,44 @@ Matcher::cu_iterator Matcher::matchCompileUnit(StringRef fullname)
     
     while(I != E) {
         std::string debugname = I->getDirectory().str() + "/" + I->getFilename().str();
-        if (pathneq(debugname.c_str(), patchname, debugstrips)) {
+        if (pathneq(debugname.c_str(), patchname, debugstrips))
             break;
-        }
         I++;
     }
     if (I == E)
-        errs() << "Warning: no matching file(" << patchname << ") was found in the current module \n";
+        errs() << "Warning: no matching file(" << patchname << ") was found in the CUs\n";
     return I;
+}
+
+bool Matcher::initName(StringRef fname)
+{
+    char *canon = canonpath(fname.data(), NULL);  
+    if (canon == NULL) {
+        errs() << "Warning: patchname is NULL\n";
+        return false;
+    }
+    filename.assign(canon);
+    patchname = stripname(filename.c_str(), patchstrips);
+    if (strlen(patchname) == 0) {
+        errs() << "Warning: patchname is empty after strip\n";
+        return false;
+    }
+    return true;
 }
 
 Matcher::sp_iterator Matcher::initMatch(cu_iterator & ci)
 {
-    initialized = true;
+    if (!initialized) {
+        errs() << "Matcher is not initialized\n";
+        return MySPs.end();
+    }
     MySPs.clear();
     processSubprograms(*ci);
     std::sort(MySPs.begin(), MySPs.end(), cmpDISPCopy);
     if (LOCAL_DEBUG) 
         dumpSPs();
-    return MySPs.begin();
+    // shouldn't just return MySPs.begin(). because a CU may contain SPs from other CUs.
+    return initMatch(filename); 
 }
 
 Matcher::sp_iterator Matcher::initMatch(StringRef fname)
@@ -356,21 +369,11 @@ Matcher::sp_iterator Matcher::initMatch(StringRef fname)
         errs() << "Warning: Matcher hasn't processed module\n";
         return sp_end();
     }
-    initialized = true;
-    char *canon = canonpath(fname.data(), NULL);  
-    if (canon == NULL) {
-        errs() << "Warning: patchname is NULL\n";
-        return sp_end();
+    if (!initialized) {
+        if (!initName(fname))
+            return sp_end();
+        initialized = true;
     }
-    filename.assign(canon);
-    patchname = stripname(filename.c_str(), patchstrips);
-    if (strlen(patchname) == 0) {
-        errs() << "Warning: patchname is empty after strip\n";
-        return sp_end();
-    }
-
-    /* TODO use binary search here */
-
     sp_iterator I = sp_begin(), E = sp_end();
     
     while(I != E) {
@@ -382,10 +385,9 @@ Matcher::sp_iterator Matcher::initMatch(StringRef fname)
         I++;
     }
     if (I == E)
-        errs() << "Warning: no matching file(" << patchname << ") was found in the current module \n";
+        errs() << "Warning: no matching file(" << patchname << ") was found in the CU\n";
     return I;
 }
-
 
 Instruction * Matcher::matchInstruction(inst_iterator &fi, Function * f, unsigned line)
 {
@@ -431,6 +433,60 @@ Loop * Matcher::matchLoop(LoopInfo &li, const Scope & scope)
         }
     }
     return found;
+}
+
+
+/** A progressive method to match the function(s) in a given scope.
+ *  When there are more than one function in the scope, the first function
+ *  will be returned and scope's beginning is *modified* to the end of this 
+ *  returned function so that the caller could perform a loop of call until
+ *  matchFunction return NULL;
+ *
+ *
+ *  Note: finder.processModule(M) should be called before the first call of matchFunction.
+ *
+ * **/
+Function * Matcher::matchFunction(sp_iterator & I, Scope &scope)
+{
+    if (!initialized) {
+        errs() << "Matcher is not initialized\n";
+        return NULL;
+    }
+    // hit the boundary
+    if (scope.begin == 0 || scope.end == 0 || scope.end < scope.begin) {
+        return NULL;
+    }
+    
+    /** Off-the-shelf SP finder **/
+    sp_iterator E = sp_end();
+    while (I != E) {
+        std::string debugname = I->directory + "/" + I->filename;
+        if (!pathneq(debugname.c_str(), patchname,  debugstrips)) {
+            errs() << "Warning: Reaching the end of " << patchname << " in current CU\n";
+            return NULL;
+        }
+        if (I->lastline == 0) {
+            if (I + 1 == E)
+                return I->function; // It's tricky to return I here. Maybe NULL is better
+            // Line number is guaranteed to be positive, no need to check overflow here.
+            I->lastline = (I + 1)->linenumber - 1;             
+            assert(I->lastline >= I->linenumber); // Unless the two are modifying the same line.
+        }
+        // For boundary case, we only break if that function is one line function.
+        if (I->lastline > scope.begin || (I->lastline == scope.begin && I->lastline == I->linenumber))
+            break;
+        I++;
+    }
+    if (I == E)
+        return NULL;
+    // Lies in the gap
+    if (I->linenumber > scope.end || (I->linenumber == scope.end && I->lastline > I->linenumber))
+        return NULL;
+    if (I->lastline < scope.end)
+        scope.begin = I->lastline + 1;  // Multiple functions
+    else
+        scope.begin = 0;
+    return I->function;
 }
 
 /**
@@ -551,58 +607,6 @@ Function * Matcher::__matchFunction(sp_iterator I, Scope &scope)
     }
     return f1;
 }
-
-/** A progressive method to match the function(s) in a given scope.
- *  When there are more than one function in the scope, the first function
- *  will be returned and scope's beginning is *modified* to the end of this 
- *  returned function so that the caller could perform a loop of call until
- *  matchFunction return NULL;
- *
- *
- *  Note: finder.processModule(M) should be called before the first call of matchFunction.
- *
- * **/
-Function * Matcher::matchFunction(sp_iterator & I, Scope &scope)
-{
-    if (!initialized) {
-        errs() << "Matcher is not initialized\n";
-        return NULL;
-    }
-    // hit the boundary
-    if (scope.begin == 0 || scope.end == 0 || scope.end < scope.begin) {
-        return NULL;
-    }
-    
-    /** Off-the-shelf SP finder **/
-    sp_iterator E = sp_end();
-    while (I != E) {
-        std::string debugname = I->directory + "/" + I->filename;
-        //if (!pathneq(debugname.c_str(), patchname,  debugstrips))
-        //    return NULL; 
-        if (I->lastline == 0) {
-            if (I + 1 == E)
-                return I->function; // It's tricky to return I here. Maybe NULL is better
-            // Line number is guaranteed to be positive, no need to check overflow here.
-            I->lastline = (I + 1)->linenumber - 1;             
-            assert(I->lastline >= I->linenumber); // Unless the two are modifying the same line.
-        }
-        // For boundary case, we only break if that function is one line function.
-        if (I->lastline > scope.begin || (I->lastline == scope.begin && I->lastline == I->linenumber))
-            break;
-        I++;
-    }
-    if (I == E)
-        return NULL;
-    // Lies in the gap
-    if (I->linenumber > scope.end || (I->linenumber == scope.end && I->lastline > I->linenumber))
-        return NULL;
-    if (I->lastline < scope.end)
-        scope.begin = I->lastline + 1;  // Multiple functions
-    else
-        scope.begin = 0;
-    return I->function;
-}
-
 
 void Matcher::succTraversal(Function *F)
 {

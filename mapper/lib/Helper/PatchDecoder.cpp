@@ -1,7 +1,7 @@
 #include "Handy.h"
 #include "PatchDecoder.h"
 
-static bool DEBUG = true;
+static bool DEBUG = false;
 
 static const char * PHEADER = "****";
 static const int PLEN = 4;
@@ -253,6 +253,8 @@ bool Hunk::reduce()
     if (!mods.empty()) {
         enclosing_scope.begin = mods.front()->scope.begin;
         enclosing_scope.end = mods.back()->scope.end;
+        rep_enclosing_scope.begin = mods.front()->rep_scope.begin;
+        rep_enclosing_scope.end  = mods.front()->rep_scope.end;
     }
     return true;
 }
