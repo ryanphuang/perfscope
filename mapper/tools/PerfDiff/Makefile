@@ -9,7 +9,7 @@ LEVEL=../..
 # List all of the subdirectories that we will compile.
 #
 
-TOOLNAME=diffdriver
+TOOLNAME=perfdiff
 
 USEDLIBS=diffengine.a
 

@@ -81,6 +81,8 @@ namespace llvm {
     /// Determines whether two global values are equivalent.
     bool equivalentAsOperands(GlobalValue *L, GlobalValue *R);
 
+    void setDiff(bool diff) { consumer.setDiff(diff); }
+
   private:
     LLVMContext &context;
     Consumer &consumer;

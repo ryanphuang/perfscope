@@ -1,4 +1,5 @@
 #include "Handy.h"
+#include "DifferenceEngine.h"
 #include "PatchDecoder.h"
 #include "CallSiteFinder.h"
 #include "Matcher.h"
@@ -41,11 +42,20 @@ static char * program_name;
 static char * bc_fname = NULL;
 static char * id_fname = NULL;
 
+static LLVMContext & Context = getGlobalContext();
+
 static list<Module *> bmodules;
+static list<string> bnames;
 static list<int> bstrips;
 
 static list<Module *> amodules;
+static list<string> anames;
 static list<int> astrips;
+
+static vector<string> syscalls;
+static vector<string> expcalls;
+static vector<string> lockcalls;
+
 
 static SmallVector<Scope, 4> funcLoops;
 typedef SmallVector<Scope, 4>::iterator loop_iterator;
@@ -106,17 +116,8 @@ static Module *ReadModule(LLVMContext &Context, StringRef Name) {
     SMDiagnostic Diag;
     Module *M = ParseIRFile(Name, Diag, Context);
     if (!M)
-        cerr << "IR file parsing failed" << endl;
+        cerr << "IR file parsing failed: " << Diag.getMessage() << endl;
     return M;
-}
-
-Module *loadModule(const char *sourcename)
-{
-    if (src2obj(sourcename, objname, &objlen) == NULL) // skip header files for now
-        return NULL;
-    LLVMContext Context;
-    Module *module = ReadModule(Context, objname);
-    return module;
 }
 
 void test_CallGraph()
@@ -187,6 +188,9 @@ size_t count_strips(Module & M)
         // will be the inferred root path.
         if (endswith(buf, "innodb_plugin"))
             cnt -= 2;
+        else if (endswith(buf, "src/")) // hack for postgresql/src/
+            cnt -= 1;
+            
         return  cnt;
     }
     return 0;
@@ -205,17 +209,45 @@ void initPassRegistry(PassRegistry & Registry)
     initializeTarget(Registry);
 }
 
-void assess(Instruction *I)
+void assess(Instruction *I, MODTYPE type)
 {
+    if (isa<BranchInst>(I)) {
+        /*
+        BranchInst *bi = cast<BranchInst>(I);
+        if (LOCAL_DEBUG)
+            errs() << "branch@" << ScopeInfoFinder::getInstLine(I) << "\n";
+        if (bi->isConditional()) {
+            unsigned n = bi->getNumSuccessors();
+            for (unsigned i = 0; i < n; i++) {
+                BasicBlock * BB = bi->getSuccessor(i);
+            }
+        }
+        */
+    } 
     if (isa<CmpInst>(I)) {
 
-    } else if (isa<CallInst>(I)) {
-        CallInst *ci = cast<CallInst>(I);
-        Function *func = ci->getCalledFunction();
-        if (func == NULL || func->isIntrinsic())
+    } else if (isa<CallInst>(I) || isa<InvokeInst>(I)) {
+        CallSite cs(I);
+        //CallInst *ci = cast<CallInst>(I);
+        Function *func = cs.getCalledFunction();
+        if (func == NULL ) {
+            if (LOCAL_DEBUG)
+                cout << I->getOpcodeName() << "@" << ScopeInfoFinder::getInstLine(I) << ",";
             return;
+        }
+        else
+            if(func->isIntrinsic())
+                return;
         const char *dname = cpp_demangle(func->getName().data());
-        cout << dname << ",";
+        if (binary_search(syscalls.begin(), syscalls.end(), dname))
+            cout << "S%";
+        else if (binary_search(expcalls.begin(), expcalls.end(), dname))
+                cout << "E%";
+            else if (binary_search(lockcalls.begin(), lockcalls.end(), dname))
+                cout << "L%";
+            else
+                cout << "N%";
+        cout << dname << "@" << ScopeInfoFinder::getInstLine(I) << ",";
     }
 }
 
@@ -246,12 +278,29 @@ void analyze(char *input)
             }
             bool found = false;
             list<int>::iterator ii = bstrips.begin(), ie = bstrips.end();
+            list<string>::iterator si = bnames.begin(), se = bnames.end();
             for(list<Module *>::iterator mi = bmodules.begin(), me = bmodules.end(); 
-                mi != me && ii != ie; mi++, ii++) {
+                mi != me && ii != ie && si != se; mi++, ii++, si++) {
                 module = *mi;
-                if (module == NULL)
-                    continue;
+                if (module == NULL) {
+                    module = ReadModule(Context, *si);
+                    if (module == NULL)  {
+                        cout << "cannot load module " << *si<< endl;
+                        continue;
+                    }
+                    *mi = module;
+                    int tmps = strip_len;
+                    if (tmps < 0) {
+                        tmps =  count_strips(*module);
+                        if (LOCAL_DEBUG)
+                            cout << "Calculated bstrips: " << tmps << " for " << *si << endl;
+                    }
+                    *ii = tmps;
+                }
                 Matcher matcher(*module, 0, *ii);
+                // nasty hack here to avoid soft link handling inconsistency between diff and debug info
+                if (chap->fullname == "src/backend/port/sysv_shmem.c") 
+                    chap->fullname = "src/backend/port/pg_shmem.c";
                 Matcher::cu_iterator ci  = matcher.matchCompileUnit(chap->fullname);
                 if (ci == matcher.cu_end()) {
                     continue;
@@ -318,71 +367,103 @@ void analyze(char *input)
                                 //
                                 
                                 Hunk::iterator hit = HI;
-                                while (hit != HE) {
-                                    unsigned beginl = (*hit)->rep_scope.begin;
-                                    if (beginl > I->lastline) // reach the boundary
+                                for (; hit != HE; hit++) {
+                                    if ((*hit)->type == DEL) // skip delete
+                                        continue;
+                                    Scope rep_scope = (*hit)->rep_scope;
+                                    if (rep_scope.begin > I->lastline) // reach the boundary
                                         break;
-                                    unsigned endl = (*hit)->rep_scope.end;
-                                    if (beginl < I->linenumber)
-                                        beginl = I->linenumber;
-                                    if (endl > I->lastline)
-                                        endl = I->lastline;
+                                    if (rep_scope.begin < I->linenumber)
+                                        rep_scope.begin = I->linenumber;
+                                    if (rep_scope.end > I->lastline)
+                                        rep_scope.end = I->lastline;
                                     inst_iterator fi = inst_begin(f);
                                     inst_iterator fe = inst_end(f);
-                                    Instruction *inst = matcher.matchInstruction(fi, f, beginl); 
+                                    Instruction *inst = matcher.matchInstruction(fi, f, rep_scope); 
                                     //TODO may not skip the whole Mod
                                     if (inst == NULL) {
                                         if (LOCAL_DEBUG)
-                                            errs() << "Can't locate instruction for mod @" << beginl << "\n";
+                                            errs() << "Can't locate any instruction for mod @" << rep_scope << "\n";
                                     }
                                     else {
                                         while(fi != fe) {
                                             unsigned l = ScopeInfoFinder::getInstLine(&*fi);
-                                            if (l > endl)
+                                            if (l > rep_scope.end)
                                                 break;
-                                            assess(&*fi);
+                                            assess(&*fi, (*hit)->type);
                                             fi++;
                                         } 
                                     }
-                                    hit++;
                                 }
                             }
                             cout << "$$";
 
-                            FPasses->run(*f);
-                            if (funcLoops.begin() == funcLoops.end()) {
-                                if (LOCAL_DEBUG)
-                                    cout << "loop: none";
-                                cout << "\n";
-                                continue;
-                            }
+                            {
+                                FPasses->run(*f);
+                                if (funcLoops.begin() == funcLoops.end()) {
+                                    if (LOCAL_DEBUG)
+                                        cout << "loop: none";
+                                    cout << "\n";
+                                    continue;
+                                }
 
-                            // Only look into overlapping modifications when
-                            // there's loop inside this function.
+                                // Only look into overlapping modifications when
+                                // there's loop inside this function.
 
-                            //TODO more elegant
-                            //TODO loop finder no need to restart
-                            bool match_loop = false;
-                            while(HI != HE && (*HI)->rep_scope.begin <= I->lastline) {
-                                // Will only match the *fist* in top level matching loop.
-                                // FIXME may need to get all the loops.
-                                for (loop_iterator I = funcLoops.begin(), E = funcLoops.end();
-                                        I != E; I++) {
-                                    if (I->intersects((*HI)->rep_scope)) {
-                                        match_loop = true;
-                                        if (LOCAL_DEBUG)
-                                            cout << "loop: " << *I << " ";
-                                        else
-                                            cout << *I << " ";
+                                //TODO more elegant
+                                //TODO loop finder no need to restart
+                                bool match_loop = false;
+                                for(; HI != HE && (*HI)->rep_scope.begin <= I->lastline; HI++) {
+                                    if ((*HI)->type == DEL) // skip delete
+                                        continue;
+                                    // Will only match the *first* in top level matching loop.
+                                    // FIXME may need to get all the loops.
+                                    for (loop_iterator LI = funcLoops.begin(), LE = funcLoops.end();
+                                            LI != LE; LI++) {
+                                        if (LI->intersects((*HI)->rep_scope)) {
+                                            match_loop = true;
+
+                                            /*
+                                            unsigned beginl = (*HI)->rep_scope.begin;
+                                            if (beginl > (*LI).end) // reach the boundary
+                                                break;
+                                            unsigned endl = (*HI)->rep_scope.end;
+                                            if (beginl < (*LI).begin)
+                                                beginl = (*LI).begin;
+                                            if (endl > (*LI).end)
+                                                endl =  (*LI).end;
+                                            inst_iterator fi = inst_begin(f);
+                                            inst_iterator fe = inst_end(f);
+                                            Instruction *inst = matcher.matchInstruction(fi, f, beginl); 
+                                            //TODO may not skip the whole Mod
+                                            if (inst == NULL) {
+                                                if (LOCAL_DEBUG)
+                                                    errs() << "Can't locate instruction for mod @" << beginl << "\n";
+                                            }
+                                            else {
+                                                while(fi != fe) {
+                                                    unsigned l = ScopeInfoFinder::getInstLine(&*fi);
+                                                    if (l > endl)
+                                                        break;
+                                                    assess(&*fi, (*hit)->type);
+                                                    fi++;
+                                                } 
+                                            }
+                                            */
+
+                                            if (LOCAL_DEBUG)
+                                                cout << "loop: " << *LI << " ";
+                                            else
+                                                cout << *LI << " ";
+                                        }
                                     }
                                 }
-                                HI++;
+                                if (!match_loop) {
+                                    if (LOCAL_DEBUG)
+                                        cout << "loop: none";
+                                }
+                                cout << "\n";
                             }
-                            if (!match_loop) {
-                                if (LOCAL_DEBUG)
-                                    cout << "loop: none";
-                            }
-                            cout << "\n";
                         }
                         if (s == 0) {
                             if (LOCAL_DEBUG)
@@ -390,7 +471,7 @@ void analyze(char *input)
                         }
                     }
                     FPasses->doFinalization();
-                    break;
+                    break; // already found in existing module, no need to try loading others
                 }
             }
             if (!found) 
@@ -399,11 +480,99 @@ void analyze(char *input)
     }
 }
 
+void parseList(list<string> & vec, char *arg, const char *delim)
+{
+    char *str = strtok(arg, delim);
+    while (str != NULL) {
+        vec.push_back(string(str)); 
+        str = strtok(NULL, delim);
+    }
+}
+
+Module *loadFromSource(const char *sourcename)
+{
+    if (src2obj(sourcename, objname, &objlen) == NULL) // skip header files for now
+        return NULL;
+    LLVMContext Context;
+    Module *module = ReadModule(Context, objname);
+    return module;
+}
+
+void delayedLoad(LLVMContext & Context, list<string> & lst, bool before)
+{
+    list<string>::iterator it = lst.begin(), et = lst.end();
+    // just initialize
+    for (; it != et; it++) {
+        if (before) {
+            bmodules.push_back(NULL);
+            bstrips.push_back(0);
+        }
+        else{
+            amodules.push_back(NULL);
+            astrips.push_back(0);
+        }
+    }
+}
+
+void load(LLVMContext & Context, list<string> & lst, bool before)
+{
+    list<string>::iterator it = lst.begin(), et = lst.end();
+    for (; it != et; it++) {
+        Module *module = ReadModule(Context, *it);
+        if (module == NULL)  {
+            cout << "cannot load module " << *it << endl;
+            exit(1);
+        }
+        int s = strip_len;
+        if (s < 0) {
+            s =  count_strips(*module);
+            if (LOCAL_DEBUG)
+                cout << "Calculated bstrips: " << s << " for " << *it << endl;
+        }
+        if (before) {
+            bmodules.push_back(module);
+            bstrips.push_back(s);
+        }
+        else {
+            amodules.push_back(module);
+            astrips.push_back(s);
+        }
+    }
+}
+
+
+void readToVector(char *fname, vector<string> &vec)
+{
+    FILE *fp = fopen(fname,"r");
+    if (fp == NULL) {
+        perror("Read file");
+        return;
+    }
+    char buf[256];
+    while (fgets(buf, 256, fp) != NULL) {
+        buf[strcspn(buf, "\n")] = '\0';
+        if (buf[0] == 0)
+            continue;
+        vec.push_back(buf);
+    }
+    if (vec.begin() != vec.end())
+        sort(vec.begin(), vec.end());
+    if (LOCAL_DEBUG) {
+        vector<string>::iterator it = vec.begin(), ie = vec.end();
+        for (; it != ie; it++) {
+            cout << *it << endl;
+        }
+    }
+}
+
 static char const * option_help[] =
 {
-    " -b BCFILE1,BCFILE2,...\tA comma separated list of bc files from before-revision source code.",
-    " -a BCFILE1,BCFILE2,...\tA comma separated list of bc files from after-revision source code.",
-    " -p STRIPLEN\tLevel of components to be striped of the path inside the debug symbol.",
+    " -b FILE1,FILE2,...\tA comma separated list of bc files from before-revision source code.",
+    " -a FILE1,FILE2,...\tA comma separated list of bc files from after-revision source code.",
+    " -p LEN\tLevel of components to be striped of the path inside the debug symbol.",
+    " -s FILE\tA file containing the list of system call names",
+    " -l FILE\tA file containing the list of synchronization call names",
+    " -e FILE\tA file containing the list of expensive function calls",
     " -h\tPrint this message.",
     0
 };
@@ -419,42 +588,6 @@ void usage(FILE *fp = stderr)
     }
 }
 
-void parseList(vector<string> & vec, char *arg, const char *delim)
-{
-    char *str = strtok(arg, delim);
-    while (str != NULL) {
-        vec.push_back(string(str)); 
-        str = strtok(NULL, delim);
-    }
-}
-
-void load(LLVMContext & Context, vector<string> & vec, bool before)
-{
-    vector<string>::iterator it = vec.begin(), et = vec.end();
-    for (; it != et; it++) {
-        Module *module = ReadModule(Context, *it);
-        if (module == NULL)  {
-            cout << "cannot load module " << *it << endl;
-            exit(1);
-        }
-        if (before)
-            bmodules.push_back(module);
-        else
-            amodules.push_back(module);
-        int s = strip_len;
-        if (s < 0) {
-            s =  count_strips(*module);
-            if (LOCAL_DEBUG)
-                cout << "Calculated bstrips: " << s << " for " << *it << endl;
-        }
-        if (before)
-            bstrips.push_back(s);
-        else
-            astrips.push_back(s);
-    }
-}
-
-
 int main(int argc, char *argv[])
 {
     program_name = argv[0];
@@ -463,16 +596,25 @@ int main(int argc, char *argv[])
         usage();
         exit(1);
     }
+
     int opt;
     int plen;
-    vector<string> bs, as;
-    while((opt = getopt(argc, argv, "a:b:p:h")) != -1) {
+    while((opt = getopt(argc, argv, "a:b:e:h:l:s:p")) != -1) {
         switch(opt) {
             case 'a':
-                parseList(as, optarg, ",");
+                parseList(anames, optarg, ",");
                 break;
             case 'b':
-                parseList(bs, optarg, ",");
+                parseList(bnames, optarg, ",");
+                break;
+            case 'e':
+                readToVector(optarg, expcalls);
+                break;
+            case 'l':
+                readToVector(optarg, lockcalls);
+                break;
+            case 's':
+                readToVector(optarg, syscalls);
                 break;
             case 'p':
                 plen = atoi(optarg);
@@ -491,7 +633,7 @@ int main(int argc, char *argv[])
                 exit(1);
         }
     }
-    if (bs.begin() == bs.end()) {
+    if (bnames.begin() == bnames.end()) {
         fprintf(stderr, "Must specify before-revision bitcode file argument\n");
         exit(1);
     }
@@ -500,9 +642,8 @@ int main(int argc, char *argv[])
         exit(1);
     }
     id_fname = dupstr(argv[optind]);
-    LLVMContext & Context = getGlobalContext();
-    load(Context, as, false);
-    load(Context, bs, true);
+    delayedLoad(Context, anames, false);
+    delayedLoad(Context, bnames, true);
     analyze(id_fname);
     return 0;
 }

@@ -47,7 +47,7 @@ namespace llvm {
 
     /// Record a line-by-line instruction diff.
     virtual void logd(const DiffLogBuilder &Log) = 0;
-
+    virtual void setDiff(bool diff) = 0;
   protected:
     virtual ~Consumer() {}
   };
@@ -86,6 +86,7 @@ namespace llvm {
     void log(StringRef text);
     void logf(const LogBuilder &Log);
     void logd(const DiffLogBuilder &Log);
+    void setDiff(bool diff) { Differences = diff; }
   };
 }
 

@@ -389,9 +389,10 @@ Matcher::sp_iterator Matcher::initMatch(StringRef fname)
     return I;
 }
 
-Instruction * Matcher::matchInstruction(inst_iterator &fi, Function * f, unsigned line)
+Instruction * Matcher::matchInstruction(inst_iterator &fi, Function * f, Scope & scope)
 {
     Instruction * inst = NULL;
+    unsigned line = scope.begin;
     for (inst_iterator fe = inst_end(f); fi != fe; ++fi) {
         inst = &*fi;
         unsigned l = ScopeInfoFinder::getInstLine(inst);
@@ -399,8 +400,13 @@ Instruction * Matcher::matchInstruction(inst_iterator &fi, Function * f, unsigne
             continue;
         if (l == line)
             return inst;
-        if (l > line)
-            return NULL; // already passed
+        if (l > line) {
+            while (line < l && line <= scope.end)
+                line++;
+            if (line > scope.end || line > l)
+                return NULL; // already passed
+            return inst;
+        }
     }
     return NULL;
 }

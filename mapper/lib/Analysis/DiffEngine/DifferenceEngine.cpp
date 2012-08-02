@@ -206,8 +206,10 @@ class FunctionDifferenceEngine {
       // If the instructions differ, start the more sophisticated diff
       // algorithm at the start of the block.
       if (diff(LeftI, RightI, false, false)) {
-        TentativeValues.clear();
-        return runBlockDiff(L->begin(), R->begin());
+        Engine.setDiff(true);
+        return;
+        //TentativeValues.clear();
+        //return runBlockDiff(L->begin(), R->begin());
       }
 
       // Otherwise, tentatively unify them.
@@ -457,8 +459,11 @@ public:
     Engine(Engine), Queue(QueueSorter(*this_())) {}
 
   void diff(Function *L, Function *R) {
-    if (L->arg_size() != R->arg_size())
-      Engine.log("different argument counts");
+    if (L->arg_size() != R->arg_size()) {
+        Engine.setDiff(true);
+        return;
+        //Engine.log("different argument counts");
+    }
 
     // Map the arguments.
     for (Function::arg_iterator
@@ -638,10 +643,16 @@ void DifferenceEngine::diff(Function *L, Function *R) {
   // If both are declarations, we're done.
   if (L->empty() && R->empty())
     return;
-  else if (L->empty())
-    log("left function is declaration, right function is definition");
-  else if (R->empty())
-    log("right function is declaration, left function is definition");
+  else if (L->empty()) {
+        consumer.setDiff(true);
+        return;
+        //log("left function is declaration, right function is definition");
+    }
+  else if (R->empty()) {
+        consumer.setDiff(true);
+        return;
+        //log("right function is declaration, left function is definition");
+    }
   else
     FunctionDifferenceEngine(*this).diff(L, R);
 }
@@ -656,14 +667,20 @@ void DifferenceEngine::diff(Module *L, Module *R) {
 
     if (Function *RFn = R->getFunction(LFn->getName()))
       Queue.push_back(std::make_pair(LFn, RFn));
-    else
-      logf("function %l exists only in left module") << LFn;
+    else {
+        consumer.setDiff(true);
+        return;
+        //logf("function %l exists only in left module") << LFn;
+      }
   }
 
   for (Module::iterator I = R->begin(), E = R->end(); I != E; ++I) {
     Function *RFn = &*I;
-    if (!LNames.count(RFn->getName()))
-      logf("function %r exists only in right module") << RFn;
+    if (!LNames.count(RFn->getName())) {
+        consumer.setDiff(true);
+        return;
+        //logf("function %r exists only in right module") << RFn;
+    }
   }
 
   for (SmallVectorImpl<std::pair<Function*,Function*> >::iterator

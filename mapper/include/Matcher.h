@@ -155,7 +155,7 @@ class Matcher {
 
         cu_iterator matchCompileUnit(StringRef);
         Function * matchFunction(sp_iterator &, Scope &);
-        Instruction * matchInstruction(inst_iterator &, Function *, unsigned);
+        Instruction * matchInstruction(inst_iterator &, Function *, Scope &);
         static Loop * matchLoop(LoopInfo &li, const Scope &);
 
 

@@ -87,43 +87,7 @@ void DiffConsumer::printValue(Value *V, bool isL) {
 }
 
 void DiffConsumer::header() {
-  if (contexts.empty()) return;
-  for (SmallVectorImpl<DiffContext>::iterator
-         I = contexts.begin(), E = contexts.end(); I != E; ++I) {
-    if (I->Differences) continue;
-    if (isa<Function>(I->L)) {
-      // Extra newline between functions.
-      if (Differences) out << "\n";
 
-      Function *L = cast<Function>(I->L);
-      Function *R = cast<Function>(I->R);
-      if (L->getName() != R->getName())
-        out << "in function " << L->getName()
-            << " / " << R->getName() << ":\n";
-      else
-        out << "in function " << L->getName() << ":\n";
-    } else if (isa<BasicBlock>(I->L)) {
-      BasicBlock *L = cast<BasicBlock>(I->L);
-      BasicBlock *R = cast<BasicBlock>(I->R);
-      if (L->hasName() && R->hasName() && L->getName() == R->getName())
-        out << "  in block %" << L->getName() << ":\n";
-      else {
-        out << "  in block ";
-        printValue(L, true);
-        out << " / ";
-        printValue(R, false);
-        out << ":\n";
-      }
-    } else if (isa<Instruction>(I->L)) {
-      out << "    in instruction ";
-      printValue(I->L, true);
-      out << " / ";
-      printValue(I->R, false);
-      out << ":\n";
-    }
-
-    I->Differences = true;
-  }
 }
 
 void DiffConsumer::indent() {
@@ -147,63 +111,10 @@ void DiffConsumer::exitContext() {
 }
 
 void DiffConsumer::log(StringRef text) {
-  header();
-  indent();
-  out << text << '\n';
 }
 
 void DiffConsumer::logf(const LogBuilder &Log) {
-  header();
-  indent();
-
-  unsigned arg = 0;
-
-  StringRef format = Log.getFormat();
-  while (true) {
-    size_t percent = format.find('%');
-    if (percent == StringRef::npos) {
-      out << format;
-      break;
-    }
-    assert(format[percent] == '%');
-
-    if (percent > 0) out << format.substr(0, percent);
-
-    switch (format[percent+1]) {
-    case '%': out << '%'; break;
-    case 'l': printValue(Log.getArgument(arg++), true); break;
-    case 'r': printValue(Log.getArgument(arg++), false); break;
-    default: llvm_unreachable("unknown format character");
-    }
-
-    format = format.substr(percent+2);
-  }
-
-  out << '\n';
 }
 
 void DiffConsumer::logd(const DiffLogBuilder &Log) {
-  header();
-
-  for (unsigned I = 0, E = Log.getNumLines(); I != E; ++I) {
-    indent();
-    switch (Log.getLineKind(I)) {
-    case DC_match:
-      out << "  ";
-      Log.getLeft(I)->dump();
-      //printValue(Log.getLeft(I), true);
-      break;
-    case DC_left:
-      out << "< ";
-      Log.getLeft(I)->dump();
-      //printValue(Log.getLeft(I), true);
-      break;
-    case DC_right:
-      out << "> ";
-      Log.getRight(I)->dump();
-      //printValue(Log.getRight(I), false);
-      break;
-    }
-    //out << "\n";
-  }
 }
