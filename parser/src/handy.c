@@ -26,7 +26,7 @@ static const char *SOURCE_SUFFIX[] = {
 };
 
 static const char *IGNORE_SUFFIX[] = {
-    ".h",
+//    ".h",
     ".hpp",
     ".cs",
     0

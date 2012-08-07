@@ -186,13 +186,14 @@ int main(int argc, char *argv[])
             DEBUG("got a patch\n");
             skipreason reason = parser->gobble(gobblefp);
             switch (reason) {
-                case NO_REASON:
-                    if (!ignore(parser->inname))
-                        fprintf(srcfp, "%s\n", parser->inname);
-                    break;
                 case NEW_FILE:
                     newfile++;
                     fprintf(logfp, "+ %s\n", parser->inname);
+                //  break;
+                case NO_REASON:
+                    //if (!ignore(parser->inname))
+                    if (issource(parser->inname))
+                        fprintf(srcfp, "%s\n", parser->inname);
                     break;
                 case DEL_FILE:
                     delfile++;
