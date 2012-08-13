@@ -29,6 +29,7 @@
 #include <string>
 #include <utility>
 #include <stdio.h>
+#include <sys/time.h>
 
 
 using namespace llvm;
@@ -51,15 +52,26 @@ int main(int argc, char **argv) {
 
     LLVMContext Context;
 
+    struct timeval tim;
+    gettimeofday(&tim, NULL);
+    double t1 = tim.tv_sec * 1000.0 +(tim.tv_usec/1000.0);
     // Load both modules.  Die if that fails.
     Module *LModule = ReadModule(Context, argv[1]);
     Module *RModule = ReadModule(Context, argv[2]);
+    gettimeofday(&tim, NULL);
+    double t2 = tim.tv_sec * 1000.0 +(tim.tv_usec/1000.0);
+    fprintf(stderr, "%.4lf ms\n", t2-t1);
     if (!LModule || !RModule) return 1;
 
+    gettimeofday(&tim, NULL);
+    t1 = tim.tv_sec * 1000.0 +(tim.tv_usec/1000.0);
     DiffConsumer Consumer(LModule, RModule);
     DifferenceEngine Engine(Context, Consumer);
 
     Engine.diff(LModule, RModule);
+    gettimeofday(&tim, NULL);
+    t2 = tim.tv_sec * 1000.0 +(tim.tv_usec/1000.0);
+    fprintf(stderr, "%.4lf ms\n", t2-t1);
 
     delete LModule;
     delete RModule;

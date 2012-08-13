@@ -106,7 +106,7 @@ class ScopeInfoFinder {
     public:
 
     public:
-        static unsigned getInstLine(Instruction *);
+        static unsigned getInstLine(const Instruction *);
         static unsigned getLastLine(Function *);
         static bool getBlockScope(Scope & , BasicBlock *);
         static bool getLoopScope(Scope & , Loop *);

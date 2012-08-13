@@ -1,8 +1,10 @@
 #include "Handy.h"
+#include "PgmDependenceGraph.h"
 #include "DifferenceEngine.h"
 #include "PatchDecoder.h"
 #include "CallSiteFinder.h"
 #include "Matcher.h"
+#include "Slicer.h"
 
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
@@ -17,6 +19,7 @@
 #include "llvm/Support/InstVisitor.h"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/IntrinsicInst.h"
 
 #include <iostream>
 #include <limits.h>
@@ -25,17 +28,20 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include <vector>
 #include <list>
 
 using namespace std;
 
-#define LOCAL_DEBUG false
+#define LOCAL_DEBUG true
 
 #define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
 
 static int strip_len = -1;
+
+static int analysis_level = 1;
 
 static char * program_name;
 
@@ -108,7 +114,6 @@ struct stat sourcestat;
 
 static int objlen = MAX_PATH;
 static char objname[MAX_PATH];
-
 
 /// Reads a module from a file.  On error, messages are written to stderr
 /// and null is returned.
@@ -208,6 +213,29 @@ void initPassRegistry(PassRegistry & Registry)
     initializeInstrumentation(Registry);
     initializeTarget(Registry);
 }
+
+void slice(Instruction *I, MODTYPE type)
+{
+//    cout << "slicing inst@" << ScopeInfoFinder::getInstLine(I) << endl;
+//    for (Value::use_iterator UI = I->use_begin(), UE = I->use_end(); UI != UE; UI++) {
+//        Instruction *use = dyn_cast<Instruction>(*UI);
+//        cout << "use@" << ScopeInfoFinder::getInstLine(use) << endl;
+//    }
+//
+  if (isa<DbgInfoIntrinsic>(I)) { // Skip intrinsics 
+    return;
+  }
+  Slicer slicer(globalDPG);
+  if (slicer.sliceInit(*I, MemoryDeps)) {
+    errs() << "Slicing " << *I << "\n\t";
+    Instruction *N;
+    while((N = slicer.sliceNext()) != NULL) {
+      errs() << *N << "||";
+    }
+    errs() << "\n";
+  }
+}
+
 
 void assess(Instruction *I, MODTYPE type)
 {
@@ -310,6 +338,7 @@ void analyze(char *input)
                     found = true;
                     FPasses.reset(new FunctionPassManager(module));
                     FPasses->add(new LoopInfoPrinter());
+                    FPasses->add(new PgmDependenceGraph());
                     FPasses->doInitialization();
                     while((hunk = chap->next_hunk()) != NULL) {
                         if (LOCAL_DEBUG) {
@@ -353,7 +382,8 @@ void analyze(char *input)
                             }
                             else 
                                 cout << dname << ":"; // Structued output
-
+                            FPasses->run(*f);
+                            if (analysis_level >= 2)
                             {
                                 // Four situations(top mod, bottom func):
                                 // 1):   |_________|
@@ -391,6 +421,8 @@ void analyze(char *input)
                                             if (l > rep_scope.end)
                                                 break;
                                             assess(&*fi, (*hit)->type);
+                                            if (analysis_level >= 3)
+                                                slice(&*fi, (*hit)->type);
                                             fi++;
                                         } 
                                     }
@@ -398,8 +430,9 @@ void analyze(char *input)
                             }
                             cout << "$$";
 
+                            //TODO merge the two
+
                             {
-                                FPasses->run(*f);
                                 if (funcLoops.begin() == funcLoops.end()) {
                                     if (LOCAL_DEBUG)
                                         cout << "loop: none";
@@ -464,6 +497,7 @@ void analyze(char *input)
                                 }
                                 cout << "\n";
                             }
+                    
                         }
                         if (s == 0) {
                             if (LOCAL_DEBUG)
@@ -573,6 +607,7 @@ static char const * option_help[] =
     " -s FILE\tA file containing the list of system call names",
     " -l FILE\tA file containing the list of synchronization call names",
     " -e FILE\tA file containing the list of expensive function calls",
+    " -L LEVEL\tSpecify the level of analysis",
     " -h\tPrint this message.",
     0
 };
@@ -599,7 +634,7 @@ int main(int argc, char *argv[])
 
     int opt;
     int plen;
-    while((opt = getopt(argc, argv, "a:b:e:h:l:s:p")) != -1) {
+    while((opt = getopt(argc, argv, "a:b:e:h:l:s:p:L:")) != -1) {
         switch(opt) {
             case 'a':
                 parseList(anames, optarg, ",");
@@ -627,6 +662,13 @@ int main(int argc, char *argv[])
             case 'h':
                 usage();
                 exit(0);
+            case 'L':
+                analysis_level = atoi(optarg);
+                if (analysis_level <= 0) {
+                    fprintf(stderr, "Level of analysis must be positive integer\n");
+                    exit(1);
+                }
+                break;
             case '?':
             default:
                 usage();
@@ -642,8 +684,17 @@ int main(int argc, char *argv[])
         exit(1);
     }
     id_fname = dupstr(argv[optind]);
-    delayedLoad(Context, anames, false);
-    delayedLoad(Context, bnames, true);
+    //delayedLoad(Context, anames, false);
+    //delayedLoad(Context, anames, false);
+    load(Context, anames, false);
+    load(Context, bnames, true);
+    
+    struct timeval tim;
+    gettimeofday(&tim, NULL);
+    double t1 = tim.tv_sec * 1000.0 +(tim.tv_usec/1000.0);
     analyze(id_fname);
+    gettimeofday(&tim, NULL);
+    double t2 = tim.tv_sec * 1000.0 +(tim.tv_usec/1000.0);
+    fprintf(stderr, "%.4lf ms\n", t2-t1);
     return 0;
 }

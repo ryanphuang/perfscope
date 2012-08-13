@@ -45,7 +45,7 @@ bool skipFunction(Function *F)
     return false;
 }
 
-unsigned ScopeInfoFinder::getInstLine(Instruction *I)
+unsigned ScopeInfoFinder::getInstLine(const Instruction *I)
 {
     DebugLoc Loc = I->getDebugLoc();
     if (Loc.isUnknown()) {
