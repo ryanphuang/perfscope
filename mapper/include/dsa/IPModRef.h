@@ -185,6 +185,7 @@ public:
 /// within the function.
 ///
 class IPModRef : public ModulePass {
+// class IPModRef : public FunctionPass {
 public:
   static char ID;
 
@@ -197,6 +198,7 @@ protected:
   FunctionModRefInfo& getFuncInfo(const Function& func,
                                   bool computeIfMissing = false);
 public:
+  // IPModRef() : FunctionPass(ID), M(NULL), GlobalECs(NULL), TypeSS(NULL) {}
   IPModRef() : ModulePass(ID), M(NULL), GlobalECs(NULL), TypeSS(NULL) {}
   ~IPModRef() {}
 
@@ -205,6 +207,7 @@ public:
   /// results immediately if demand-driven analysis was *not* specified.
   /// 
   virtual bool runOnModule(Module &M);
+  //virtual bool runOnFunction(Function &F);
 
   /// getFunctionModRefInfo - Retrieve the Mod/Ref information for a single
   /// function

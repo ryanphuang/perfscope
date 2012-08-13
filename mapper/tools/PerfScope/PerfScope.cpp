@@ -376,11 +376,9 @@ void analyze(char *input)
                     TD = getTargetData(Passes, module);
                     if (TD) {
                       //Passes.add(TD);
-                      FPasses->add(new TargetData(*TD));
+                      //FPasses->add(new TargetData(*TD));
                     }
                     //Passes.run(*module);
-
-              
                     FPasses->add(new LoopInfoPrinter());
                     FPasses->add(new PgmDependenceGraph());
                     FPasses->doInitialization();

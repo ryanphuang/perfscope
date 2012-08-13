@@ -276,8 +276,8 @@ public:
   void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.setPreservesAll();
     //AU.addRequired<PostDominatorTree>();
-    AU.addRequired<AliasAnalysis>();
-    AU.addRequired<MemoryDependenceAnalysis>();
+    //AU.addRequired<AliasAnalysis>();
+    //AU.addRequired<MemoryDependenceAnalysis>();
     AU.addRequired<IPModRef>();
     //AU.addRequired<LocalDataStructures>();
     //AU.addRequired<MemoryDepAnalysis>();

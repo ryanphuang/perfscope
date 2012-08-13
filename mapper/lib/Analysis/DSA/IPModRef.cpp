@@ -382,15 +382,25 @@ bool IPModRef::runOnModule(Module &theModule)
 
   for (Module::const_iterator FI = M->begin(), FE = M->end(); FI != FE; ++FI)
     if (!FI->isDeclaration())
-      getFuncInfo(*FI, /*computeIfMissing*/ true);
+      getFuncInfo(*FI, true);
   return true;
 }
 
+/*
+bool IPModRef::runOnFunction(Function &F)
+{
+  if (!F.isDeclaration())
+    getFuncInfo(F, true);
+  return true;
+}
+*/
 
 FunctionModRefInfo& IPModRef::getFuncInfo(const Function& func, bool computeIfMissing)
 {
+  
   FunctionModRefInfo*& funcInfo = funcToModRefInfoMap[&func];
   assert (funcInfo != NULL || computeIfMissing);
+  /*
   if (funcInfo == NULL)
     { // Create a new FunctionModRefInfo object.
       // Clone the top-down graph and remove any dead nodes first, because
@@ -406,6 +416,7 @@ FunctionModRefInfo& IPModRef::getFuncInfo(const Function& func, bool computeIfMi
       funcInfo = new FunctionModRefInfo(func, *this, funcTDGraph); //auto-insert
       funcInfo->computeModRef(func);  // computes the mod/ref info
     }
+  */
   return *funcInfo;
 }
 
@@ -422,9 +433,9 @@ const DSGraph &IPModRef::getBUDSGraph(const Function &F) {
 // 
 void IPModRef::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
-  AU.addRequired<LocalDataStructures>();
-  AU.addRequired<BUDataStructures>();
-  AU.addRequired<TDDataStructures>();
+  //AU.addRequired<LocalDataStructures>();
+  //AU.addRequired<BUDataStructures>();
+  //AU.addRequired<TDDataStructures>();
 }
 
 
