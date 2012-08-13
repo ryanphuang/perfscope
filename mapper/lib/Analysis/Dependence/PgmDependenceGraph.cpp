@@ -596,7 +596,8 @@ void PgmDependenceGraph::ProcessSCC(std::vector<BasicBlock*> &S, ModRefTable& Mo
 bool PgmDependenceGraph::buildPDG2(Function& F)
 {
 
-  funcModRef =  &getAnalysis<IPModRef>().getFunctionModRefInfo(F);
+  assert(funcModRef != NULL);
+  //funcModRef =  &getAnalysis<IPModRef>().getFunctionModRefInfo(F);
   funcGraph  = &funcModRef->getFuncGraph();
 
   ModRefTable ModRefAfter;
@@ -616,6 +617,7 @@ bool PgmDependenceGraph::buildPDG2(Function& F)
 //
 bool PgmDependenceGraph::buildPDG(Function& F)
 {
+  /*
   MemoryDependenceAnalysis &mda = getAnalysis<MemoryDependenceAnalysis>();
   for (Function::iterator FI = F.begin(), FE = F.end(); FI != FE; FI++) {
     for (BasicBlock::iterator BI = FI->begin(), BE = FI->end(); BI != BE; BI++) {
@@ -664,6 +666,7 @@ bool PgmDependenceGraph::buildPDG(Function& F)
       }
     } 
   }
+  */
   return true;
 }
 
@@ -731,14 +734,14 @@ bool PgmDependenceGraph::runOnFunction(Function& F)
   funcDepGraph = new DependenceGraph();
   buildPDG2(F);
   //printFuncDeps(&F, errs());
-  testSlicing(F);
-  delete funcDepGraph;
-  funcDepGraph = NULL;
+  //testSlicing(F);
+  //delete funcDepGraph;
+  //funcDepGraph = NULL;
   return true;
 }
 
 char PgmDependenceGraph::ID = 0;
 PgmDependenceGraph::iterator PgmDependenceGraph::NULLIterator = PgmDependenceGraph::MakeIterator();
-static RegisterPass<PgmDependenceGraph> X("pgmdep", "Enumerate Program Dependence Graph (data and control)");
+// static RegisterPass<PgmDependenceGraph> X("pgmdep", "Enumerate Program Dependence Graph (data and control)");
 
 } // End llvm namespace

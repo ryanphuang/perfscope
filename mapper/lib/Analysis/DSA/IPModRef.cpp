@@ -397,12 +397,10 @@ bool IPModRef::runOnFunction(Function &F)
 
 FunctionModRefInfo& IPModRef::getFuncInfo(const Function& func, bool computeIfMissing)
 {
-  
-  FunctionModRefInfo*& funcInfo = funcToModRefInfoMap[&func];
+  FunctionModRefInfo* &funcInfo = funcToModRefInfoMap[&func];
   assert (funcInfo != NULL || computeIfMissing);
-  /*
   if (funcInfo == NULL)
-    { // Create a new FunctionModRefInfo object.
+  { // Create a new FunctionModRefInfo object.
       // Clone the top-down graph and remove any dead nodes first, because
       // otherwise original and merged graphs will not match.
       // The memory for this graph clone will be freed by FunctionModRefInfo.
@@ -415,8 +413,7 @@ FunctionModRefInfo& IPModRef::getFuncInfo(const Function& func, bool computeIfMi
 
       funcInfo = new FunctionModRefInfo(func, *this, funcTDGraph); //auto-insert
       funcInfo->computeModRef(func);  // computes the mod/ref info
-    }
-  */
+  }
   return *funcInfo;
 }
 
@@ -433,9 +430,9 @@ const DSGraph &IPModRef::getBUDSGraph(const Function &F) {
 // 
 void IPModRef::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
-  //AU.addRequired<LocalDataStructures>();
-  //AU.addRequired<BUDataStructures>();
-  //AU.addRequired<TDDataStructures>();
+  AU.addRequired<LocalDataStructures>();
+  AU.addRequired<BUDataStructures>();
+  AU.addRequired<TDDataStructures>();
 }
 
 
@@ -459,11 +456,14 @@ void IPModRef::dump() const
 
 void IPModRef::releaseMemory()
 {
+  // Don't release here, we will refer it later!
+  /*
   for(std::map<const Function*, FunctionModRefInfo*>::iterator
         I=funcToModRefInfoMap.begin(), E=funcToModRefInfoMap.end(); I != E; ++I)
     delete(I->second);
   // Clear map so memory is not re-released if we are called again
   funcToModRefInfoMap.clear();
+  */
 }
 
 char IPModRef::ID = 0;

@@ -210,7 +210,8 @@ public:
 };
 
 
-class PgmDependenceGraph: public FunctionPass {
+class PgmDependenceGraph {
+//class PgmDependenceGraph: public FunctionPass {
 
 public:
   static char ID; // Pass identification, replacement for typeid
@@ -232,7 +233,8 @@ private:
 
 
 public:
-  PgmDependenceGraph() : FunctionPass(ID), funcDepGraph(NULL) {}
+  // PgmDependenceGraph() : FunctionPass(ID), funcDepGraph(NULL) {}
+  PgmDependenceGraph(const FunctionModRefInfo* _funcModRef) : funcDepGraph(NULL), funcModRef(_funcModRef){}
   ~PgmDependenceGraph() {}
 
   /// Iterators to enumerate the program dependence graph for a function.
@@ -282,6 +284,9 @@ public:
     //AU.addRequired<LocalDataStructures>();
     //AU.addRequired<MemoryDepAnalysis>();
   }
+
+  DependenceGraph * getDependenceGraph() { return funcDepGraph; }
+  
 
   /// Debugging support methods
   /// 

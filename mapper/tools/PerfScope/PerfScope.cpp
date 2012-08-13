@@ -40,7 +40,7 @@
 using namespace std;
 using namespace llvm;
 
-#define LOCAL_DEBUG true
+#define LOCAL_DEBUG false
 
 #define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
 
@@ -58,6 +58,8 @@ static char * id_fname = NULL;
 static LLVMContext & Context = getGlobalContext();
 
 static list<Module *> bmodules;
+static list<IPModRef *> bmodrefs;
+static list<PassManager *>bmanagers;
 static list<string> bnames;
 static list<int> bstrips;
 
@@ -208,42 +210,6 @@ size_t count_strips(Module & M)
     return 0;
 }
 
-void initPassRegistry(PassRegistry & Registry)
-{
-    initializeCore(Registry);
-    initializeScalarOpts(Registry);
-    initializeIPO(Registry);
-    initializeAnalysis(Registry);
-    initializeIPA(Registry);
-    initializeTransformUtils(Registry);
-    initializeInstCombine(Registry);
-    initializeInstrumentation(Registry);
-    initializeTarget(Registry);
-}
-
-void slice(Instruction *I, MODTYPE type)
-{
-//    cout << "slicing inst@" << ScopeInfoFinder::getInstLine(I) << endl;
-//    for (Value::use_iterator UI = I->use_begin(), UE = I->use_end(); UI != UE; UI++) {
-//        Instruction *use = dyn_cast<Instruction>(*UI);
-//        cout << "use@" << ScopeInfoFinder::getInstLine(use) << endl;
-//    }
-//
-  if (isa<DbgInfoIntrinsic>(I)) { // Skip intrinsics 
-    return;
-  }
-  Slicer slicer(globalDPG);
-  if (slicer.sliceInit(*I, MemoryDeps)) {
-    errs() << "Slicing " << *I << "\n\t";
-    Instruction *N;
-    while((N = slicer.sliceNext()) != NULL) {
-      errs() << *N << "||";
-    }
-    errs() << "\n";
-  }
-}
-
-
 void assess(Instruction *I, MODTYPE type)
 {
     if (isa<BranchInst>(I)) {
@@ -286,6 +252,53 @@ void assess(Instruction *I, MODTYPE type)
     }
 }
 
+void slice(DependenceGraph * depGraph, Instruction *I, MODTYPE type)
+{
+//    cout << "slicing inst@" << ScopeInfoFinder::getInstLine(I) << endl;
+//    for (Value::use_iterator UI = I->use_begin(), UE = I->use_end(); UI != UE; UI++) {
+//        Instruction *use = dyn_cast<Instruction>(*UI);
+//        cout << "use@" << ScopeInfoFinder::getInstLine(use) << endl;
+//    }
+//
+  
+  if (depGraph == NULL) {
+    errs() << "NULL dependence graph, not slicing\n";
+    return;
+  }
+  if (isa<DbgInfoIntrinsic>(I)) { // Skip intrinsics 
+    return;
+  }
+  Slicer slicer(depGraph);
+  if (slicer.sliceInit(*I, MemoryDeps)) {
+    if (LOCAL_DEBUG) 
+      errs() << "Slice for " << *I << "\n\t";
+    Instruction *N;
+    cout << "|";
+    while((N = slicer.sliceNext()) != NULL) {
+      if (LOCAL_DEBUG) 
+        errs() << *N << "||";
+      assess(N, type);
+    }
+    cout << "|";
+    if (LOCAL_DEBUG) 
+      errs() << "\n";
+  }
+}
+
+void initPassRegistry(PassRegistry & Registry)
+{
+    initializeCore(Registry);
+    initializeScalarOpts(Registry);
+    initializeIPO(Registry);
+    initializeAnalysis(Registry);
+    initializeIPA(Registry);
+    initializeTransformUtils(Registry);
+    initializeInstCombine(Registry);
+    initializeInstrumentation(Registry);
+    initializeTarget(Registry);
+}
+
+
 TargetData * getTargetData(PassManager & Passes, Module *M)
 {
   // Add an appropriate TargetLibraryInfo pass for the module's triple.
@@ -302,6 +315,30 @@ TargetData * getTargetData(PassManager & Passes, Module *M)
 }
 
 
+void loadModRefs()
+{
+  // Create a PassManager to hold and optimize the collection of passes we are
+  // about to build.
+  //
+  Module *module = NULL;
+  for(list<Module *>::iterator mi = bmodules.begin(), me = bmodules.end(); mi != me ; mi++) {
+    module = *mi;
+    assert(module != NULL);
+    // Have to use a container to hold the PassManager for a while
+    // Otherwise, the IPModRef will be destroyed as PassManager is destructed.
+    PassManager *Passes = new PassManager();
+    TargetData * TD = getTargetData(*Passes, module);
+    if (TD) {
+      Passes->add(TD);
+    }
+    IPModRef *modref = new IPModRef();
+    Passes->add(modref);
+    Passes->run(*module);
+    bmodrefs.push_back(modref);
+    bmanagers.push_back(Passes);
+  }
+}
+
 void analyze(char *input)
 {
     llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
@@ -314,14 +351,15 @@ void analyze(char *input)
     // Allocate a full target machine description only if necessary.
     // FIXME: The choice of target should be controllable on the command line.
     std::auto_ptr<TargetMachine> target;
+
     OwningPtr<FunctionPassManager> FPasses;
     // Initialize passes
     PassRegistry &Registry = *PassRegistry::getPassRegistry();
     initPassRegistry(Registry);
 
+    loadModRefs();
 
     Module *module = NULL; 
-    TargetData *TD = NULL;
     while((patch = decoder->next_patch()) != NULL) {
         if (LOCAL_DEBUG)
             cout << "patch: " << patch->patchname << endl;
@@ -335,8 +373,9 @@ void analyze(char *input)
             bool found = false;
             list<int>::iterator ii = bstrips.begin(), ie = bstrips.end();
             list<string>::iterator si = bnames.begin(), se = bnames.end();
+            list<IPModRef *>::iterator ipi = bmodrefs.begin(), ipe = bmodrefs.end();
             for(list<Module *>::iterator mi = bmodules.begin(), me = bmodules.end(); 
-                mi != me && ii != ie && si != se; mi++, ii++, si++) {
+                mi != me && ii != ie && si != se && ipi != ipe ; mi++, ii++, si++, ipi++) {
                 module = *mi;
                 if (module == NULL) {
                     module = ReadModule(Context, *si);
@@ -362,25 +401,11 @@ void analyze(char *input)
                     continue;
                 }
                 else {
-                    // Create a PassManager to hold and optimize the collection of passes we are
-                    // about to build.
-                    //
-                    PassManager Passes;
                     Matcher::sp_iterator I = matcher.initMatch(ci);
                     found = true;
                     FPasses.reset(new FunctionPassManager(module));
-                    if (TD) {
-                      delete TD;
-                      TD = NULL;
-                    }
-                    TD = getTargetData(Passes, module);
-                    if (TD) {
-                      //Passes.add(TD);
-                      //FPasses->add(new TargetData(*TD));
-                    }
-                    //Passes.run(*module);
                     FPasses->add(new LoopInfoPrinter());
-                    FPasses->add(new PgmDependenceGraph());
+                    //FPasses->add(new PgmDependenceGraph());
                     FPasses->doInitialization();
                     while((hunk = chap->next_hunk()) != NULL) {
                         if (LOCAL_DEBUG) {
@@ -424,7 +449,17 @@ void analyze(char *input)
                             }
                             else 
                                 cout << dname << ":"; // Structued output
+                            PgmDependenceGraph * PDG = NULL;
+                            if (analysis_level >= 3 && !f->isDeclaration()) {
+                              const FunctionModRefInfo * funcModRef = &(*ipi)->getFunctionModRefInfo(*f);
+                              PDG = new PgmDependenceGraph(funcModRef);
+                            }
                             FPasses->run(*f);
+                            DependenceGraph * depGraph = NULL;
+                            if (PDG != NULL) {
+                              PDG->runOnFunction(*f);
+                              depGraph = PDG->getDependenceGraph();
+                            }
                             if (analysis_level >= 2)
                             {
                                 // Four situations(top mod, bottom func):
@@ -464,7 +499,7 @@ void analyze(char *input)
                                                 break;
                                             assess(&*fi, (*hit)->type);
                                             if (analysis_level >= 3)
-                                                slice(&*fi, (*hit)->type);
+                                                slice(depGraph, &*fi, (*hit)->type);
                                             fi++;
                                         } 
                                     }
