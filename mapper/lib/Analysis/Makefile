@@ -1,6 +1,6 @@
 ##===- lib/Transforms/Makefile -----------------------------*- Makefile -*-===##
 
 LEVEL = ../..
-DIRS = Dependence DiffEngine MDMap
+DIRS = DSA Dependence DiffEngine MDMap
 
 include $(LEVEL)/Makefile.common

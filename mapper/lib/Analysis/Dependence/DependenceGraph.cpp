@@ -22,12 +22,18 @@
 
 
 #include "DependenceGraph.h"
-#include "Matcher.h"
-
 #include "llvm/Function.h"
 #include "llvm/Analysis/DebugInfo.h"
 
 namespace llvm {
+
+unsigned getInstLine(const Instruction &I)
+{
+  DebugLoc Loc = I.getDebugLoc();
+  if (Loc.isUnknown())
+    return 0;
+  return Loc.getLine();
+}
 
 //----------------------------------------------------------------------------
 // class Dependence:
@@ -40,8 +46,8 @@ bool Dependence::operator<(const Dependence& D) const {
       return false;
     const Instruction &i1 = toOrFromNode->getInstr();
     const Instruction &i2 = D.toOrFromNode->getInstr();
-    unsigned l1 = ScopeInfoFinder::getInstLine(&i1);
-    unsigned l2 = ScopeInfoFinder::getInstLine(&i2);
+    unsigned l1 = getInstLine(i1);
+    unsigned l2 = getInstLine(i2);
     return l1 < l2;
 }
 void Dependence::print(raw_ostream &O) const

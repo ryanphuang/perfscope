@@ -12,6 +12,10 @@
 #include "llvm/Type.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/Triple.h"
+#include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/IRReader.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -34,10 +38,13 @@
 #include <list>
 
 using namespace std;
+using namespace llvm;
 
 #define LOCAL_DEBUG true
 
 #define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
+
+static string DefaultDataLayout;
 
 static int strip_len = -1;
 
@@ -279,6 +286,22 @@ void assess(Instruction *I, MODTYPE type)
     }
 }
 
+TargetData * getTargetData(PassManager & Passes, Module *M)
+{
+  // Add an appropriate TargetLibraryInfo pass for the module's triple.
+  TargetLibraryInfo *TLI = new TargetLibraryInfo(Triple(M->getTargetTriple()));
+  Passes.add(TLI);
+  // Add an appropriate TargetData instance for this module.
+  TargetData *TD = 0;
+  const std::string &ModuleDataLayout = M->getDataLayout();
+  if (!ModuleDataLayout.empty())
+    TD = new TargetData(ModuleDataLayout);
+  else if (!DefaultDataLayout.empty())
+    TD = new TargetData(DefaultDataLayout);
+  return TD;
+}
+
+
 void analyze(char *input)
 {
     llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
@@ -288,12 +311,17 @@ void analyze(char *input)
     Chapter *chap = NULL;
     Hunk * hunk = NULL;
 
+    // Allocate a full target machine description only if necessary.
+    // FIXME: The choice of target should be controllable on the command line.
+    std::auto_ptr<TargetMachine> target;
     OwningPtr<FunctionPassManager> FPasses;
     // Initialize passes
     PassRegistry &Registry = *PassRegistry::getPassRegistry();
     initPassRegistry(Registry);
 
+
     Module *module = NULL; 
+    TargetData *TD = NULL;
     while((patch = decoder->next_patch()) != NULL) {
         if (LOCAL_DEBUG)
             cout << "patch: " << patch->patchname << endl;
@@ -334,9 +362,25 @@ void analyze(char *input)
                     continue;
                 }
                 else {
+                    // Create a PassManager to hold and optimize the collection of passes we are
+                    // about to build.
+                    //
+                    PassManager Passes;
                     Matcher::sp_iterator I = matcher.initMatch(ci);
                     found = true;
                     FPasses.reset(new FunctionPassManager(module));
+                    if (TD) {
+                      delete TD;
+                      TD = NULL;
+                    }
+                    TD = getTargetData(Passes, module);
+                    if (TD) {
+                      //Passes.add(TD);
+                      FPasses->add(new TargetData(*TD));
+                    }
+                    //Passes.run(*module);
+
+              
                     FPasses->add(new LoopInfoPrinter());
                     FPasses->add(new PgmDependenceGraph());
                     FPasses->doInitialization();
@@ -505,8 +549,8 @@ void analyze(char *input)
                         }
                     }
                     FPasses->doFinalization();
-                    break; // already found in existing module, no need to try loading others
                 }
+                break; // already found in existing module, no need to try loading others
             }
             if (!found) 
                 chap->skip_rest_of_hunks();
@@ -695,6 +739,6 @@ int main(int argc, char *argv[])
     analyze(id_fname);
     gettimeofday(&tim, NULL);
     double t2 = tim.tv_sec * 1000.0 +(tim.tv_usec/1000.0);
-    fprintf(stderr, "%.4lf ms\n", t2-t1);
+    fprintf(stderr, "%.4f ms\n", t2-t1);
     return 0;
 }

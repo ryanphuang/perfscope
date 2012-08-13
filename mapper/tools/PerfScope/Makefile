@@ -11,7 +11,7 @@ LEVEL=../..
 
 TOOLNAME=perfscope
 
-USEDLIBS=mappercore.a diffengine.a dependence.a
+USEDLIBS=mappercore.a diffengine.a dependence.a datastructure.a 
 
 #LLVMLIBS=LLVMSupport.a LLVMCore.a LLVMSupport.a LLVMCore.a LLVMBitReader.a LLVMAsmParser.a LLVMAnalysis.a LLVMTransformUtils.a LLVMScalarOpts.a LLVMTarget.a
 

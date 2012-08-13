@@ -39,19 +39,21 @@
 #ifndef LLVM_ANALYSIS_PGMDEPENDENCEGRAPH_H
 #define LLVM_ANALYSIS_PGMDEPENDENCEGRAPH_H
 
-//#include "MemoryDepAnalysis.h"
+#include "dsa/DataStructure.h"
+#include "dsa/IPModRef.h"
+#include "DependenceGraph.h"
+
 /* #include "llvm/Analysis/PostDominators.h" -- see below */
+//#include "MemoryDepAnalysis.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Instruction.h"
 #include "llvm/Pass.h"
-#include "DependenceGraph.h"
 #include <iterator>
 #include <stack>
 #include <vector>
-#include <map>
 
 template<class Ty, class PtrDiffTy>
 struct forward_iterator
@@ -60,10 +62,12 @@ struct forward_iterator
 
 namespace llvm {
 
+extern class DependenceGraph *globalDPG;
+
 class DependenceGraph;
 class PgmDependenceGraph;
-
-extern class DependenceGraph *globalDPG;
+class FunctionModRefInfo;
+class ModRefTable;
 
 //---------------------------------------------------------------------------
 /// enum PDGIteratorFlags - specify which dependences incident on a statement
@@ -219,13 +223,16 @@ private:
   /// 
   static PDGIterator NULLIterator;
   DependenceGraph* funcDepGraph;
-  std::map<Function*, DependenceGraph*> funcMap;
-  
+  /// Information about one function being analyzed.
+  const DSGraph*  funcGraph;
+  const FunctionModRefInfo* funcModRef;
+
   friend class PDGIterator;
   friend class DepIterState;
 
+
 public:
-  PgmDependenceGraph() : FunctionPass(ID), funcDepGraph(NULL){}
+  PgmDependenceGraph() : FunctionPass(ID), funcDepGraph(NULL) {}
   ~PgmDependenceGraph() {}
 
   /// Iterators to enumerate the program dependence graph for a function.
@@ -251,10 +258,11 @@ public:
   ///----END TEMPORARY FUNCTIONS---------------------------------------------
 
   bool buildPDG(Function& F);
+  bool buildPDG2(Function& F);
   
   /// This initializes the program dependence graph iterator for a function.
   /// 
-  bool runOnFunction(Function& func);
+  bool runOnFunction(Function& F);
 
   /// MakeIterator - creates a null iterator representing end-of-iteration.
   /// 
@@ -268,8 +276,10 @@ public:
   void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.setPreservesAll();
     //AU.addRequired<PostDominatorTree>();
-    //AU.addRequired<AliasAnalysis>();
+    AU.addRequired<AliasAnalysis>();
     AU.addRequired<MemoryDependenceAnalysis>();
+    AU.addRequired<IPModRef>();
+    //AU.addRequired<LocalDataStructures>();
     //AU.addRequired<MemoryDepAnalysis>();
   }
 
@@ -286,8 +296,9 @@ public:
   ///
   PDGIterator   MakeIterator(Instruction& I, bool incomingDeps, PDGIteratorFlags whichDeps);
 
-
-  void testSlicing(Function &func);
+  void testSlicing(Function &F);
+  /// Internal routine that processes each SCC of the CFG.                           
+  void ProcessSCC(std::vector<BasicBlock*> &S, ModRefTable& ModRefAfter, bool hasLoop);
 };
 
 } // End llvm namespace

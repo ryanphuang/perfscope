@@ -37,6 +37,7 @@
 
 namespace llvm {
 
+unsigned getInstLine(const Instruction &I);
 class Instruction;
 class Function;
 class Dependence;
