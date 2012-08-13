@@ -22,7 +22,7 @@
 #include <vector>
 
 namespace llvm {
-
+Function *gFunc = NULL;
 //----------------------------------------------------------------------------
 // Private constants and data
 //----------------------------------------------------------------------------
@@ -380,9 +380,17 @@ bool IPModRef::runOnModule(Module &theModule)
 {
   M = &theModule;
 
-  for (Module::const_iterator FI = M->begin(), FE = M->end(); FI != FE; ++FI)
-    if (!FI->isDeclaration())
+  if (gFunc == NULL) {
+    errs() << "GFunc is NULL!!\n";
+    return true;
+  }
+  for (Module::iterator FI = M->begin(), FE = M->end(); FI != FE; ++FI) {
+    Function *f = FI;
+    if (!f->isDeclaration() && f == gFunc) {
       getFuncInfo(*FI, true);
+      break;
+    }
+  }
   return true;
 }
 

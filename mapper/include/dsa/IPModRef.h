@@ -55,6 +55,7 @@
 
 namespace llvm {
 
+extern Function *gFunc;
 class Module;
 class Function;
 class CallSite;

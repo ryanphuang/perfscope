@@ -333,7 +333,7 @@ void loadModRefs()
     }
     IPModRef *modref = new IPModRef();
     Passes->add(modref);
-    Passes->run(*module);
+    //Passes->run(*module);
     bmodrefs.push_back(modref);
     bmanagers.push_back(Passes);
   }
@@ -374,8 +374,9 @@ void analyze(char *input)
             list<int>::iterator ii = bstrips.begin(), ie = bstrips.end();
             list<string>::iterator si = bnames.begin(), se = bnames.end();
             list<IPModRef *>::iterator ipi = bmodrefs.begin(), ipe = bmodrefs.end();
+            list<PassManager *>::iterator pmi = bmanagers.begin(), pme = bmanagers.end();
             for(list<Module *>::iterator mi = bmodules.begin(), me = bmodules.end(); 
-                mi != me && ii != ie && si != se && ipi != ipe ; mi++, ii++, si++, ipi++) {
+                mi != me && ii != ie && si != se && ipi != ipe && pmi != pme; mi++, ii++, si++, ipi++, pmi++) {
                 module = *mi;
                 if (module == NULL) {
                     module = ReadModule(Context, *si);
@@ -449,6 +450,8 @@ void analyze(char *input)
                             }
                             else 
                                 cout << dname << ":"; // Structued output
+                            gFunc = f; //TODO Temporary hack!!!
+                            (*pmi)->run(*module);
                             PgmDependenceGraph * PDG = NULL;
                             if (analysis_level >= 3 && !f->isDeclaration()) {
                               const FunctionModRefInfo * funcModRef = &(*ipi)->getFunctionModRefInfo(*f);
