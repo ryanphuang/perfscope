@@ -16,6 +16,7 @@ typedef struct Scope {
     unsigned long end;
     
     Scope() : begin(0), end(0) {}
+    Scope(unsigned long b) : begin(b), end(b) {}
     Scope(unsigned long b, unsigned long e) : begin(b), end(e) {}
     Scope(const Scope &another) : begin(another.begin), end(another.end) {}
 

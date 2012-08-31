@@ -72,10 +72,13 @@ static vector<string> expcalls;
 static vector<string> lockcalls;
 
 
-static SmallVector<Scope, 4> funcLoops;
+static SmallVector<Scope, 4> *funcLoops;
 typedef SmallVector<Scope, 4>::iterator loop_iterator;
 
-static SmallVector<Function *, 16> targetFuncs;
+// static SmallVector<Function *, 16> targetFuncs;
+
+static DenseMap< Function *, SmallVector<Scope, 4> *> loopMap(16);
+typedef DenseMap< Function *, SmallVector<Scope, 4> *>::iterator loop_map_iterator;
 
 struct LoopInfoPrinter : public FunctionPass {
     static char ID;
@@ -86,14 +89,19 @@ struct LoopInfoPrinter : public FunctionPass {
     }
 
     virtual bool runOnFunction(Function &F) {
+        if (loopMap.count(&F))
+            return false;
         LoopInfo &li = getAnalysis<LoopInfo>();
-        funcLoops.clear();
+        funcLoops = new SmallVector<Scope, 4>();
+        funcLoops->clear();
         Scope ls;
-        for (LoopInfo::iterator LII = li.begin(),  LIE = li.end(); LII != LIE; LII++) {
+        for (LoopInfo::iterator LII = li.begin(),  LIE = li.end(); 
+            LII != LIE; LII++) {
             if (ScopeInfoFinder::getLoopScope(ls, *LII)) { 
-                funcLoops.push_back(ls);
+                funcLoops->push_back(ls);
             }
         }
+        loopMap[&F] = funcLoops;
         return false;
     }
 
@@ -210,6 +218,30 @@ size_t count_strips(Module & M)
     return 0;
 }
 
+inline bool passLoopEnd(const Scope &scope)
+{
+  if(funcLoops->empty())
+    return false;
+  return scope.begin > funcLoops->back().end;
+}
+
+bool isInLoop(const Scope &scope)
+{
+  // Will only match the *first* in top level matching loop.
+  // FIXME may need to get all the loops.
+  for (loop_iterator LI = funcLoops->begin(), LE = funcLoops->end();
+      LI != LE; LI++) {
+    if (LI->intersects(scope)) {
+      if (LOCAL_DEBUG)
+        cout << "loop: " << *LI << " ";
+      else
+        cout << *LI << " ";
+      return true;
+    }
+  }
+  return false;
+}
+
 void assess(Instruction *I, MODTYPE type)
 {
     if (isa<BranchInst>(I)) {
@@ -249,7 +281,47 @@ void assess(Instruction *I, MODTYPE type)
             else
                 cout << "N%";
         cout << dname << "@" << ScopeInfoFinder::getInstLine(I) << ",";
+        ////////////////
+        //////////////////
     }
+}
+
+bool followCS(Function *func, FunctionPassManager & FPass)
+{
+  Value::use_iterator i = func->use_begin(), e = func->use_end();
+  if(i == e) {
+    cout << "<- ->";
+    return false;
+  }
+  else {
+    cout << "<- ";
+  }
+  const char *name; 
+  for (; i != e; ++i) {
+    if (Instruction* use = dyn_cast<Instruction>(*i)) {
+      CallSite call(use);
+      Function *callee = call.getCalledFunction();
+      Function *caller = call.getCaller(); 
+      if (caller != NULL) {
+        if (callee != NULL && callee == func) {
+          name = caller->getName().data();
+          SmallVector<Scope, 4> * old = funcLoops;
+          FPass.run(*caller);
+          unsigned line = ScopeInfoFinder::getInstLine(use); 
+          cout << cpp_demangle(name) << "@" << line; 
+          Scope scope(line);
+          if (isInLoop(scope)) {
+            funcLoops = old;
+            cout << "->";
+            return true;
+          }
+          funcLoops = old;
+          cout << "->";
+        }
+      }
+    }
+  }
+  return false;
 }
 
 void slice(DependenceGraph * depGraph, Instruction *I, MODTYPE type)
@@ -262,7 +334,7 @@ void slice(DependenceGraph * depGraph, Instruction *I, MODTYPE type)
 //
   
   if (depGraph == NULL) {
-    errs() << "NULL dependence graph, not slicing\n";
+    // errs() << "NULL dependence graph, not slicing\n";
     return;
   }
   if (isa<DbgInfoIntrinsic>(I)) { // Skip intrinsics 
@@ -273,13 +345,13 @@ void slice(DependenceGraph * depGraph, Instruction *I, MODTYPE type)
     if (LOCAL_DEBUG) 
       errs() << "Slice for " << *I << "\n\t";
     Instruction *N;
-    cout << "|";
+    cout << "<";
     while((N = slicer.sliceNext()) != NULL) {
       if (LOCAL_DEBUG) 
         errs() << *N << "||";
       assess(N, type);
     }
-    cout << "|";
+    cout << ">";
     if (LOCAL_DEBUG) 
       errs() << "\n";
   }
@@ -357,7 +429,7 @@ void analyze(char *input)
     PassRegistry &Registry = *PassRegistry::getPassRegistry();
     initPassRegistry(Registry);
 
-    loadModRefs();
+    // loadModRefs();
 
     Module *module = NULL; 
     while((patch = decoder->next_patch()) != NULL) {
@@ -373,10 +445,11 @@ void analyze(char *input)
             bool found = false;
             list<int>::iterator ii = bstrips.begin(), ie = bstrips.end();
             list<string>::iterator si = bnames.begin(), se = bnames.end();
-            list<IPModRef *>::iterator ipi = bmodrefs.begin(), ipe = bmodrefs.end();
-            list<PassManager *>::iterator pmi = bmanagers.begin(), pme = bmanagers.end();
+//          list<IPModRef *>::iterator ipi = bmodrefs.begin(), ipe = bmodrefs.end();
+//          list<PassManager *>::iterator pmi = bmanagers.begin(), pme = bmanagers.end();
             for(list<Module *>::iterator mi = bmodules.begin(), me = bmodules.end(); 
-                mi != me && ii != ie && si != se && ipi != ipe && pmi != pme; mi++, ii++, si++, ipi++, pmi++) {
+                mi != me && ii != ie && si != se; mi++, ii++, si++) {
+//              mi != me && ii != ie && si != se && ipi != ipe && pmi != pme; mi++, ii++, si++, ipi++, pmi++) {
                 module = *mi;
                 if (module == NULL) {
                     module = ReadModule(Context, *si);
@@ -406,8 +479,13 @@ void analyze(char *input)
                     found = true;
                     FPasses.reset(new FunctionPassManager(module));
                     FPasses->add(new LoopInfoPrinter());
-                    //FPasses->add(new PgmDependenceGraph());
+                    // PgmDependenceGraph * PDG  = NULL;
+                    // if (analysis_level >= 3) {
+                    //   PDG = new PgmDependenceGraph();
+                    //   FPasses->add(PDG);
+                    // }
                     FPasses->doInitialization();
+                    Function *prevf = NULL;
                     while((hunk = chap->next_hunk()) != NULL) {
                         if (LOCAL_DEBUG) {
                             cout << "hunk: " << hunk->start_line << endl;
@@ -423,7 +501,7 @@ void analyze(char *input)
                             cout << hunk->rep_enclosing_scope << " might touch ";
                         Scope ls;
                         Hunk::iterator HI = hunk->begin(), HE = hunk->end();
-                        while ((f = matcher.matchFunction(I, scope)) != NULL ) {
+                        for(; (f = matcher.matchFunction(I, scope)) != NULL; prevf = f) {
                             // The enclosing scope is a rough estimation:
                             // We need to rely on the actual modification
 
@@ -450,6 +528,7 @@ void analyze(char *input)
                             }
                             else 
                                 cout << dname << ":"; // Structued output
+                            /*
                             gFunc = f; //TODO Temporary hack!!!
                             (*pmi)->run(*module);
                             PgmDependenceGraph * PDG = NULL;
@@ -457,12 +536,13 @@ void analyze(char *input)
                               const FunctionModRefInfo * funcModRef = &(*ipi)->getFunctionModRefInfo(*f);
                               PDG = new PgmDependenceGraph(funcModRef);
                             }
-                            FPasses->run(*f);
+                            */
                             DependenceGraph * depGraph = NULL;
-                            if (PDG != NULL) {
-                              PDG->runOnFunction(*f);
-                              depGraph = PDG->getDependenceGraph();
-                            }
+                            //PDG->runOnFunction(*f);
+                            if (prevf != f) // Only runs analysis on different functions.
+                              FPasses->run(*f);
+                            // if (PDG)
+                            //  depGraph = PDG->getDependenceGraph();
                             if (analysis_level >= 2)
                             {
                                 // Four situations(top mod, bottom func):
@@ -513,7 +593,7 @@ void analyze(char *input)
                             //TODO merge the two
 
                             {
-                                if (funcLoops.begin() == funcLoops.end()) {
+                                if (funcLoops->begin() == funcLoops->end()) {
                                     if (LOCAL_DEBUG)
                                         cout << "loop: none";
                                     cout << "\n";
@@ -529,50 +609,14 @@ void analyze(char *input)
                                 for(; HI != HE && (*HI)->rep_scope.begin <= I->lastline; HI++) {
                                     if ((*HI)->type == DEL) // skip delete
                                         continue;
-                                    // Will only match the *first* in top level matching loop.
-                                    // FIXME may need to get all the loops.
-                                    for (loop_iterator LI = funcLoops.begin(), LE = funcLoops.end();
-                                            LI != LE; LI++) {
-                                        if (LI->intersects((*HI)->rep_scope)) {
-                                            match_loop = true;
-
-                                            /*
-                                            unsigned beginl = (*HI)->rep_scope.begin;
-                                            if (beginl > (*LI).end) // reach the boundary
-                                                break;
-                                            unsigned endl = (*HI)->rep_scope.end;
-                                            if (beginl < (*LI).begin)
-                                                beginl = (*LI).begin;
-                                            if (endl > (*LI).end)
-                                                endl =  (*LI).end;
-                                            inst_iterator fi = inst_begin(f);
-                                            inst_iterator fe = inst_end(f);
-                                            Instruction *inst = matcher.matchInstruction(fi, f, beginl); 
-                                            //TODO may not skip the whole Mod
-                                            if (inst == NULL) {
-                                                if (LOCAL_DEBUG)
-                                                    errs() << "Can't locate instruction for mod @" << beginl << "\n";
-                                            }
-                                            else {
-                                                while(fi != fe) {
-                                                    unsigned l = ScopeInfoFinder::getInstLine(&*fi);
-                                                    if (l > endl)
-                                                        break;
-                                                    assess(&*fi, (*hit)->type);
-                                                    fi++;
-                                                } 
-                                            }
-                                            */
-
-                                            if (LOCAL_DEBUG)
-                                                cout << "loop: " << *LI << " ";
-                                            else
-                                                cout << *LI << " ";
-                                        }
-                                    }
+                                    match_loop = isInLoop((*HI)->rep_scope);
+                                    if (match_loop || passLoopEnd((*HI)->rep_scope))
+                                      break;
                                 }
                                 if (!match_loop) {
-                                    if (LOCAL_DEBUG)
+                                    if (prevf != f)
+                                     match_loop = followCS(f, *FPasses);
+                                    if (LOCAL_DEBUG && !match_loop)
                                         cout << "loop: none";
                                 }
                                 cout << "\n";

@@ -617,7 +617,6 @@ bool PgmDependenceGraph::buildPDG2(Function& F)
 //
 bool PgmDependenceGraph::buildPDG(Function& F)
 {
-  /*
   MemoryDependenceAnalysis &mda = getAnalysis<MemoryDependenceAnalysis>();
   for (Function::iterator FI = F.begin(), FE = F.end(); FI != FE; FI++) {
     for (BasicBlock::iterator BI = FI->begin(), BE = FI->end(); BI != BE; BI++) {
@@ -666,7 +665,6 @@ bool PgmDependenceGraph::buildPDG(Function& F)
       }
     } 
   }
-  */
   return true;
 }
 
@@ -732,7 +730,8 @@ void PgmDependenceGraph::dump() const
 bool PgmDependenceGraph::runOnFunction(Function& F) 
 {
   funcDepGraph = new DependenceGraph();
-  buildPDG2(F);
+  buildPDG(F);
+  //buildPDG2(F);
   //printFuncDeps(&F, errs());
   //testSlicing(F);
   //delete funcDepGraph;
@@ -742,6 +741,6 @@ bool PgmDependenceGraph::runOnFunction(Function& F)
 
 char PgmDependenceGraph::ID = 0;
 PgmDependenceGraph::iterator PgmDependenceGraph::NULLIterator = PgmDependenceGraph::MakeIterator();
-// static RegisterPass<PgmDependenceGraph> X("pgmdep", "Enumerate Program Dependence Graph (data and control)");
+static RegisterPass<PgmDependenceGraph> X("pgmdep", "Enumerate Program Dependence Graph (data and control)");
 
 } // End llvm namespace

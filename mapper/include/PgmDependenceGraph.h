@@ -62,8 +62,6 @@ struct forward_iterator
 
 namespace llvm {
 
-extern class DependenceGraph *globalDPG;
-
 class DependenceGraph;
 class PgmDependenceGraph;
 class FunctionModRefInfo;
@@ -210,8 +208,8 @@ public:
 };
 
 
-class PgmDependenceGraph {
-//class PgmDependenceGraph: public FunctionPass {
+//class PgmDependenceGraph {
+class PgmDependenceGraph: public FunctionPass {
 
 public:
   static char ID; // Pass identification, replacement for typeid
@@ -233,8 +231,8 @@ private:
 
 
 public:
-  // PgmDependenceGraph() : FunctionPass(ID), funcDepGraph(NULL) {}
-  PgmDependenceGraph(const FunctionModRefInfo* _funcModRef) : funcDepGraph(NULL), funcModRef(_funcModRef){}
+  PgmDependenceGraph() : FunctionPass(ID), funcDepGraph(NULL) {}
+  // PgmDependenceGraph(const FunctionModRefInfo* _funcModRef) : funcDepGraph(NULL), funcModRef(_funcModRef){}
   ~PgmDependenceGraph() {}
 
   /// Iterators to enumerate the program dependence graph for a function.
@@ -279,8 +277,8 @@ public:
     AU.setPreservesAll();
     //AU.addRequired<PostDominatorTree>();
     //AU.addRequired<AliasAnalysis>();
-    //AU.addRequired<MemoryDependenceAnalysis>();
-    AU.addRequired<IPModRef>();
+    AU.addRequired<MemoryDependenceAnalysis>();
+    //AU.addRequired<IPModRef>();
     //AU.addRequired<LocalDataStructures>();
     //AU.addRequired<MemoryDepAnalysis>();
   }
