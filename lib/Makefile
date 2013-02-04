@@ -8,6 +8,6 @@ LEVEL=..
 #
 # List all of the subdirectories that we will compile.
 #
-DIRS=dependence graph mapper slicer
+DIRS=dependence graph parser mapper slicer 
 
 include $(LEVEL)/Makefile.common

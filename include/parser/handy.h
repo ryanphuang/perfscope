@@ -12,7 +12,7 @@ extern "C" {
 
 
 #define XTERN extern
-#include<common.h>
+#include "parser/common.h"
 #undef XTERN
 
 #ifndef TMPDIR

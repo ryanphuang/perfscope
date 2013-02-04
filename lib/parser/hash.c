@@ -23,13 +23,13 @@
 /* Define USE_OBSTACK to 1 if you want the allocator to use obstacks instead
    of malloc.  If you change USE_OBSTACK, you have to recompile!  */
 
-#include <config.h>
-#include <hash.h>
-#include <handy.h>
-
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "parser/config.h"
+#include "parser/hash.h"
+#include "parser/handy.h"
 
 #if USE_OBSTACK
 # include "obstack.h"

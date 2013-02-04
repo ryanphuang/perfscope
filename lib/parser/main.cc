@@ -1,13 +1,14 @@
 /* @(#) main.cc -- the entry point of parser */
 
 #define XTERN
-#include<common.h>
+#include "parser/common.h"
 #undef XTERN
-#include<parser.h>
-#include<handy.h>
-#include<getopt.h>
-#include<backupfile.h>
-#include<string>
+#include "parser/parser.h"
+#include "parser/handy.h"
+#include "parser/backupfile.h"
+
+#include <getopt.h>
+#include <string>
 
 static const char* program_name;
 

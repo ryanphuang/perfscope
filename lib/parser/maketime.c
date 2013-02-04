@@ -32,13 +32,13 @@
    portable way for mktime to yield the inverse of gmtime.  */
 
 #if HAVE_CONFIG_H
-# include <config.h>
+# include "parser/config.h"
 #endif
 
-#include <maketime.h>
+#include "parser/maketime.h"
+#include "parser/partime.h"
 
 #include <limits.h>
-#include <partime.h>
 #include <stdlib.h>
 #include <time.h>
 

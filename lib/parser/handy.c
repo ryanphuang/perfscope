@@ -1,11 +1,11 @@
 #define XTERN extern
-#include<common.h>
+#include "parser/common.h"
 #undef XTERN
-#include<handy.h>
-#include<hash.h>
-#include<quotesys.h>
-#include<full-write.h>
-#include<dirname.h>
+#include "parser/handy.h"
+#include "parser/hash.h"
+#include "parser/quotesys.h"
+#include "parser/full-write.h"
+#include "parser/dirname.h"
 
 typedef struct
 {

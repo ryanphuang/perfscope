@@ -27,10 +27,10 @@
  */
 
 #if HAVE_CONFIG_H
-# include <config.h>
+# include "parser/config.h"
 #endif
 
-#include <partime.h>
+#include "parser/partime.h"
 
 #include <limits.h>
 #include <stddef.h>

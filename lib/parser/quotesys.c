@@ -19,11 +19,11 @@
 /* Written by Paul Eggert <eggert@twinsun.com> */
 
 #if HAVE_CONFIG_H
-# include <config.h>
+# include "config.h"
+# include "quotesys.h"
 #endif
 
 #include <sys/types.h>
-#include <quotesys.h>
 
 /* Place into QUOTED a quoted version of ARG suitable for `system'.
    Return the length of the resulting string (which is not null-terminated).

@@ -16,13 +16,13 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include <config.h>
+#include "parser/config.h"
 
 /* Specification.  */
 #ifdef SAFE_READ
-# include "safe-read.h"
+# include "parser/safe-read.h"
 #else
-# include "safe-write.h"
+# include "parser/safe-write.h"
 #endif
 
 /* Get ssize_t.  */

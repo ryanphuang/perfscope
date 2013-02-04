@@ -16,25 +16,25 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include <config.h>
+#include "parser/config.h"
 
 /* Specification.  */
 #ifdef FULL_READ
-# include "full-read.h"
+# include "parser/full-read.h"
 #else
-# include "full-write.h"
+# include "parser/full-write.h"
 #endif
 
 #include <errno.h>
 
 #ifdef FULL_READ
-# include "safe-read.h"
+# include "parser/safe-read.h"
 # define safe_rw safe_read
 # define full_rw full_read
 # undef const
 # define const /* empty */
 #else
-# include "safe-write.h"
+# include "parser/safe-write.h"
 # define safe_rw safe_write
 # define full_rw full_write
 #endif

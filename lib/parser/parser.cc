@@ -1,12 +1,12 @@
 #define XTERN extern
-#include<common.h>
+#include "parser/common.h"
 #undef XTERN
-#include<maketime.h>
-#include<partime.h>
-#include<dirname.h>
-#include<handy.h>
-#include<parser.h>
-#include<backupfile.h>
+#include "parser/maketime.h"
+#include "parser/partime.h"
+#include "parser/dirname.h"
+#include "parser/handy.h"
+#include "parser/parser.h"
+#include "parser/backupfile.h"
 
 static char const if_defined[] = "\n#ifdef %s\n";
 static char const not_defined[] = "\n#ifndef %s\n";

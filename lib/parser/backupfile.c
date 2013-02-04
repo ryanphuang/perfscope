@@ -20,16 +20,16 @@
 /* Written by Paul Eggert and David MacKenzie.
    Some algorithms adapted from GNU Emacs.  */
 
-#include <config.h>
+#include "parser/config.h"
 
 #define XTERN extern
-#include <common.h>
+#include "parser/common.h"
 #undef XTERN
 
-#include <backupfile.h>
+#include "parser/backupfile.h"
 
-#include <dirname.h>
-#include <handy.h>
+#include "parser/dirname.h"
+#include "parser/handy.h"
 
 #include <dirent.h>
 #ifndef _D_EXACT_NAMLEN
