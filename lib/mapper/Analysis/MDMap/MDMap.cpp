@@ -73,8 +73,8 @@ namespace {
             Scope scope(begin, end);
             Function * f;
             int s = 0;
-            errs() << "[" << begin << "," << end << "] might touch ";
-            Matcher::sp_iterator I = matcher.initMatch("a.c");
+            errs() << "[" << begin << "," << end << "] touch {";
+            Matcher::sp_iterator I = matcher.initMatch("");
             while ((f = matcher.matchFunction(I, scope)) != NULL ) {
                 s++;
                 errs() << "scope #" << s << ": " << f->getName() << " |=> " << scope << ", ";
@@ -82,13 +82,13 @@ namespace {
             if (s == 0) {
                 errs() << "insignificant scope";
             }
-            errs() << "\n";
+            errs() << "}\n";
         }
 
         void testMatching(Module &M)
         {
             matcher.process(M);
-            matcher.setstrips(0, 6); // Set the strips of path in the debug info
+            //matcher.setstrips(0, 6); // Set the strips of path in the debug info
             match(1, 3);
             match(1, 38);
             match(1, 48); 
@@ -219,8 +219,8 @@ namespace {
 
         virtual bool runOnModule(Module &M) 
         {
-            //testMatching(M);
-            testAnalyzer(M);
+            testMatching(M);
+            //testAnalyzer(M);
             return false;
         }
 

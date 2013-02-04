@@ -162,7 +162,7 @@ class Matcher {
         void process(Module &M) 
         { 
             processCompileUnits(M); 
-            //processSubprograms(M); 
+            processSubprograms(M); 
             processed = true; 
         } 
 

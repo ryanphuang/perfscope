@@ -1,7 +1,7 @@
 #include "mapper/Matcher.h"
 #include "mapper/Handy.h"
 
-static bool LOCAL_DEBUG = false;
+static bool LOCAL_DEBUG = true;
 
 bool cmpDICU(const DICompileUnit & CU1, const DICompileUnit & CU2) 
 { 
@@ -369,7 +369,15 @@ Matcher::sp_iterator Matcher::initMatch(StringRef fname)
         errs() << "Warning: Matcher hasn't processed module\n";
         return sp_end();
     }
+    if (fname.empty()) {
+      patchname="";
+      initialized = true;
+      return sp_begin();
+    }
     if (!initialized) {
+        // If argument is empty, we assume it's a self-testing:
+        // i.e., the beginning of the compilation unit will be
+        // used.
         if (!initName(fname))
             return sp_end();
         initialized = true;
@@ -377,7 +385,6 @@ Matcher::sp_iterator Matcher::initMatch(StringRef fname)
     sp_iterator I = sp_begin(), E = sp_end();
     
     while(I != E) {
-        //std::string debugname = I->getDirectory().str() + "/" + I->getFilename().str();
         std::string debugname = I->directory + "/" + I->filename;
         if (pathneq(debugname.c_str(), patchname, debugstrips)) {
             break;
@@ -466,10 +473,12 @@ Function * Matcher::matchFunction(sp_iterator & I, Scope &scope)
     /** Off-the-shelf SP finder **/
     sp_iterator E = sp_end();
     while (I != E) {
-        std::string debugname = I->directory + "/" + I->filename;
-        if (!pathneq(debugname.c_str(), patchname,  debugstrips)) {
+        if (strlen(patchname) != 0) {
+          std::string debugname = I->directory + "/" + I->filename;
+          if (!pathneq(debugname.c_str(), patchname,  debugstrips)) {
             errs() << "Warning: Reaching the end of " << patchname << " in current CU\n";
             return NULL;
+          }
         }
         if (I->lastline == 0) {
             if (I + 1 == E)
