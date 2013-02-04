@@ -7,6 +7,8 @@ LEVEL=../..
 
 TOOLNAME = parser
 
+USEDLIBS = gnulib.a
+
 #
 # Include Makefile.common so we know what to do.
 #

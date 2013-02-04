@@ -1,0 +1,6 @@
+Like many open source projects, PerfScope is not built 
+entirely from scratch but borrows the building blocks from
+other projects of good quality.
+
+This directory holds the external source code we used from
+1. GNU patch program

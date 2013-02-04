@@ -31,6 +31,7 @@ AC_CONFIG_MAKEFILE(Makefile)
 AC_CONFIG_MAKEFILE(lib/Makefile)
 AC_CONFIG_MAKEFILE(tools/Makefile)
 AC_CONFIG_MAKEFILE(test/Makefile)
+AC_CONFIG_MAKEFILE(third-party/Makefile)
 
 dnl **************************************************************************
 dnl * Determine which system we are building on
