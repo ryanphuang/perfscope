@@ -8,7 +8,7 @@ LEVEL = ../../../..
 #
 # Give the name of a library.  This will build a dynamic version.
 #
-LIBRARYNAME = dependence 
+LIBRARYNAME = dsadependence 
 USEDLIBS= datastructure.a
 # LOADABLE_MODULE = 1
 
