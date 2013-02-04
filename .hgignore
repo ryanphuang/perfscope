@@ -1,4 +1,7 @@
-/diff/
-/cis/
-/Debug\+Asserts/
-/.*\.o$
+Debug\+Asserts
+autom4te.cache
+configure
+config.log
+config.status
+Makefile.common
+.*\.swp$
