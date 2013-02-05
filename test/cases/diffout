@@ -1,6 +1,0 @@
-****
-sql.diff
-====
-sql/sql_select.cc
-####10836
-~~~-+~~~
