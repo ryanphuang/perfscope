@@ -242,7 +242,7 @@ void test_PatchDecoder(char *input)
         module = *mi;
         if (module == NULL)
           continue;
-        Matcher matcher(*module, 0, *ii);
+        Matcher matcher(*module, *ii);
         Matcher::sp_iterator I = matcher.resetTarget(chap->fullname);
         if (I == matcher.sp_end()) {
           continue;
