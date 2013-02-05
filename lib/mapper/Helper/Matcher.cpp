@@ -429,240 +429,245 @@ Loop * Matcher::matchLoop(LoopInfo &li, const Scope & scope)
   for (LoopInfo::iterator LII = li.begin(),  LIE = li.end(); LII != LIE; LII++) {
     // dump loops including all subloops
     // (*LII)->dump();
-    if (ScopeInfoFinder::getLoopScope(ls, *LII)) { //Top level loops
+    //Top level loops
+    if (ScopeInfoFinder::getLoopScope(ls, *LII)) { 
       if (LOCAL_DEBUG)
         errs() << ls<< "\n";
     }
     if (ls.intersects(scope)) {
-      //if (ls.includes(scope)) {
-      found = *LII; // at least should be this Top level loop
+      //(ls.includes(scope)) 
+
+      // at least should be this Top level loop
+      found = *LII; 
       for (Loop::iterator LIBI = (*LII)->begin(), LIBE = (*LII)->end(); LIBI != LIBE; LIBI++) {
         if (ScopeInfoFinder::getLoopScope(ls, *LIBI)) { //Sub loops
           if (LOCAL_DEBUG)
             errs() << ls << "\n";
         }
         if (ls.intersects(scope))
-          //if (ls.includes(scope))
-          found = *LIBI; // return the innermost loop
+          //(ls.includes(scope))
+          // return the innermost loop
+          found = *LIBI; 
       }
-      break; // Return the first matching in top level
+      // Return the first matching in top level
+      break; 
     }
-    }
-    return found;
+  }
+  return found;
+}
+
+
+/** A progressive method to match the function(s) in a given scope.
+ *  When there are more than one function in the scope, the first function
+ *  will be returned and scope's beginning is *modified* to the end of this 
+ *  returned function so that the caller could perform a loop of call until
+ *  matchFunction return NULL;
+ *
+ *
+ *  Note: finder.processModule(M) should be called before the first call of matchFunction.
+ *
+ * **/
+Function * Matcher::matchFunction(sp_iterator & I, Scope &scope)
+{
+  if (!initialized) {
+    errs() << "Matcher is not initialized\n";
+    return NULL;
+  }
+  // hit the boundary
+  if (scope.begin == 0 || scope.end == 0 || scope.end < scope.begin) {
+    return NULL;
   }
 
-
-  /** A progressive method to match the function(s) in a given scope.
-   *  When there are more than one function in the scope, the first function
-   *  will be returned and scope's beginning is *modified* to the end of this 
-   *  returned function so that the caller could perform a loop of call until
-   *  matchFunction return NULL;
-   *
-   *
-   *  Note: finder.processModule(M) should be called before the first call of matchFunction.
-   *
-   * **/
-  Function * Matcher::matchFunction(sp_iterator & I, Scope &scope)
-  {
-    if (!initialized) {
-      errs() << "Matcher is not initialized\n";
-      return NULL;
-    }
-    // hit the boundary
-    if (scope.begin == 0 || scope.end == 0 || scope.end < scope.begin) {
-      return NULL;
-    }
-
-    /** Off-the-shelf SP finder **/
-    sp_iterator E = sp_end();
-    while (I != E) {
-      if (strlen(patchname) != 0) {
-        std::string debugname = I->directory + "/" + I->filename;
-        if (!pathneq(debugname.c_str(), patchname,  debugstrips)) {
-          errs() << "Warning: Reaching the end of " << patchname << " in current CU\n";
-          return NULL;
-        }
-      }
-      if (I->lastline == 0) {
-        if (I + 1 == E)
-          return I->function; // It's tricky to return I here. Maybe NULL is better
-        // Line number is guaranteed to be positive, no need to check overflow here.
-        I->lastline = (I + 1)->linenumber - 1;             
-        assert(I->lastline >= I->linenumber); // Unless the two are modifying the same line.
-      }
-      // For boundary case, we only break if that function is one line function.
-      if (I->lastline > scope.begin || (I->lastline == scope.begin && I->lastline == I->linenumber))
-        break;
-      I++;
-    }
-    if (I == E)
-      return NULL;
-    // Lies in the gap
-    if (I->linenumber > scope.end || (I->linenumber == scope.end && I->lastline > I->linenumber))
-      return NULL;
-    if (I->lastline < scope.end)
-      scope.begin = I->lastline + 1;  // Multiple functions
-    else
-      scope.begin = 0;
-    return I->function;
-  }
-
-  /**
-   * @Deprecated
-   *
-   */
-  Function * Matcher::__matchFunction(sp_iterator I, Scope &scope)
-  {
-    if (!initialized) {
-      errs() << "Matcher is not initialized\n";
-      return NULL;
-    }
-    // hit the boundary
-    if (scope.begin == 0 || scope.end == 0 || scope.end < scope.begin) {
-      initialized = false;
-      return NULL;
-    }
-    /** Off-the-shelf SP finder **/
-    unsigned long e;
-    Function *f1 = NULL, *f2 = NULL;
-    sp_iterator E;
-    patchname = stripname(filename.c_str(), patchstrips);
-    for (E = sp_end(); I != E; I++) {
-      //std::string debugname = I->getDirectory().str() + "/" + I->getFilename().str();
+  /** Off-the-shelf SP finder **/
+  sp_iterator E = sp_end();
+  while (I != E) {
+    if (strlen(patchname) != 0) {
       std::string debugname = I->directory + "/" + I->filename;
-      if (!pathneq(debugname.c_str(), patchname,  debugstrips))
-        continue; // Should break here, because initMatch already adjust the iterator to the matching file.
-      //e = I->getLineNumber();
-      e = I->linenumber;
-      f1 = f2;
-      //f2 = I->getFunction();
-      f2 = I->function;
-      if (scope.begin < e) {
-        if (f1 == NULL) { 
-          // boundary case, the modification begins before the first function
-          // we need to adjust the beginning to the first function and let the
-          // iteration continue
-          scope.begin = e; 
-        }
-        else {
-          break;
-        }
+      if (!pathneq(debugname.c_str(), patchname,  debugstrips)) {
+        errs() << "Warning: Reaching the end of " << patchname << " in current CU\n";
+        return NULL;
       }
     }
-
-    /*****
-     *
-     * typical case #1:
-     *
-     * | foo1
-     * | foo2   <- b, f1
-     * | [scope.begin
-     * | scope.end]
-     * | foo3   <- e, f2
-     * | foo4
-     * # scope is modifying foo2;
-     *
-     * typical case #2:
-     *
-     * | foo1
-     * | foo2   <- b, f1
-     * | [scope.begin
-     * | foo3   <- e, f2
-     * | scope.end]
-     * | foo4
-     * # scope is modifying foo2 & foo3;
-     *
-     * boundary case 1:
-     *
-     * | 0      <- b, f1
-     * | [scope.begin
-     * | scope.end]
-     * | foo1   <- e, f2 # advance scope.begin
-     * | foo2
-     *
-     * boundary case 2:
-     * | 0      <- b, f1
-     * | [scope.begin
-     * | foo1   <- e, f2 # advance scope.begin
-     * | foo2
-     * | scope.end]
-     * | foo3
-     * | foo4
-     *
-     * boundary case 3:
-     * | 0      <- b, f1
-     * | [scope.begin
-     * | foo1   <- e, f2 # advance scope.begin, adjust f1 to f2
-     * | scope.end]
-     *
-     * boundary case 4:
-     * | 0
-     * | foo1   <- b, f1   
-     * | foo2   <- e, f2 # adjust f1 to f2
-     * | [scope.begin
-     * | scope.end]
-     *
-     *****/
-
-    if (scope.end < scope.begin) { // we over-advanced scope.begin, boundary case #1
-      initialized = false;
-      return NULL; 
+    if (I->lastline == 0) {
+      if (I + 1 == E)
+        return I->function; // It's tricky to return I here. Maybe NULL is better
+      // Line number is guaranteed to be positive, no need to check overflow here.
+      I->lastline = (I + 1)->linenumber - 1;             
+      assert(I->lastline >= I->linenumber); // Unless the two are modifying the same line.
     }
-
-    if (I == E) { 
-      // we've come to the end instead of jumping out from break, 
-      // need to adjust f1 to f2, boundary case #3, #4
-      // also, make sure we finish the matching
-      scope.end = 0; 
-      return f2;
-    }
-
-    if (scope.end > e) { // span multiple functions
-      scope.begin = e; // boundary case #2
-    }
-    else { // span at most one function 
-      scope.end = 0; // finish the matching
-    }
-    return f1;
+    // For boundary case, we only break if that function is one line function.
+    if (I->lastline > scope.begin || (I->lastline == scope.begin && I->lastline == I->linenumber))
+      break;
+    I++;
   }
+  if (I == E)
+    return NULL;
+  // Lies in the gap
+  if (I->linenumber > scope.end || (I->linenumber == scope.end && I->lastline > I->linenumber))
+    return NULL;
+  if (I->lastline < scope.end)
+    scope.begin = I->lastline + 1;  // Multiple functions
+  else
+    scope.begin = 0;
+  return I->function;
+}
 
-  void Matcher::succTraversal(Function *F)
-  {
-    for (Function::iterator FI = F->begin(), FE = F->end(); FI != FE; FI++) {
-      /** Traverse the successors **/
-      errs() << FI->getName() << "\n";
-      for (succ_iterator SI = succ_begin(FI), SE = succ_end(FI); SI != SE; SI++) {
-        errs() << "\t" << (*SI)->getName() << "\n";
+/**
+ * @Deprecated
+ *
+ */
+Function * Matcher::__matchFunction(sp_iterator I, Scope &scope)
+{
+  if (!initialized) {
+    errs() << "Matcher is not initialized\n";
+    return NULL;
+  }
+  // hit the boundary
+  if (scope.begin == 0 || scope.end == 0 || scope.end < scope.begin) {
+    initialized = false;
+    return NULL;
+  }
+  /** Off-the-shelf SP finder **/
+  unsigned long e;
+  Function *f1 = NULL, *f2 = NULL;
+  sp_iterator E;
+  patchname = stripname(filename.c_str(), patchstrips);
+  for (E = sp_end(); I != E; I++) {
+    //std::string debugname = I->getDirectory().str() + "/" + I->getFilename().str();
+    std::string debugname = I->directory + "/" + I->filename;
+    if (!pathneq(debugname.c_str(), patchname,  debugstrips))
+      continue; // Should break here, because initMatch already adjust the iterator to the matching file.
+    //e = I->getLineNumber();
+    e = I->linenumber;
+    f1 = f2;
+    //f2 = I->getFunction();
+    f2 = I->function;
+    if (scope.begin < e) {
+      if (f1 == NULL) { 
+        // boundary case, the modification begins before the first function
+        // we need to adjust the beginning to the first function and let the
+        // iteration continue
+        scope.begin = e; 
+      }
+      else {
+        break;
       }
     }
   }
 
+  /*****
+   *
+   * typical case #1:
+   *
+   * | foo1
+   * | foo2   <- b, f1
+   * | [scope.begin
+   * | scope.end]
+   * | foo3   <- e, f2
+   * | foo4
+   * # scope is modifying foo2;
+   *
+   * typical case #2:
+   *
+   * | foo1
+   * | foo2   <- b, f1
+   * | [scope.begin
+   * | foo3   <- e, f2
+   * | scope.end]
+   * | foo4
+   * # scope is modifying foo2 & foo3;
+   *
+   * boundary case 1:
+   *
+   * | 0      <- b, f1
+   * | [scope.begin
+   * | scope.end]
+   * | foo1   <- e, f2 # advance scope.begin
+   * | foo2
+   *
+   * boundary case 2:
+   * | 0      <- b, f1
+   * | [scope.begin
+   * | foo1   <- e, f2 # advance scope.begin
+   * | foo2
+   * | scope.end]
+   * | foo3
+   * | foo4
+   *
+   * boundary case 3:
+   * | 0      <- b, f1
+   * | [scope.begin
+   * | foo1   <- e, f2 # advance scope.begin, adjust f1 to f2
+   * | scope.end]
+   *
+   * boundary case 4:
+   * | 0
+   * | foo1   <- b, f1   
+   * | foo2   <- e, f2 # adjust f1 to f2
+   * | [scope.begin
+   * | scope.end]
+   *
+   *****/
 
-  void Matcher::preTraversal(Function *F)
-  {
-    std::deque< Pair<Function::iterator, unsigned> > ques;
-    BasicBlock *BB = F->begin();
-    SmallPtrSet<const BasicBlock *, 8> Visited;
-    Visited.insert(BB);
-    ques.push_back(Pair<Function::iterator, unsigned>(BB, 1));
-    /** BFS traversal **/
-    while(!ques.empty()) {
-      Pair<Function::iterator, unsigned> pair = ques.front();
-      BB = pair.first;
-      ques.pop_front();
-      if (BB) {
-        errs() << "[" << pair.second << "] " << BB->getName();
-        Scope scope;
-        if (ScopeInfoFinder::getBlockScope(scope, BB)) {
-          errs() << ": " << scope << "\n";
-        }
-        for (succ_iterator SI = succ_begin(pair.first), SE = succ_end(pair.first); SI != SE; SI++) {
-          BB = *SI;
-          if (!Visited.count(BB)) {
-            ques.push_back(Pair<Function::iterator, unsigned>(BB, pair.second + 1));
-            Visited.insert(BB);
-          }
+  if (scope.end < scope.begin) { // we over-advanced scope.begin, boundary case #1
+    initialized = false;
+    return NULL; 
+  }
+
+  if (I == E) { 
+    // we've come to the end instead of jumping out from break, 
+    // need to adjust f1 to f2, boundary case #3, #4
+    // also, make sure we finish the matching
+    scope.end = 0; 
+    return f2;
+  }
+
+  if (scope.end > e) { // span multiple functions
+    scope.begin = e; // boundary case #2
+  }
+  else { // span at most one function 
+    scope.end = 0; // finish the matching
+  }
+  return f1;
+}
+
+void Matcher::succTraversal(Function *F)
+{
+  for (Function::iterator FI = F->begin(), FE = F->end(); FI != FE; FI++) {
+    /** Traverse the successors **/
+    errs() << FI->getName() << "\n";
+    for (succ_iterator SI = succ_begin(FI), SE = succ_end(FI); SI != SE; SI++) {
+      errs() << "\t" << (*SI)->getName() << "\n";
+    }
+  }
+}
+
+
+void Matcher::preTraversal(Function *F)
+{
+  std::deque< Pair<Function::iterator, unsigned> > ques;
+  BasicBlock *BB = F->begin();
+  SmallPtrSet<const BasicBlock *, 8> Visited;
+  Visited.insert(BB);
+  ques.push_back(Pair<Function::iterator, unsigned>(BB, 1));
+  /** BFS traversal **/
+  while(!ques.empty()) {
+    Pair<Function::iterator, unsigned> pair = ques.front();
+    BB = pair.first;
+    ques.pop_front();
+    if (BB) {
+      errs() << "[" << pair.second << "] " << BB->getName();
+      Scope scope;
+      if (ScopeInfoFinder::getBlockScope(scope, BB)) {
+        errs() << ": " << scope << "\n";
+      }
+      for (succ_iterator SI = succ_begin(pair.first), SE = succ_end(pair.first); SI != SE; SI++) {
+        BB = *SI;
+        if (!Visited.count(BB)) {
+          ques.push_back(Pair<Function::iterator, unsigned>(BB, pair.second + 1));
+          Visited.insert(BB);
         }
       }
     }
   }
+}
