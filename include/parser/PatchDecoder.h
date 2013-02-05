@@ -1,6 +1,6 @@
 /* * File: PatchDecoder.h
  * *
- * *     Decode the parser's intermediate result and translate into scope and modifications
+ * *     Decode the patch intermediate result(PIR) from PatchCompiler and translate into scope and modifications
  * *
  * * Author: Ryan Huang <ryanhuang@cs.ucsd.edu>
  */
@@ -13,7 +13,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "mapper/Scope.h"
+#include "commons/Scope.h"
 
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SmallVector.h"

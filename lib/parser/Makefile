@@ -1,15 +1,13 @@
-##===- projects/sample/lib/sample/Makefile -----------------*- Makefile -*-===##
+##===- projects/sample/lib/Makefile ------------------------*- Makefile -*-===##
 
 #
-# Indicate where we are relative to the top of the source tree.
+# Relative path to the top of the source tree.
 #
 LEVEL=../..
 
-TOOLNAME = parser
-
-USEDLIBS = gnulib.a
-
 #
-# Include Makefile.common so we know what to do.
+# List all of the subdirectories that we will compile.
 #
+DIRS=PatchCompiler PatchIRDecoder
+
 include $(LEVEL)/Makefile.common

@@ -42,7 +42,7 @@
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
 #include "mapper/Matcher.h"
-#include "mapper/PatchDecoder.h"
+#include "parser/PatchDecoder.h"
 
 #include <memory>
 #include <algorithm>

@@ -25,7 +25,7 @@
 #include <vector>
 #include <deque>
 
-#include "mapper/Scope.h"
+#include "commons/Scope.h"
 
 using namespace llvm;
 

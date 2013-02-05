@@ -3,7 +3,7 @@
 LEVEL = ../../..
 LIBRARYNAME = LLVMMatchTest
 LOADABLE_MODULE = 1
-USEDLIBS = mappercore.a
+USEDLIBS = commons.a parser.a mappercore.a
 
 include $(LEVEL)/Makefile.common
 

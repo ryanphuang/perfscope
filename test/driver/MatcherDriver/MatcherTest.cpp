@@ -35,8 +35,8 @@
 #include "llvm/Instruction.h"
 #include "llvm/InstrTypes.h"
 
-#include "mapper/Handy.h"
-#include "mapper/PatchDecoder.h"
+#include "commons/handy.h"
+#include "parser/PatchDecoder.h"
 #include "mapper/Matcher.h"
 
 using namespace llvm;

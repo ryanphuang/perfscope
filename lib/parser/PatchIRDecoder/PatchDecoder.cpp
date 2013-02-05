@@ -1,5 +1,5 @@
-#include "mapper/Handy.h"
-#include "mapper/PatchDecoder.h"
+#include "commons/handy.h"
+#include "parser/PatchDecoder.h"
 
 static bool DEBUG = false;
 

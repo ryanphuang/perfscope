@@ -11,7 +11,7 @@ LEVEL=../../..
 
 TOOLNAME=decoderdriver
 
-USEDLIBS=mappercore.a
+USEDLIBS=parser.a commons.a mappercore.a
 
 #LLVMLIBS=LLVMSupport.a LLVMCore.a LLVMSupport.a LLVMCore.a LLVMBitReader.a LLVMAsmParser.a LLVMAnalysis.a LLVMTransformUtils.a LLVMScalarOpts.a LLVMTarget.a
 

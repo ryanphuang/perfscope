@@ -1,4 +1,4 @@
-#include "mapper/Scope.h"
+#include "commons/Scope.h"
 
 llvm::raw_ostream & operator<<(llvm::raw_ostream& os, const Scope & scope)
 {

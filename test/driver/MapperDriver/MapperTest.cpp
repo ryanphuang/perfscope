@@ -21,8 +21,9 @@
 #include "llvm/Support/InstVisitor.h"
 #include "llvm/Target/TargetData.h"
 
-#include "mapper/Handy.h"
-#include "mapper/PatchDecoder.h"
+#include "commons/handy.h"
+
+#include "parser/PatchDecoder.h"
 #include "mapper/CallSiteFinder.h"
 #include "mapper/Matcher.h"
 

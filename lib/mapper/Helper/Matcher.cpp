@@ -1,5 +1,5 @@
+#include "commons/handy.h"
 #include "mapper/Matcher.h"
-#include "mapper/Handy.h"
 
 static bool LOCAL_DEBUG = true;
 

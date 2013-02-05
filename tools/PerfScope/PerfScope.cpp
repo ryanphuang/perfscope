@@ -28,10 +28,10 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/IntrinsicInst.h"
 
-#include "mapper/Handy.h"
+#include "commons/handy.h"
+#include "parser/PatchDecoder.h"
 #include "mapper/PgmDependenceGraph.h"
 #include "mapper/DifferenceEngine.h"
-#include "mapper/PatchDecoder.h"
 #include "mapper/CallSiteFinder.h"
 #include "mapper/Matcher.h"
 #include "mapper/Slicer.h"

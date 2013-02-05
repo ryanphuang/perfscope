@@ -11,7 +11,7 @@ LEVEL=../../..
 
 TOOLNAME=mapperdriver
 
-USEDLIBS=mappercore.a
+USEDLIBS=commons.a parser.a mappercore.a
 
 #LLVMLIBS=LLVMSupport.a LLVMCore.a LLVMSupport.a LLVMCore.a LLVMBitReader.a LLVMAsmParser.a LLVMAnalysis.a LLVMTransformUtils.a LLVMScalarOpts.a LLVMTarget.a
 

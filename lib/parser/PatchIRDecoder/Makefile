@@ -1,7 +1,7 @@
 ##===- lib/Helper/Makefile -----------------------*- Makefile -*-===##
 
 LEVEL = ../../..
-LIBRARYNAME = mappercore
+LIBRARYNAME = parser
 
 USEDLIBS = commons.a
 

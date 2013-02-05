@@ -1,4 +1,4 @@
-/* * File: Handy.h
+/* * File: handy.h
  * *
  * * Handy gadget functions   
  * *
