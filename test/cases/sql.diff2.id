@@ -1,0 +1,6 @@
+****
+test/cases/sql.diff2
+====
+sql/sql_select.cc
+####10849,10849
+~~~++~~~

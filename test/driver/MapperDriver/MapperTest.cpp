@@ -427,8 +427,5 @@ int main(int argc, char *argv[])
       lstrips.push_back(strip_len);
   }
   test_PatchDecoder(id_fname);
-  //test_src2obj();
-  //test_canonpath();
-  //test_stripname();
   return 0;
 }

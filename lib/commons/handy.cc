@@ -354,6 +354,23 @@ bool endswith(const char *s, const char *ending)
     return (strncmp(s + (l1 - l2), ending, l2) == 0);
 }
 
+bool pendswith(const char *s, const char *ending)
+{
+    if (NULL == s || NULL == ending) {
+        return false;
+    }
+    int l1 = strlen(s);
+    int l2 = strlen(ending);
+    if (l1 < l2) {
+        return false;
+    }
+    if (strncmp(s + (l1 - l2), ending, l2) == 0) {
+      if (l1 == l2 || ending[0] == '/' || s[l1 -l2 - 1] == '/')
+        return true;
+    }  
+    return false;
+}
+
 char * common_prefix(char * buf, size_t & len, const char *str1, const char *str2)                             
 {                                                                                    
     const char *p1 = str1, *p2 = str2;

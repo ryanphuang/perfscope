@@ -39,6 +39,7 @@ char *dupstr(const char *);
 
 bool isempty(const char *);
 bool endswith(const char*, const char*);
+bool pendswith(const char*, const char*);
 const char *strnchr(const char *, size_t, char);
 const char *lastof(const char *, char);
 unsigned countnchr(const char *, size_t, char);

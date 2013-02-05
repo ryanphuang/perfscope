@@ -111,6 +111,30 @@ static const char * src2obj_expect[] = {
   0
 };
 
+
+typedef struct pendswith_T {
+  const char * str;
+  const char * ending;
+} pendswith_T;
+
+static const pendswith_T pendswith_test[] = {
+  {"innobase/fil/fil0fil.c", "/fil0fil.c"},
+  {"foo/bar/ba.c", "a.c"},
+  {"foo/bar/ba.c", "foo/bar/ba.c"},
+  {"foo/bar/ba.c", "/barr/ba.c"},
+  {"foo/bar/ba.c", "bar/ba.c"},
+  {0, 0}
+};
+
+static const int pendswith_expect[] = {
+  1,
+  -1,
+  1,
+  -1,
+  1,
+  0
+};
+
 void test_canonpath()
 {
   int total = 0, failed = 0;
@@ -185,11 +209,36 @@ void test_src2obj()
   end_test("src2obj", total, failed);
 }
 
+void test_pendswith()
+{
+  int total = 0, failed = 0;
+  bool fail = false;
+  begin_test("pendswith");
+  const pendswith_T *t = pendswith_test;
+  const int *e = pendswith_expect;
+  int result, expect;
+  while (t->str && *e) {
+    result = pendswith(t->str, t->ending);
+    expect = (*e == 1 ? 1 : 0);
+    if((fail = (result != expect))) {
+      one_test(total, failed, fail, expect == 1 ? "true" : "false", 
+        result ? "true" : "false");
+    }
+    else
+      one_test(total, failed, fail);
+    t++;
+    e++;
+  }
+  end_test("pendswith", total, failed);
+
+
+}
+
 int main()
 {
-
   test_src2obj();
   test_canonpath();
+  test_pendswith();
   test_stripname();
   return 0;
 }
