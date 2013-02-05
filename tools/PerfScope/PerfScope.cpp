@@ -756,7 +756,7 @@ int main(int argc, char *argv[])
 
     int opt;
     int plen;
-    while((opt = getopt(argc, argv, "a:b:e:h:l:s:p:L:")) != -1) {
+    while((opt = getopt(argc, argv, "a:b:e:hl:s:p:L:")) != -1) {
         switch(opt) {
             case 'a':
                 parseList(anames, optarg, ",");

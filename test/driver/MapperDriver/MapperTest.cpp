@@ -200,7 +200,7 @@ size_t count_strips(Module & M)
   return 0;
 }
 
-void test_PatchDecoder(char *input)
+void test_Mapper(char *input)
 {
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   PatchDecoder * decoder = new PatchDecoder(input);
@@ -426,6 +426,6 @@ int main(int argc, char *argv[])
     else
       lstrips.push_back(strip_len);
   }
-  test_PatchDecoder(id_fname);
+  test_Mapper(id_fname);
   return 0;
 }
