@@ -1,6 +1,6 @@
 /* * File: PatchDecoder.h
  * *
- * *     Decode the patch decoder's intermediate result and translate into scope and modifications
+ * *     Decode the parser's intermediate result and translate into scope and modifications
  * *
  * * Author: Ryan Huang <ryanhuang@cs.ucsd.edu>
  */

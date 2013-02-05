@@ -1,6 +1,5 @@
 #include "mapper/Handy.h"
 #include "mapper/PatchDecoder.h"
-#include "mapper/Matcher.h"
 
 #include <iostream>
 #include <limits.h>
