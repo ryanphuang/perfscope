@@ -1,6 +1,6 @@
-#include "Handy.h"
-#include "PatchDecoder.h"
-#include "Matcher.h"
+#include "mapper/Handy.h"
+#include "mapper/PatchDecoder.h"
+#include "mapper/Matcher.h"
 
 #include <iostream>
 #include <limits.h>
