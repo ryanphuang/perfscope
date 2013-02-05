@@ -107,7 +107,7 @@ void testMatching(string & filename, Matcher & matcher, Scope & scope)
   Function * f;
   int s = 0;
   errs() << scope << " might touch ";
-  Matcher::sp_iterator I = matcher.initMatch(filename);
+  Matcher::sp_iterator I = matcher.resetTarget(filename);
   while ((f = matcher.matchFunction(I, scope)) != NULL ) {
     s++;
     errs() << "scope #" << s << ": " << f->getName() << " |=> " << scope << ", ";
@@ -243,7 +243,7 @@ void test_PatchDecoder(char *input)
         if (module == NULL)
           continue;
         Matcher matcher(*module, 0, *ii);
-        Matcher::sp_iterator I = matcher.initMatch(chap->fullname);
+        Matcher::sp_iterator I = matcher.resetTarget(chap->fullname);
         if (I == matcher.sp_end()) {
           continue;
         }

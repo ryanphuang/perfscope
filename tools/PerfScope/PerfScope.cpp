@@ -465,16 +465,15 @@ void analyze(char *input)
                     }
                     *ii = tmps;
                 }
-                Matcher matcher(*module, 0, *ii);
+                Matcher matcher(*module, *ii);
                 // nasty hack here to avoid soft link handling inconsistency between diff and debug info
                 if (chap->fullname == "src/backend/port/sysv_shmem.c") 
                     chap->fullname = "src/backend/port/pg_shmem.c";
-                Matcher::cu_iterator ci  = matcher.matchCompileUnit(chap->fullname);
-                if (ci == matcher.cu_end()) {
+                Matcher::sp_iterator I  = matcher.resetTarget(chap->fullname);
+                if (I == matcher.sp_end()) {
                     continue;
                 }
                 else {
-                    Matcher::sp_iterator I = matcher.initMatch(ci);
                     found = true;
                     FPasses.reset(new FunctionPassManager(module));
                     FPasses->add(new LoopInfoPrinter());

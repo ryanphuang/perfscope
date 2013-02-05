@@ -55,7 +55,6 @@ namespace {
 
     public:
 
-      Matcher matcher;
 
       static char ID; // Pass identification, replacement for typeid
       MatcherTest() : ModulePass(ID) {}
@@ -66,15 +65,18 @@ namespace {
         return NULL;
       }
 
-      void match(unsigned long begin, unsigned long end)
+      void match(Matcher & matcher, unsigned long begin, unsigned long end)
       {
         Scope scope(begin, end);
         Function * f;
         int s = 0;
-        errs() << "[" << begin << "," << end << "] touch {";
+        errs() << "[" << begin << "," << end << "] ";
         // do not specify the CU name so that it will match 
         // the first CU
-        Matcher::sp_iterator I = matcher.initMatch("");
+        Matcher::sp_iterator I = matcher.resetTarget("");
+        if (I == matcher.sp_end())
+          return;
+        errs() << "touch {";
         while ((f = matcher.matchFunction(I, scope)) != NULL ) {
           s++;
           errs() << "scope #" << s << ": " << f->getName() << " |=> " << scope << ", ";
@@ -87,27 +89,22 @@ namespace {
 
       void testMatching(Module &M)
       {
+        Matcher matcher(M);
         matcher.process(M);
-        match(1, 3);
-        match(1, 38);
-        match(1, 48); 
-        match(7, 24);
-        match(7, 29);
-        match(18, 32);
-        match(24, 26);
-        match(31, 37);
-        match(32, 35);
-        match(33, 35);
-        match(37, 40);
-        match(43, 48); 
+        match(matcher, 1, 3);
+        match(matcher, 1, 38);
+        match(matcher, 1, 48); 
+        match(matcher, 7, 24);
+        match(matcher, 7, 29);
+        match(matcher, 18, 32);
+        match(matcher, 24, 26);
+        match(matcher, 31, 37);
+        match(matcher, 32, 35);
+        match(matcher, 33, 35);
+        match(matcher, 37, 40);
+        match(matcher, 43, 48); 
       }
 
-
-      void processLoops(Function *F)
-      {
-        LoopInfo &li = getAnalysis<LoopInfo>(*F);
-        matcher.processLoops(li);
-      }
 
       virtual bool runOnModule(Module &M) 
       {

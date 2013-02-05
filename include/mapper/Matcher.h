@@ -124,6 +124,7 @@ class Matcher {
     bool processed;
     std::string filename;
     const char *patchname;
+    Module & module;
 
   public:
     std::vector<DISPCopy> MySPs;
@@ -133,16 +134,15 @@ class Matcher {
     int debugstrips;
 
   public:
-    Matcher(Module &M, int p_strips, int d_strips) 
+    Matcher(Module &M, int d_strips = 0, int p_strips = 0) : module(M)
     {
       patchstrips = p_strips; 
       debugstrips = d_strips; 
       initialized = false;
       processCompileUnits(M); 
-      processSubprograms(M); 
       processed = true;
     }
-    Matcher() {initialized = false; processed = false; patchstrips = 0; debugstrips = 0; }
+    //Matcher() {initialized = false; processed = false; patchstrips = 0; debugstrips = 0; }
 
     void processCompileUnits(Module &);
 
@@ -172,15 +172,16 @@ class Matcher {
       debugstrips = d_strips; 
     }
 
-    bool initName(StringRef);
-    sp_iterator initMatch(StringRef);
+    sp_iterator resetTarget(StringRef);
+
+    sp_iterator slideSPToTarget(StringRef);
     sp_iterator initMatch(cu_iterator &);
 
-    sp_iterator sp_begin() { return MySPs.begin(); }
-    sp_iterator sp_end() { return MySPs.end(); }
+    inline sp_iterator sp_begin() { return MySPs.begin(); }
+    inline sp_iterator sp_end() { return MySPs.end(); }
 
-    cu_iterator cu_begin() { return MyCUs.begin(); }
-    cu_iterator cu_end() { return MyCUs.end(); }
+    inline cu_iterator cu_begin() { return MyCUs.begin(); }
+    inline cu_iterator cu_end() { return MyCUs.end(); }
 
 
     void preTraversal(Function *);
@@ -188,6 +189,7 @@ class Matcher {
 
   protected:
     Function * __matchFunction(sp_iterator, Scope &);
+    bool initName(StringRef);
     void dumpSPs();
 
 };

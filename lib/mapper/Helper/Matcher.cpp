@@ -97,38 +97,30 @@ bool ScopeInfoFinder::getLoopScope(Scope & scope, Loop * L)
     return false;
   BasicBlock * header= L->getHeader();
   if (getBlockScope(scope, header)) {
-    /*
-Wrong: use the last instruction of the last BB to approximate ending scope
+    /* Wrong implementation:
+     * Use the last instruction of the last BB to approximate ending scope.
+     * The last BB in Loop may not be last based on location.
+     */
 
-The last BB in Loop may not be last based on location.
-
-BasicBlock *back  = L->getBlocks().back();
-Scope es;
-if (getBlockScope(es, back)) {
-scope.end = es.end; 
-return true;
-}
-*/
-
-  /* The safe way: iterate all BBs and get the last inst. 
-   * with largest line number.
-   */
-  unsigned end = 0;
-  for (Loop::block_iterator LI = L->block_begin(), LE = L->block_end();
-      LI != LE; LI++) {
-    Scope es;
-    if (getBlockScope(es, *LI)) {
-      //errs() << es << "\n";
-      if (es.end > end) {
-        end = es.end;
+    /* The safe way: 
+     * Iterate all BBs and get the last inst with largest line number.
+     */
+    unsigned end = 0;
+    for (Loop::block_iterator LI = L->block_begin(), LE = L->block_end();
+        LI != LE; LI++) {
+      Scope es;
+      if (getBlockScope(es, *LI)) {
+        //errs() << es << "\n";
+        if (es.end > end) {
+          end = es.end;
+        }
       }
     }
-  }
-scope.end = end;
-return true;
+    scope.end = end;
+    return true;
 
-}
-return false;
+  }
+  return false;
 }
 
 
@@ -348,39 +340,50 @@ bool Matcher::initName(StringRef fname)
   return true;
 }
 
-Matcher::sp_iterator Matcher::initMatch(cu_iterator & ci)
+Matcher::sp_iterator Matcher::resetTarget(StringRef target)
 {
-  if (!initialized) {
-    errs() << "Matcher is not initialized\n";
-    return MySPs.end();
-  }
-  MySPs.clear();
-  processSubprograms(*ci);
-  std::sort(MySPs.begin(), MySPs.end(), cmpDISPCopy);
-  if (LOCAL_DEBUG) 
-    dumpSPs();
-  // shouldn't just return MySPs.begin(). because a CU may contain SPs from other CUs.
-  return initMatch(filename); 
-}
-
-Matcher::sp_iterator Matcher::initMatch(StringRef fname)
-{
-  if (!processed) {
-    errs() << "Warning: Matcher hasn't processed module\n";
-    return sp_end();
-  }
-  if (fname.empty()) {
+  // If target is empty, we assume it's a self-testing:
+  // i.e., the beginning of the compilation unit will be
+  // used.
+  if (target.empty()) {
+    processSubprograms(module); 
     patchname="";
     initialized = true;
     return sp_begin();
   }
-  if (!initialized) {
-    // If argument is empty, we assume it's a self-testing:
-    // i.e., the beginning of the compilation unit will be
-    // used.
-    if (!initName(fname))
+  std::string oldfile = filename;
+  if (!initName(target))
+    return sp_end();
+  if (oldfile == filename) {
+    if (LOCAL_DEBUG) 
+      errs() << "Target source didn't change since last time, reuse old processing.\n";
+  }
+  else {
+    cu_iterator ci = matchCompileUnit(target);
+    if (ci == cu_end())
       return sp_end();
-    initialized = true;
+    MySPs.clear();
+    processSubprograms(*ci);
+    std::sort(MySPs.begin(), MySPs.end(), cmpDISPCopy);
+    if (LOCAL_DEBUG) 
+      dumpSPs();
+  }
+  initialized = true;
+  // shouldn't just return MySPs.begin(). because a CU may contain SPs from other CUs.
+  return slideSPToTarget(filename); 
+}
+
+/* *
+ * Adjust sp_iterator to the starting position of
+ * the target source file region.
+ *
+ * Assumption: MySPs contains the sorted subprograms
+ * */
+Matcher::sp_iterator Matcher::slideSPToTarget(StringRef fname)
+{
+  if (!processed) {
+    errs() << "Warning: Matcher hasn't processed module\n";
+    return sp_end();
   }
   sp_iterator I = sp_begin(), E = sp_end();
 
