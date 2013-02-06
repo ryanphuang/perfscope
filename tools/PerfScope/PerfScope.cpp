@@ -325,13 +325,6 @@ bool followCS(Function *func, FunctionPassManager & FPass)
 
 void slice(DependenceGraph * depGraph, Instruction *I, MODTYPE type)
 {
-//    cout << "slicing inst@" << ScopeInfoFinder::getInstLine(I) << endl;
-//    for (Value::use_iterator UI = I->use_begin(), UE = I->use_end(); UI != UE; UI++) {
-//        Instruction *use = dyn_cast<Instruction>(*UI);
-//        cout << "use@" << ScopeInfoFinder::getInstLine(use) << endl;
-//    }
-//
-  
   if (depGraph == NULL) {
     // errs() << "NULL dependence graph, not slicing\n";
     return;

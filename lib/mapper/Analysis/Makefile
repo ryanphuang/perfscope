@@ -1,6 +1,6 @@
 ##===- lib/Transforms/Makefile -----------------------------*- Makefile -*-===##
 
 LEVEL = ../../..
-DIRS = DSA Dependence DiffEngine
+DIRS = DSA Dependence
 
 include $(LEVEL)/Makefile.common

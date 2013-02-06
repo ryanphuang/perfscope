@@ -3,11 +3,11 @@
 #
 # Relative path to the top of the source tree.
 #
-LEVEL=..
+LEVEL=../..
 
 #
 # List all of the subdirectories that we will compile.
 #
-DIRS=commons parser dependence graph mapper slicer analyzer
+DIRS=DiffEngine RiskEvaluator
 
 include $(LEVEL)/Makefile.common
