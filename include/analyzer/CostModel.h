@@ -70,7 +70,6 @@ class CostModel {
       TCC_Expensive = 4   ///< The cost of a 'div' instruction on x86.
     };
 
-  protected:
     /// \brief Estimate the cost of a specific operation when lowered.
     ///
     /// Note that this is designed to work on an arbitrary synthetic opcode, and
@@ -85,7 +84,7 @@ class CostModel {
     ///
     /// The returned cost is defined in terms of \c TargetCostConstants, see its
     /// comments for a detailed explanation of the cost values.
-    static unsigned getOperationCost(unsigned Opcode, Type *Ty,
+    virtual unsigned getOperationCost(unsigned Opcode, Type *Ty,
                                       Type *OpTy = 0);
 
     /// \brief Estimate the cost of a GEP operation when lowered.
@@ -93,7 +92,7 @@ class CostModel {
     /// The contract for this function is the same as \c getOperationCost except
     /// that it supports an interface that provides extra information specific to
     /// the GEP operation.
-    static unsigned getGEPCost(const Value *Ptr,
+    virtual unsigned getGEPCost(const Value *Ptr,
                                 ArrayRef<const Value *> Operands);
 
     /// \brief Estimate the cost of a function call when lowered.
@@ -105,30 +104,30 @@ class CostModel {
     /// This is the most basic query for estimating call cost: it only knows the
     /// function type and (potentially) the number of arguments at the call site.
     /// The latter is only interesting for varargs function types.
-    static unsigned getCallCost(FunctionType *FTy, int NumArgs = -1);
+    virtual unsigned getCallCost(FunctionType *FTy, int NumArgs = -1);
 
     /// \brief Estimate the cost of calling a specific function when lowered.
     ///
     /// This overload adds the ability to reason about the particular function
     /// being called in the event it is a library call with special lowering.
-    static unsigned getCallCost(const Function *F, int NumArgs = -1);
+    virtual unsigned getCallCost(const Function *F, int NumArgs = -1);
 
     /// \brief Estimate the cost of calling a specific function when lowered.
     ///
     /// This overload allows specifying a set of candidate argument values.
-    static unsigned getCallCost(const Function *F,
+    virtual unsigned getCallCost(const Function *F,
                                  ArrayRef<const Value *> Arguments);
 
     /// \brief Estimate the cost of an intrinsic when lowered.
     ///
     /// Mirrors the \c getCallCost method but uses an intrinsic identifier.
-    static unsigned getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
+    virtual unsigned getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
                                       ArrayRef<Type *> ParamTys);
 
     /// \brief Estimate the cost of an intrinsic when lowered.
     ///
     /// Mirrors the \c getCallCost method but uses an intrinsic identifier.
-    static unsigned getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
+    virtual unsigned getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
                                       ArrayRef<const Value *> Arguments);
 
     /// \brief Estimate the cost of a given IR user when lowered.
@@ -146,7 +145,7 @@ class CostModel {
     ///
     /// The returned cost is defined in terms of \c TargetCostConstants, see its
     /// comments for a detailed explanation of the cost values.
-    static unsigned getUserCost(const User *U);
+    virtual unsigned getUserCost(const User *U);
 
     /// \brief The various kinds of shuffle patterns for vector queries.
     enum ShuffleKind {
@@ -157,47 +156,44 @@ class CostModel {
     };
 
     /// \return The expected cost of arithmetic ops, such as mul, xor, fsub, etc.
-    static unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty);
+    virtual unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty);
 
     /// \return The cost of a shuffle instruction of kind Kind and of type Tp.
     /// The index and subtype parameters are used by the subvector insertion and
     /// extraction shuffle kinds.
-    static unsigned getShuffleCost(ShuffleKind Kind, Type *Tp, int Index = 0,
+    virtual unsigned getShuffleCost(ShuffleKind Kind, Type *Tp, int Index = 0,
                                     Type *SubTp = 0);
 
     /// \return The expected cost of cast instructions, such as bitcast, trunc,
     /// zext, etc.
-    static unsigned getCastInstrCost(unsigned Opcode, Type *Dst,
+    virtual unsigned getCastInstrCost(unsigned Opcode, Type *Dst,
                                       Type *Src);
 
     /// \return The expected cost of control-flow related instrutctions such as
     /// Phi, Ret, Br.
-    static unsigned getCFInstrCost(unsigned Opcode);
+    virtual unsigned getCFInstrCost(unsigned Opcode);
 
     /// \returns The expected cost of compare and select instructions.
-    static unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
+    virtual unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
                                         Type *CondTy = 0);
 
     /// \return The expected cost of vector Insert and Extract.
     /// Use -1 to indicate that there is no information on the index value.
-    static unsigned getVectorInstrCost(unsigned Opcode, Type *Val,
+    virtual unsigned getVectorInstrCost(unsigned Opcode, Type *Val,
                                         unsigned Index = -1);
 
     /// \return The cost of Load and Store instructions.
-    static unsigned getMemoryOpCost(unsigned Opcode, Type *Src,
+    virtual unsigned getMemoryOpCost(unsigned Opcode, Type *Src,
                                      unsigned Alignment,
                                      unsigned AddressSpace);
 
     /// \returns The cost of Intrinsic instructions.
-    static unsigned getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
+    virtual unsigned getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
                                            ArrayRef<Type *> Tys);
 
-
-
-
   public:
-    //Currently only need a static interface
-    static unsigned getInstructionCost(Instruction *I);
+    //Currently only need a virtual interface
+    virtual unsigned getInstructionCost(Instruction *I);
 };
 
 
