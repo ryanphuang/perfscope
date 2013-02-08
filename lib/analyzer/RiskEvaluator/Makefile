@@ -1,8 +1,7 @@
 ##===- lib/Transforms/MDMap/Makefile -----------------------*- Makefile -*-===##
 
 LEVEL = ../../..
-LIBRARYNAME = LLVMRiskEval
-LOADABLE_MODULE = 1
+LIBRARYNAME = riskeval
 
 include $(LEVEL)/Makefile.common
 

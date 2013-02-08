@@ -48,6 +48,7 @@ namespace llvm {
 class CostModel {
 
   public:
+
     /// \brief Underlying constants for 'cost' values in this interface.
     ///
     /// Many APIs in this interface return a cost. This enum defines the

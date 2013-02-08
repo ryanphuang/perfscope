@@ -35,17 +35,21 @@
 namespace llvm {
 
 class X86CostModel : public CostModel {
-  virtual unsigned getNumberOfRegisters(bool Vector);
-  virtual unsigned getRegisterBitWidth(bool Vector);
-  virtual unsigned getMaximumUnrollFactor();
-  virtual unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty);
-  virtual unsigned getShuffleCost(ShuffleKind Kind, Type *Tp, int Index, Type *SubTp);
-  virtual unsigned getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src);
-  virtual unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy);
-  virtual unsigned getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index);
-  virtual unsigned getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment, 
-      unsigned AddressSpace);
+  public:
+    X86CostModel();
+    int InstructionOpcodeToISD(unsigned Opcode); 
+
+    virtual unsigned getNumberOfRegisters(bool Vector);
+    virtual unsigned getRegisterBitWidth(bool Vector);
+    virtual unsigned getMaximumUnrollFactor();
+    virtual unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty);
+    virtual unsigned getShuffleCost(ShuffleKind Kind, Type *Tp, int Index, Type *SubTp);
+    virtual unsigned getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src);
+    virtual unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy);
+    virtual unsigned getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index);
+    virtual unsigned getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment, 
+        unsigned AddressSpace);
 };
 
-}; // End of llvm namespace
+} // End of llvm namespace
 #endif /* __X86COSTMODEL_H_ */
