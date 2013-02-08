@@ -8,6 +8,6 @@ LEVEL=../..
 #
 # List all of the subdirectories that we will compile.
 #
-DIRS=CommonsDriver MapperDriver MatcherDriver DecoderDriver
+DIRS=CommonsDriver CostModelDriver MapperDriver MatcherDriver DecoderDriver
 
 include $(LEVEL)/Makefile.common
