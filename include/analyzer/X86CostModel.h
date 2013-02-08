@@ -30,14 +30,26 @@
 #ifndef __X86COSTMODEL_H_
 #define __X86COSTMODEL_H_
 
+#include <string>
+#include <utility>
+
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetLowering.h"
+
+#include "analyzer/TargetTransformStub.h"
+#include "analyzer/X86SubtargetStub.h"
 #include "analyzer/CostModel.h"
 
 namespace llvm {
 
 class X86CostModel : public CostModel {
+  protected:
+    X86SubtargetStub * ST;
+    VectorTargetTransformStub * VTT;
+    const TargetLowering * TLI;
+
   public:
-    X86CostModel();
-    int InstructionOpcodeToISD(unsigned Opcode); 
+    X86CostModel(const std::string TripleStr = "x86_64-unknown-linux-gnu", const std::string FeatureStr = "");
 
     virtual unsigned getNumberOfRegisters(bool Vector);
     virtual unsigned getRegisterBitWidth(bool Vector);
