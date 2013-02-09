@@ -31,7 +31,8 @@
 
 using namespace llvm;
 
-unsigned CostModel::getOperationCost(unsigned Opcode, Type *Ty, Type *OpTy) {
+unsigned CostModel::getOperationCost(unsigned Opcode, Type *Ty, Type *OpTy) const 
+{
   switch (Opcode) {
     default:
       // By default, just classify everything as 'basic'.
@@ -89,7 +90,8 @@ unsigned CostModel::getOperationCost(unsigned Opcode, Type *Ty, Type *OpTy) {
 }
 
 unsigned CostModel::getGEPCost(const Value *Ptr,
-    ArrayRef<const Value *> Operands){
+    ArrayRef<const Value *> Operands) const 
+{
   // In the basic model, we just assume that all-constant GEPs will be folded
   // into their uses via addressing modes.
   for (unsigned Idx = 0, Size = Operands.size(); Idx != Size; ++Idx)
@@ -99,7 +101,8 @@ unsigned CostModel::getGEPCost(const Value *Ptr,
   return TCC_Free;
 }
 
-unsigned CostModel::getCallCost(FunctionType *FTy, int NumArgs) {
+unsigned CostModel::getCallCost(FunctionType *FTy, int NumArgs) const 
+{
   assert(FTy && "FunctionType must be provided to this routine.");
 
   // The target-independent implementation just measures the size of the
@@ -114,7 +117,8 @@ unsigned CostModel::getCallCost(FunctionType *FTy, int NumArgs) {
   return TCC_Basic * (NumArgs + 1);
 }
 
-unsigned CostModel::getCallCost(const Function *F, int NumArgs) {
+unsigned CostModel::getCallCost(const Function *F, int NumArgs) const 
+{
   assert(F && "A concrete function must be provided to this routine.");
 
   if (NumArgs < 0)
@@ -139,7 +143,8 @@ unsigned CostModel::getCallCost(const Function *F, int NumArgs) {
 }
 
 unsigned CostModel::getCallCost(const Function *F,
-    ArrayRef<const Value *> Arguments) {
+    ArrayRef<const Value *> Arguments) const 
+{
   // Simply delegate to generic handling of the call.
   // FIXME: We should use instsimplify or something else to catch calls which
   // will constant fold with these arguments.
@@ -148,7 +153,8 @@ unsigned CostModel::getCallCost(const Function *F,
 }
 
 unsigned CostModel::getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
-    ArrayRef<Type *> ParamTys) {
+    ArrayRef<Type *> ParamTys) const 
+{
   switch (IID) {
     default:
       // Intrinsics rarely (if ever) have normal argument setup constraints.
@@ -171,7 +177,8 @@ unsigned CostModel::getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
 }
 
 unsigned CostModel::getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
-    ArrayRef<const Value *> Arguments) {
+    ArrayRef<const Value *> Arguments) const 
+{
   // Delegate to the generic intrinsic handling code. This mostly provides an
   // opportunity for targets to (for example) special case the cost of
   // certain intrinsics based on constants used as arguments.
@@ -185,7 +192,8 @@ unsigned CostModel::getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
   */
 }
 
-unsigned CostModel::getUserCost(const User *U) {
+unsigned CostModel::getUserCost(const User *U) const 
+{
   if (isa<PHINode>(U))
     return TCC_Free; // Model all PHI nodes as free.
 
@@ -228,42 +236,50 @@ unsigned CostModel::getUserCost(const User *U) {
       U->getOperand(0)->getType() : 0);
 }
 
-unsigned CostModel::getArithmeticInstrCost(unsigned Opcode, Type *Ty) {
+unsigned CostModel::getArithmeticInstrCost(unsigned Opcode, Type *Ty) const 
+{
   return 1;
 }
 
 unsigned CostModel::getShuffleCost(ShuffleKind Kind, Type *Tp, int Index, 
-  Type *SubTp ) {
+  Type *SubTp ) const 
+{
   return 1;
 }
 
-unsigned CostModel::getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src){
+unsigned CostModel::getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src) const 
+{
   return 1;
 }
 
-unsigned CostModel::getCFInstrCost(unsigned Opcode) {
+unsigned CostModel::getCFInstrCost(unsigned Opcode) const 
+{
   return 1;
 }
 
-unsigned CostModel::getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy) {
+unsigned CostModel::getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy) const 
+{
   return 1;
 }
 
-unsigned CostModel::getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index ) {
+unsigned CostModel::getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index ) const 
+{
   return 1;
 }
 
 unsigned CostModel::getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
-  unsigned AddressSpace) {
+  unsigned AddressSpace) const 
+{
   return 1;
 }
 
 unsigned CostModel::getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy, 
-  ArrayRef<Type*> Tys) {
+  ArrayRef<Type*> Tys) const 
+{
   return 1;
 }
 
-unsigned CostModel::getInstructionCost(Instruction *I)
+unsigned CostModel::getInstructionCost(Instruction *I) const
 {
   switch (I->getOpcode()) {
     case Instruction::Ret:

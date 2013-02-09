@@ -51,16 +51,16 @@ class X86CostModel : public CostModel {
   public:
     X86CostModel(const std::string TripleStr = "x86_64-unknown-linux-gnu", const std::string FeatureStr = "");
 
-    virtual unsigned getNumberOfRegisters(bool Vector);
-    virtual unsigned getRegisterBitWidth(bool Vector);
-    virtual unsigned getMaximumUnrollFactor();
-    virtual unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty);
-    virtual unsigned getShuffleCost(ShuffleKind Kind, Type *Tp, int Index, Type *SubTp);
-    virtual unsigned getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src);
-    virtual unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy);
-    virtual unsigned getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index);
+    virtual unsigned getNumberOfRegisters(bool Vector) const;
+    virtual unsigned getRegisterBitWidth(bool Vector) const;
+    virtual unsigned getMaximumUnrollFactor() const;
+    virtual unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty) const;
+    virtual unsigned getShuffleCost(ShuffleKind Kind, Type *Tp, int Index, Type *SubTp) const;
+    virtual unsigned getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src) const;
+    virtual unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy) const;
+    virtual unsigned getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index) const;
     virtual unsigned getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment, 
-        unsigned AddressSpace);
+        unsigned AddressSpace) const;
 };
 
 } // End of llvm namespace

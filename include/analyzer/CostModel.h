@@ -48,6 +48,7 @@ namespace llvm {
 class CostModel {
 
   public:
+    CostModel() {}
 
     /// \brief Underlying constants for 'cost' values in this interface.
     ///
@@ -86,15 +87,14 @@ class CostModel {
     /// The returned cost is defined in terms of \c TargetCostConstants, see its
     /// comments for a detailed explanation of the cost values.
     virtual unsigned getOperationCost(unsigned Opcode, Type *Ty,
-                                      Type *OpTy = 0);
+                                      Type *OpTy = 0) const;
 
     /// \brief Estimate the cost of a GEP operation when lowered.
     ///
     /// The contract for this function is the same as \c getOperationCost except
     /// that it supports an interface that provides extra information specific to
     /// the GEP operation.
-    virtual unsigned getGEPCost(const Value *Ptr,
-                                ArrayRef<const Value *> Operands);
+    virtual unsigned getGEPCost(const Value *Ptr, ArrayRef<const Value *> Operands) const;
 
     /// \brief Estimate the cost of a function call when lowered.
     ///
@@ -105,31 +105,31 @@ class CostModel {
     /// This is the most basic query for estimating call cost: it only knows the
     /// function type and (potentially) the number of arguments at the call site.
     /// The latter is only interesting for varargs function types.
-    virtual unsigned getCallCost(FunctionType *FTy, int NumArgs = -1);
+    virtual unsigned getCallCost(FunctionType *FTy, int NumArgs = -1) const;
 
     /// \brief Estimate the cost of calling a specific function when lowered.
     ///
     /// This overload adds the ability to reason about the particular function
     /// being called in the event it is a library call with special lowering.
-    virtual unsigned getCallCost(const Function *F, int NumArgs = -1);
+    virtual unsigned getCallCost(const Function *F, int NumArgs = -1) const;
 
     /// \brief Estimate the cost of calling a specific function when lowered.
     ///
     /// This overload allows specifying a set of candidate argument values.
     virtual unsigned getCallCost(const Function *F,
-                                 ArrayRef<const Value *> Arguments);
+                                 ArrayRef<const Value *> Arguments) const;
 
     /// \brief Estimate the cost of an intrinsic when lowered.
     ///
     /// Mirrors the \c getCallCost method but uses an intrinsic identifier.
     virtual unsigned getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
-                                      ArrayRef<Type *> ParamTys);
+                                      ArrayRef<Type *> ParamTys) const;
 
     /// \brief Estimate the cost of an intrinsic when lowered.
     ///
     /// Mirrors the \c getCallCost method but uses an intrinsic identifier.
     virtual unsigned getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
-                                      ArrayRef<const Value *> Arguments);
+                                      ArrayRef<const Value *> Arguments) const;
 
     /// \brief Estimate the cost of a given IR user when lowered.
     ///
@@ -146,7 +146,7 @@ class CostModel {
     ///
     /// The returned cost is defined in terms of \c TargetCostConstants, see its
     /// comments for a detailed explanation of the cost values.
-    virtual unsigned getUserCost(const User *U);
+    virtual unsigned getUserCost(const User *U) const;
 
     /// \brief The various kinds of shuffle patterns for vector queries.
     enum ShuffleKind {
@@ -157,44 +157,44 @@ class CostModel {
     };
 
     /// \return The expected cost of arithmetic ops, such as mul, xor, fsub, etc.
-    virtual unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty);
+    virtual unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty) const;
 
     /// \return The cost of a shuffle instruction of kind Kind and of type Tp.
     /// The index and subtype parameters are used by the subvector insertion and
     /// extraction shuffle kinds.
     virtual unsigned getShuffleCost(ShuffleKind Kind, Type *Tp, int Index = 0,
-                                    Type *SubTp = 0);
+                                    Type *SubTp = 0) const;
 
     /// \return The expected cost of cast instructions, such as bitcast, trunc,
     /// zext, etc.
     virtual unsigned getCastInstrCost(unsigned Opcode, Type *Dst,
-                                      Type *Src);
+                                      Type *Src) const;
 
     /// \return The expected cost of control-flow related instrutctions such as
     /// Phi, Ret, Br.
-    virtual unsigned getCFInstrCost(unsigned Opcode);
+    virtual unsigned getCFInstrCost(unsigned Opcode) const;
 
     /// \returns The expected cost of compare and select instructions.
     virtual unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
-                                        Type *CondTy = 0);
+                                        Type *CondTy = 0) const;
 
     /// \return The expected cost of vector Insert and Extract.
     /// Use -1 to indicate that there is no information on the index value.
     virtual unsigned getVectorInstrCost(unsigned Opcode, Type *Val,
-                                        unsigned Index = -1);
+                                        unsigned Index = -1) const;
 
     /// \return The cost of Load and Store instructions.
     virtual unsigned getMemoryOpCost(unsigned Opcode, Type *Src,
                                      unsigned Alignment,
-                                     unsigned AddressSpace);
+                                     unsigned AddressSpace) const;
 
     /// \returns The cost of Intrinsic instructions.
     virtual unsigned getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
-                                           ArrayRef<Type *> Tys);
+                                           ArrayRef<Type *> Tys) const;
 
   public:
     //Currently only need a virtual interface
-    virtual unsigned getInstructionCost(Instruction *I);
+    virtual unsigned getInstructionCost(Instruction *I) const;
 };
 
 

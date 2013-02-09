@@ -111,7 +111,7 @@ X86CostModel::X86CostModel(const std::string TripleStr,
   errs() << "hasCmpxchg16b " << ST->hasCmpxchg16b() << "\n";
 }
 
-unsigned X86CostModel::getNumberOfRegisters(bool Vector)
+unsigned X86CostModel::getNumberOfRegisters(bool Vector) const
 {
   if (Vector && !ST->hasSSE1())
     return 0;
@@ -120,7 +120,7 @@ unsigned X86CostModel::getNumberOfRegisters(bool Vector)
     return 16;
   return 8;
 }
-unsigned X86CostModel::getRegisterBitWidth(bool Vector)
+unsigned X86CostModel::getRegisterBitWidth(bool Vector) const
 {
   if (Vector) {
     if (ST->hasAVX()) return 256;
@@ -132,7 +132,8 @@ unsigned X86CostModel::getRegisterBitWidth(bool Vector)
     return 64;
   return 32;
 }
-unsigned X86CostModel::getMaximumUnrollFactor()
+
+unsigned X86CostModel::getMaximumUnrollFactor() const
 {
   if (ST->isAtom())
     return 1;
@@ -144,7 +145,8 @@ unsigned X86CostModel::getMaximumUnrollFactor()
 
   return 2;
 }
-unsigned X86CostModel::getArithmeticInstrCost(unsigned Opcode, Type *Ty)
+
+unsigned X86CostModel::getArithmeticInstrCost(unsigned Opcode, Type *Ty) const
 {
   std::pair<unsigned, MVT> LT = VTT->getTypeLegalizationCost(Ty);
 
@@ -175,7 +177,7 @@ unsigned X86CostModel::getArithmeticInstrCost(unsigned Opcode, Type *Ty)
 }
 
 unsigned X86CostModel::getShuffleCost(ShuffleKind Kind, Type *Tp,
-   int Index, Type *SubTp)
+   int Index, Type *SubTp) const
 {
     // We only estimate the cost of reverse shuffles.
   if (Kind != SK_Reverse) {
@@ -193,7 +195,7 @@ unsigned X86CostModel::getShuffleCost(ShuffleKind Kind, Type *Tp,
 }
 
 unsigned X86CostModel::getCastInstrCost(unsigned Opcode, Type *Dst,
-   Type *Src)
+   Type *Src) const
 {
   int ISD = VectorTargetTransformStub::InstructionOpcodeToISD(Opcode);
   assert(ISD && "Invalid opcode");
@@ -236,7 +238,7 @@ unsigned X86CostModel::getCastInstrCost(unsigned Opcode, Type *Dst,
 }
 
 unsigned X86CostModel::getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
-   Type *CondTy)
+   Type *CondTy) const
 {
   // Legalize the type.
   std::pair<unsigned, MVT> LT = VTT->getTypeLegalizationCost(ValTy);
@@ -297,7 +299,7 @@ unsigned X86CostModel::getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
 }
 
 unsigned X86CostModel::getVectorInstrCost(unsigned Opcode, Type *Val,
-   unsigned Index)
+   unsigned Index) const
 {
   assert(Val->isVectorTy() && "This must be a vector type");
 
@@ -321,7 +323,7 @@ unsigned X86CostModel::getVectorInstrCost(unsigned Opcode, Type *Val,
 }
 
 unsigned X86CostModel::getMemoryOpCost(unsigned Opcode, Type *Src,
-   unsigned Alignment, unsigned AddressSpace)
+   unsigned Alignment, unsigned AddressSpace) const
 {
   // Legalize the type.
   std::pair<unsigned, MVT> LT = VTT->getTypeLegalizationCost(Src);
