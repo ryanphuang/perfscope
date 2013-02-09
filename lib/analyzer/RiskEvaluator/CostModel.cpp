@@ -33,60 +33,7 @@ using namespace llvm;
 
 unsigned CostModel::getOperationCost(unsigned Opcode, Type *Ty, Type *OpTy) const 
 {
-  switch (Opcode) {
-    default:
-      // By default, just classify everything as 'basic'.
-      return TCC_Basic;
-
-    case Instruction::GetElementPtr:
-      llvm_unreachable("Use getGEPCost for GEP operations!");
-
-    case Instruction::BitCast:
-      assert(OpTy && "Cast instructions must provide the operand type");
-      if (Ty == OpTy || (Ty->isPointerTy() && OpTy->isPointerTy()))
-        // Identity and pointer-to-pointer casts are free.
-        return TCC_Free;
-
-      // Otherwise, the default basic cost is used.
-      return TCC_Basic;
-
-    case Instruction::IntToPtr:
-      // An inttoptr cast is free so long as the input is a legal integer type
-      // which doesn't contain values outside the range of a pointer.
-      llvm_unreachable("Unimplemented!");
-      /*
-      if (DL && DL->isLegalInteger(OpTy->getScalarSizeInBits()) &&
-          OpTy->getScalarSizeInBits() <= DL->getPointerSizeInBits())
-        return TCC_Free;
-
-      // Otherwise it's not a no-op.
-      return TCC_Basic;
-      */
-
-    case Instruction::PtrToInt:
-      llvm_unreachable("Unimplemented!");
-      // A ptrtoint cast is free so long as the result is large enough to store
-      // the pointer, and a legal integer type.
-      /*
-      if (DL && DL->isLegalInteger(OpTy->getScalarSizeInBits()) &&
-          OpTy->getScalarSizeInBits() >= DL->getPointerSizeInBits())
-        return TCC_Free;
-
-      // Otherwise it's not a no-op.
-      return TCC_Basic;
-      */
-
-    case Instruction::Trunc:
-      llvm_unreachable("Unimplemented!");
-      /*
-      // trunc to a native type is free (assuming the target has compare and
-      // shift-right of the same width).
-      if (DL && DL->isLegalInteger(DL->getTypeSizeInBits(Ty)))
-        return TCC_Free;
-
-      return TCC_Basic;
-      */
-  }
+  llvm_unreachable("Unimplemented!");
 }
 
 unsigned CostModel::getGEPCost(const Value *Ptr,
@@ -119,37 +66,13 @@ unsigned CostModel::getCallCost(FunctionType *FTy, int NumArgs) const
 
 unsigned CostModel::getCallCost(const Function *F, int NumArgs) const 
 {
-  assert(F && "A concrete function must be provided to this routine.");
-
-  if (NumArgs < 0)
-    // Set the argument number to the number of explicit arguments in the
-    // function.
-    NumArgs = F->arg_size();
-  
   llvm_unreachable("Unimplemented!");
-
-  /*
-  if (Intrinsic::ID IID = (Intrinsic::ID)F->getIntrinsicID()) {
-    FunctionType *FTy = F->getFunctionType();
-    SmallVector<Type *, 8> ParamTys(FTy->param_begin(), FTy->param_end());
-    return TopTTI->getIntrinsicCost(IID, FTy->getReturnType(), ParamTys);
-  }
-
-  if (!TopTTI->isLoweredToCall(F))
-    return TCC_Basic; // Give a basic cost if it will be lowered directly.
-
-  return TopTTI->getCallCost(F->getFunctionType(), NumArgs);
-  */
 }
 
 unsigned CostModel::getCallCost(const Function *F,
     ArrayRef<const Value *> Arguments) const 
 {
-  // Simply delegate to generic handling of the call.
-  // FIXME: We should use instsimplify or something else to catch calls which
-  // will constant fold with these arguments.
   llvm_unreachable("Unimplemented!");
-  // return TopTTI->getCallCost(F, Arguments.size());
 }
 
 unsigned CostModel::getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
@@ -179,61 +102,12 @@ unsigned CostModel::getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
 unsigned CostModel::getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
     ArrayRef<const Value *> Arguments) const 
 {
-  // Delegate to the generic intrinsic handling code. This mostly provides an
-  // opportunity for targets to (for example) special case the cost of
-  // certain intrinsics based on constants used as arguments.
   llvm_unreachable("Unimplemented!");
-  /*
-  SmallVector<Type *, 8> ParamTys;
-  ParamTys.reserve(Arguments.size());
-  for (unsigned Idx = 0, Size = Arguments.size(); Idx != Size; ++Idx)
-    ParamTys.push_back(Arguments[Idx]->getType());
-  return TopTTI->getIntrinsicCost(IID, RetTy, ParamTys);
-  */
 }
 
 unsigned CostModel::getUserCost(const User *U) const 
 {
-  if (isa<PHINode>(U))
-    return TCC_Free; // Model all PHI nodes as free.
-
-  if (const GEPOperator *GEP = dyn_cast<GEPOperator>(U))
-    // In the basic model we just assume that all-constant GEPs will be
-    // folded into their uses via addressing modes.
-    return GEP->hasAllConstantIndices() ? TCC_Free : TCC_Basic;
-
-  if (ImmutableCallSite CS = U) {
     llvm_unreachable("Unimplemented!");
-    /*
-    const Function *F = CS.getCalledFunction();
-    if (!F) {
-      // Just use the called value type.
-      Type *FTy = CS.getCalledValue()->getType()->getPointerElementType();
-      return TopTTI->getCallCost(cast<FunctionType>(FTy), CS.arg_size());
-    }
-
-    SmallVector<const Value *, 8> Arguments;
-    for (ImmutableCallSite::arg_iterator AI = CS.arg_begin(),
-        AE = CS.arg_end();
-        AI != AE; ++AI)
-      Arguments.push_back(*AI);
-
-    return TopTTI->getCallCost(F, Arguments);
-    */
-  }
-
-  if (const CastInst *CI = dyn_cast<CastInst>(U)) {
-    // Result of a cmp instruction is often extended (to be used by other
-    // cmp instructions, logical or return instructions). These are usually
-    // nop on most sane targets.
-    if (isa<CmpInst>(CI->getOperand(0)))
-      return TCC_Free;
-  }
-
-  // Otherwise delegate to the fully generic implementations.
-  return getOperationCost(Operator::getOpcode(U), U->getType(),
-      U->getNumOperands() == 1 ?
-      U->getOperand(0)->getType() : 0);
 }
 
 unsigned CostModel::getArithmeticInstrCost(unsigned Opcode, Type *Ty) const 
