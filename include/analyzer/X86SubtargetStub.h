@@ -180,6 +180,9 @@ public:
     ParseSubtargetFeatures(bits);
   }
 
+  //TODO stub
+  bool isAtom() const { return false; }
+
   bool is64Bit() const { return In64BitMode; }
 
   bool hasCMov() const { return HasCMov; }

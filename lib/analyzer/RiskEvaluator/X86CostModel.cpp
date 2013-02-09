@@ -101,26 +101,48 @@ X86CostModel::X86CostModel(const std::string TripleStr,
   errs() << "The feature bits are: " << Bits << "\n";
 
   ST = new X86SubtargetStub(Bits);
+
+
   errs() << "has3DNow " << ST->has3DNow() << "\n";
   errs() << "hasAVX " << ST->hasAVX() << "\n";
   errs() << "is64Bit " << ST->is64Bit() << "\n";
   errs() << "hasBMI " << ST->hasBMI() << "\n";
   errs() << "isBTMemSlow " << ST->isBTMemSlow() << "\n";
   errs() << "hasCmpxchg16b " << ST->hasCmpxchg16b() << "\n";
-
 }
 
 unsigned X86CostModel::getNumberOfRegisters(bool Vector)
 {
-  return 1;
+  if (Vector && !ST->hasSSE1())
+    return 0;
+
+  if (ST->is64Bit())
+    return 16;
+  return 8;
 }
 unsigned X86CostModel::getRegisterBitWidth(bool Vector)
 {
-  return 1;
+  if (Vector) {
+    if (ST->hasAVX()) return 256;
+    if (ST->hasSSE1()) return 128;
+    return 0;
+  }
+
+  if (ST->is64Bit())
+    return 64;
+  return 32;
 }
 unsigned X86CostModel::getMaximumUnrollFactor()
 {
-  return 1;
+  if (ST->isAtom())
+    return 1;
+
+  // Sandybridge and Haswell have multiple execution ports and pipelined
+  // vector units.
+  if (ST->hasAVX())
+    return 4;
+
+  return 2;
 }
 unsigned X86CostModel::getArithmeticInstrCost(unsigned Opcode, Type *Ty)
 {
@@ -277,12 +299,45 @@ unsigned X86CostModel::getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
 unsigned X86CostModel::getVectorInstrCost(unsigned Opcode, Type *Val,
    unsigned Index)
 {
-  return 1;
+  assert(Val->isVectorTy() && "This must be a vector type");
+
+  if (Index != -1U) {
+    // Legalize the type.
+    std::pair<unsigned, MVT> LT = VTT->getTypeLegalizationCost(Val);
+
+    // This type is legalized to a scalar type.
+    if (!LT.second.isVector())
+      return 0;
+
+    // The type may be split. Normalize the index to the new type.
+    unsigned Width = LT.second.getVectorNumElements();
+    Index = Index % Width;
+
+    // Floating point scalars are already located in index #0.
+    if (Val->getScalarType()->isFloatingPointTy() && Index == 0)
+      return 0;
+  }
+  return VTT->getVectorInstrCost(Opcode, Val, Index);
 }
+
 unsigned X86CostModel::getMemoryOpCost(unsigned Opcode, Type *Src,
    unsigned Alignment, unsigned AddressSpace)
 {
-  return 1;
+  // Legalize the type.
+  std::pair<unsigned, MVT> LT = VTT->getTypeLegalizationCost(Src);
+  assert((Opcode == Instruction::Load || Opcode == Instruction::Store) &&
+         "Invalid Opcode");
+
+  // Each load/store unit costs 1.
+  unsigned Cost = LT.first * 1;
+
+  // On Sandybridge 256bit load/stores are double pumped
+  // (but not on Haswell).
+  // if (LT.second.getSizeInBits() > 128 && !ST->hasAVX2())
+  if (LT.second.getSizeInBits() > 128)
+    Cost*=2;
+
+  return Cost;
 }
 
 
