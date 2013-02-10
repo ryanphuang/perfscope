@@ -10,11 +10,12 @@ LEVEL=../../..
 #
 
 TOOLNAME=costdriver
+#
+# LIBRARYNAME = LLVMCostDriver
+# LOADABLE_MODULE = 1
+USEDLIBS = riskeval.a
 
-USEDLIBS=riskeval.a
-
-#LLVMLIBS=LLVMSupport.a LLVMCore.a LLVMSupport.a LLVMCore.a LLVMBitReader.a LLVMAsmParser.a LLVMAnalysis.a LLVMTransformUtils.a LLVMScalarOpts.a LLVMTarget.a
-
+# LLVMLIBS = LLVMSupport.a
 LINK_COMPONENTS = all
 
 include $(LEVEL)/Makefile.common

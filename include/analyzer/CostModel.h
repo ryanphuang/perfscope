@@ -195,6 +195,8 @@ class CostModel {
   public:
     //Currently only need a virtual interface
     virtual unsigned getInstructionCost(Instruction *I) const;
+    virtual unsigned getBasicBlockCost(const BasicBlock *BB) const;
+    virtual unsigned getFunctionCost(const Function *F) const;
 };
 
 

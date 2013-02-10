@@ -57,41 +57,9 @@ using namespace llvm;
 #define WARN_DEFAULT_COST(type)  \
   errs() << "Warning: " <<  #type << " falling to default cost\n"
 
-
-X86CostModel::X86CostModel(const std::string TripleStr, 
-  const std::string FeatureStr) 
+X86CostModel::X86CostModel(TargetMachine *TM)
 {
-  const std::string CPUStr = llvm::sys::getHostCPUName();
-  errs() << "CPU String is " << CPUStr << "\n";
-
-  std::string Err;
-  const Target* T;
-  TargetMachine* TM = NULL;
-
-  // specially call for X86 target for general target, use:
-  // InitializeAllTargets();
-  // InitializeAllTargetMCs();
-  // InitializeAllAsmPrinters();
-  // InitializeAllAsmParsers();
-
-  LLVMInitializeX86TargetInfo();
-  LLVMInitializeX86Target();
-  LLVMInitializeX86TargetMC();
-  LLVMInitializeX86AsmPrinter();
-  LLVMInitializeX86AsmParser();
-
-  T = TargetRegistry::lookupTarget(TripleStr, Err);
-  if(!Err.empty()) {
-    errs() << "Cannot find target: " << Err << "\n";
-    return;
-  }
-
-  // Create TargetMachine
-  TM = T->createTargetMachine(TripleStr, CPUStr, FeatureStr);
-  if(TM == NULL) {
-    errs() << "Cannot create target machine\n";
-    return;
-  }
+  assert (TM && "Target machine cannot be NULL");
   TLI = TM->getTargetLowering();
   assert(TLI && "No associated target lowering");
   VTT = new VectorTargetTransformStub(TLI);
@@ -101,7 +69,6 @@ X86CostModel::X86CostModel(const std::string TripleStr,
   errs() << "The feature bits are: " << Bits << "\n";
 
   ST = new X86SubtargetStub(Bits);
-
 
   errs() << "has3DNow " << ST->has3DNow() << "\n";
   errs() << "hasAVX " << ST->hasAVX() << "\n";
@@ -172,7 +139,7 @@ unsigned X86CostModel::getArithmeticInstrCost(unsigned Opcode, Type *Ty) const
     if (Idx != -1)
       return LT.first * AVX1CostTable[Idx].Cost;
   }
-  WARN_DEFAULT_COST(arithmetic);
+  //WARN_DEFAULT_COST(arithmetic);
   return VTT->getArithmeticInstrCost(Opcode, Ty);
 }
 

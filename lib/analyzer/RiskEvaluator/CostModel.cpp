@@ -27,6 +27,9 @@
  *
  */
 
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/IntrinsicInst.h"
+
 #include "analyzer/CostModel.h"
 
 using namespace llvm;
@@ -107,54 +110,57 @@ unsigned CostModel::getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
 
 unsigned CostModel::getUserCost(const User *U) const 
 {
-    llvm_unreachable("Unimplemented!");
+  llvm_unreachable("Unimplemented!");
 }
 
 unsigned CostModel::getArithmeticInstrCost(unsigned Opcode, Type *Ty) const 
 {
-  return 1;
+  return TCC_Basic;
 }
 
 unsigned CostModel::getShuffleCost(ShuffleKind Kind, Type *Tp, int Index, 
   Type *SubTp ) const 
 {
-  return 1;
+  return TCC_Basic;
 }
 
 unsigned CostModel::getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src) const 
 {
-  return 1;
+  return TCC_Basic;
 }
 
 unsigned CostModel::getCFInstrCost(unsigned Opcode) const 
 {
-  return 1;
+  return TCC_Basic;
 }
 
 unsigned CostModel::getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy) const 
 {
-  return 1;
+  return TCC_Basic;
 }
 
 unsigned CostModel::getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index ) const 
 {
-  return 1;
+  return TCC_Basic;
 }
 
 unsigned CostModel::getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
   unsigned AddressSpace) const 
 {
-  return 1;
+  return TCC_Basic;
 }
 
 unsigned CostModel::getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy, 
   ArrayRef<Type*> Tys) const 
 {
-  return 1;
+  return TCC_Basic;
 }
 
 unsigned CostModel::getInstructionCost(Instruction *I) const
 {
+  if (isa<IntrinsicInst>(I)) {
+    return TCC_Free; // simply ignore intrinsic instructions
+  }
   switch (I->getOpcode()) {
     case Instruction::Ret:
     case Instruction::PHI:
@@ -190,6 +196,10 @@ unsigned CostModel::getInstructionCost(Instruction *I) const
     case Instruction::FCmp: {
       Type *ValTy = I->getOperand(0)->getType();
       return getCmpSelInstrCost(I->getOpcode(), ValTy);
+    }
+    case Instruction::Alloca: {
+      // For now, we assume alloca is free
+      return 0;
     }
     case Instruction::Store: {
       StoreInst *SI = cast<StoreInst>(I);
@@ -237,9 +247,26 @@ unsigned CostModel::getInstructionCost(Instruction *I) const
       return getVectorInstrCost(I->getOpcode(),
                                       IE->getType(), Idx);
     }
+    case Instruction::Call: {
+      // The target-independent implementation just measures the size of the
+      // function by approximating that each argument will take on average one
+      // instruction to prepare.
+      CallInst * CI = dyn_cast<CallInst>(I);
+      return TCC_Basic * (CI->getNumArgOperands() + 1);
+    }
     default:
-      // We don't have any information on this instruction.
+      errs() << "Warning: unknown cost for instruction " << I->getOpcode() << "\n";
       return -1;
   }
 }
 
+unsigned CostModel::getBasicBlockCost(const BasicBlock *BB) const
+{
+  return TCC_Basic;
+}
+
+unsigned CostModel::getFunctionCost(const Function *F) const
+{
+  return TCC_Basic;
+
+}

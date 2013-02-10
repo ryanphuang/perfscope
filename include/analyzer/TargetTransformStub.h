@@ -84,7 +84,10 @@ public:
   }
 
 public:
-  explicit VectorTargetTransformStub(const TargetLowering *TL) : TLI(TL) {}
+  explicit VectorTargetTransformStub(const TargetLowering *TL) : TLI(TL) 
+  {
+    assert(TLI && "Target lowering cannot be NULL");
+  }
 
   virtual ~VectorTargetTransformStub() {}
 

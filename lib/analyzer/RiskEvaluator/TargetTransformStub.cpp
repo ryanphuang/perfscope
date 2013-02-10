@@ -38,6 +38,7 @@ int VectorTargetTransformStub::InstructionOpcodeToISD(unsigned Opcode) {
 #include "llvm/Instruction.def"
   };
   switch (static_cast<InstructionOpcodes>(Opcode)) {
+  case Unwind:         return 0;
   case Ret:            return 0;
   case Br:             return 0;
   case Switch:         return 0;
