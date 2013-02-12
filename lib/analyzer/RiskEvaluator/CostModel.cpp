@@ -42,6 +42,8 @@
 #include "analyzer/CostModel.h"
 #include "analyzer/CFGDAG.h"
 
+#define COSTMODEL_DEBUG
+
 using namespace llvm;
 
 unsigned CostModel::getOperationCost(unsigned Opcode, Type *Ty, Type *OpTy) const 
@@ -300,7 +302,9 @@ unsigned CostModel::getFunctionCost(Function *F) const
     if (dag.isExitNode(node))
       continue;
     node->cost += getBasicBlockCost(node->bb); // now safe to update the actual cost
+    #ifdef COSTMODEL_DEBUG
     errs() << "Max cost to BB " << node->bb->getName() << ": " << node->cost << "\n";
+    #endif
     for (BBNode::edgeIter ei = node->out_begin(), ee  = node->out_end(); 
       ei != ee; ++ei) {
       BBNode * child = *ei;
@@ -316,6 +320,7 @@ unsigned CostModel::getFunctionCost(Function *F) const
   }
   node = dag.getExitNode();
   max = node->cost; 
+  #ifdef COSTMODEL_DEBUG
   errs() << "Max Path: ";
   for (; node != NULL; node = prev[node]) {
     if (node->bb == NULL)
@@ -328,6 +333,7 @@ unsigned CostModel::getFunctionCost(Function *F) const
       errs() << " <= ";
   }
   errs() << "\n";
+  #endif
   /*
   std::stack<std::pair<const BasicBlock *, unsigned> > visitStack;
   SmallPtrSet<const BasicBlock *, 8> visited;

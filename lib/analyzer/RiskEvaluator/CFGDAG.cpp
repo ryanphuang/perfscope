@@ -31,6 +31,8 @@
 
 #include "analyzer/CFGDAG.h"
 
+#define CFGDAG_DEBUG
+
 using namespace llvm;
 
 BBDAG::~BBDAG()
@@ -83,8 +85,10 @@ void BBDAG::init()
       BBNode * child = getNode(*si);
       switch (child->color) {
         case GRAY:
+                  #ifdef CFGDAG_DEBUG
                   errs() << "Back edge <" << node->bb->getName() << ", " << 
                             (*si)->getName() << "> detected\n";
+                  #endif
                   addEdge(node, _exit); // add dummy edge to exit node
                   break;
         case WHITE:
