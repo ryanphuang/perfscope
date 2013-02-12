@@ -40,6 +40,8 @@ BBDAG::~BBDAG()
     if (I->second)
       delete I->second;
   }
+  if (_exit)
+    delete _exit;
 }
 
 BBNode * BBDAG::getNode(const BasicBlock *BB)
@@ -60,14 +62,19 @@ void BBDAG::addEdge(BBNode * from, BBNode * to)
 
 void BBDAG::init()
 {
-  std::stack<BBNode *> dfsStack;
   _root = getNode(_f.begin());
+  _exit = new BBNode(NULL);
+  std::stack<BBNode *> dfsStack;
   dfsStack.push(_root);
   while (!dfsStack.empty()) {
     BBNode * node = dfsStack.top();
     if (node->color != WHITE) {
       node->color = BLACK;
       dfsStack.pop();
+      const TerminatorInst * terminator  = node->bb->getTerminator();
+      if (isa<ReturnInst>(terminator) || isa<UnreachableInst>(terminator) ||
+        isa<ResumeInst>(terminator)) 
+        addEdge(node, _exit); // connect exit block to exit node
       continue;
     }
     node->color = GRAY;
@@ -76,7 +83,9 @@ void BBDAG::init()
       BBNode * child = getNode(*si);
       switch (child->color) {
         case GRAY:
-                  errs() << "Back edge detected\n";
+                  errs() << "Back edge <" << node->bb->getName() << ", " << 
+                            (*si)->getName() << "> detected\n";
+                  addEdge(node, _exit); // add dummy edge to exit node
                   break;
         case WHITE:
                   dfsStack.push(child);

@@ -40,6 +40,7 @@
 #include "llvm/Support/CFG.h"
 
 #include "analyzer/CostModel.h"
+#include "analyzer/CFGDAG.h"
 
 using namespace llvm;
 
@@ -271,6 +272,8 @@ unsigned CostModel::getInstructionCost(const Instruction *I) const
 
 unsigned CostModel::getBasicBlockCost(const BasicBlock *BB) const
 {
+  if (BB == NULL)
+    return 0;
   unsigned cost = 0;
   unsigned c;
   for (BasicBlock::const_iterator BI = BB->begin(), BE = BB->end(); BI != BE; BI++) {
@@ -285,6 +288,47 @@ unsigned CostModel::getFunctionCost(Function *F) const
 {
   if (F->begin() == F->end())
     return 0;
+  unsigned max = 0;
+  BBDAG dag(*F);
+  std::queue<BBNode *> bfsQueue;
+  std::map<BBNode *, BBNode *> prev;
+  bfsQueue.push(dag.getEntryNode());
+  BBNode * node; 
+  while (!bfsQueue.empty()) {
+    node = bfsQueue.front();
+    bfsQueue.pop();
+    if (dag.isExitNode(node))
+      continue;
+    node->cost += getBasicBlockCost(node->bb); // now safe to update the actual cost
+    errs() << "Max cost to BB " << node->bb->getName() << ": " << node->cost << "\n";
+    for (BBNode::edgeIter ei = node->out_begin(), ee  = node->out_end(); 
+      ei != ee; ++ei) {
+      BBNode * child = *ei;
+      if (child->cost < node->cost) {
+        child->cost = node->cost;
+        prev[child] = node;
+      }
+      // topological ordering
+      if (child->dec_in_count() == 0) {
+        bfsQueue.push(child);
+      }
+    }
+  }
+  node = dag.getExitNode();
+  max = node->cost; 
+  errs() << "Max Path: ";
+  for (; node != NULL; node = prev[node]) {
+    if (node->bb == NULL)
+      errs() << "exit (dummy)";
+    else
+      errs() << node->bb->getName(); 
+    if (prev[node] == NULL)
+      errs() << " |";
+    else
+      errs() << " <= ";
+  }
+  errs() << "\n";
+  /*
   std::stack<std::pair<const BasicBlock *, unsigned> > visitStack;
   SmallPtrSet<const BasicBlock *, 8> visited;
   const BasicBlock * BB = F->begin();
@@ -317,5 +361,6 @@ unsigned CostModel::getFunctionCost(Function *F) const
       visitStack.push(std::make_pair(BB, item.second + getBasicBlockCost(BB)));
     }
   }
+  */
   return max;
 }

@@ -51,13 +51,23 @@ struct BBNode {
   BBNodeColor color;
   std::vector<BBNode *> pred;
   std::vector<BBNode *> succ;
+  unsigned cost;
+  unsigned in_cnt;
 
   typedef std::vector<BBNode *>::iterator edgeIter;
 
-  unsigned cost;
-
   BBNode(const BasicBlock * bb, BBNodeColor color = WHITE, unsigned cost = 0) : 
-    bb(bb), color(color), cost(cost) {}
+    bb(bb), color(color), cost(cost), in_cnt(0) {}
+
+  inline unsigned dec_in_count()
+  {
+    return in_cnt == 0 ? 0 : --in_cnt;
+  }
+
+  inline unsigned get_in_count()
+  {
+    return in_cnt;
+  }
 
   inline edgeIter in_begin()
   {
@@ -76,7 +86,7 @@ struct BBNode {
 
   inline edgeIter out_end()
   {
-    return succ.begin();
+    return succ.end();
   }
 
   inline void addOutEdge(BBNode *to)
@@ -86,6 +96,7 @@ struct BBNode {
 
   inline void addInEdge(BBNode *from)
   {
+    in_cnt++;
     pred.push_back(from);
   }
 };
@@ -104,10 +115,13 @@ class BBDAG {
 
   public:
 
-    BBDAG (Function &F) : _f(F), _root(NULL), _exit(NULL) {}
+    BBDAG (Function &F) : _f(F), _root(NULL), _exit(NULL) { init(); }
     ~BBDAG();
     void init();
+    inline BBNode * getEntryNode() {return _root;}
+    inline BBNode * getExitNode() {return _exit;}
     BBNode * getNode(const BasicBlock *BB);
+    inline bool isExitNode(const BBNode * node) const {return node->bb == NULL;}
     void addEdge(BBNode * from, BBNode * to);
 };
 
