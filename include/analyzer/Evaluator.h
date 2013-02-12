@@ -49,11 +49,11 @@ namespace llvm {
 
 class LocalRiskEvaluator: public FunctionPass {
   public:
-    typedef SmallVector<const Instruction *, 8> InstVecTy;
-    typedef std::map<const Function *, InstVecTy> InstMapTy;
+    typedef SmallVector<Instruction *, 8> InstVecTy;
+    typedef std::map<Function *, InstVecTy> InstMapTy;
 
   private:
-    typedef SmallVector<const Instruction *, 8>::iterator InstVecIter;
+    typedef SmallVector<Instruction *, 8>::iterator InstVecIter;
     InstMapTy m_inst_map;
 
   public:

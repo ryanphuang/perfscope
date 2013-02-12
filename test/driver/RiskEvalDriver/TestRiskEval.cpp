@@ -142,8 +142,6 @@ int main(int argc, char **argv)
 
   OwningPtr<FunctionPassManager> FPasses;
   FPasses.reset(new FunctionPassManager(M));
-  FPasses->add(new FooPass());
-  FPasses->doInitialization();
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
   initPassRegistry(Registry);
 
@@ -153,7 +151,6 @@ int main(int argc, char **argv)
     Function * F = MI;
     if (F->getName() != "foo")
       continue;
-    FPasses->run(*F);
     map[F] = LocalRiskEvaluator::InstVecTy();
     int i = 0;
     for (inst_iterator II = inst_begin(F), IE = inst_end(F); II != IE; ++II, ++i) {
@@ -161,11 +158,15 @@ int main(int argc, char **argv)
         continue;
       if (i > 10)
         break;
-      const Instruction * inst = &*II;
+      Instruction * inst = &*II;
       map[F].push_back(inst);
     }
   }
+  FPasses->add(new LocalRiskEvaluator(map));
+  FPasses->doInitialization();
+  FPasses->run(*(map.begin()->first));
   FPasses->doFinalization();
+  /*
   // Build up all of the passes that we want to do to the module.
   PassManager PM;
 
@@ -174,5 +175,6 @@ int main(int argc, char **argv)
     PM.add(new TargetData(*TD));
   PM.add(new LocalRiskEvaluator(map)); 
   PM.run(*M);
+  */
   return 0;
 }
