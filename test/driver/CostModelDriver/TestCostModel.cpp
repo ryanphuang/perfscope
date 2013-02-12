@@ -33,6 +33,8 @@
 #include "llvm/Pass.h"
 #include "llvm/PassManager.h"
 
+#include "llvm/ADT/DepthFirstIterator.h"
+
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetData.h"
@@ -40,6 +42,7 @@
 #include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Target/TargetLowering.h"
 
+#include "llvm/Support/CFG.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/IRReader.h"
@@ -64,11 +67,9 @@ struct CostModelDriver : public FunctionPass {
 
   virtual bool runOnFunction(Function &F) {
     assert(XCM && "Cost model cannot be NULL");
-    for (inst_iterator IT = inst_begin(F), ET = inst_end(F); IT != ET; IT++) {
-      Instruction * inst = &*IT;
-      errs() << *inst << "\n";
-      errs() << " Cost: " << XCM->getInstructionCost(inst) << "\n";
-    }
+    errs() << F.getNameStr() << "\n";
+    unsigned cost = XCM->getFunctionCost(&F);
+    errs() << "Cost: " << cost << "\n";
     return false;
   }
 

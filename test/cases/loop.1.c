@@ -7,6 +7,8 @@ int foo(int c)
             c += i;
             c *= j;
         }
+        if (c > 100)
+          return c;
     }
     c++;
     return c;
@@ -19,6 +21,8 @@ int add()
     for (i = 1; i * i < 100; i++) {
        sum += i; 
     }
+    if (sum > 10000)
+      return 10000;
     return sum;
 }
 
@@ -29,6 +33,16 @@ int mul(int n)
     product *= i;
   }
   return product;
+}
+
+int bar(int n)
+{
+  int ret;
+  if (n > 10)
+    ret = 10;
+  else
+    ret = n / 2;
+  return ret;
 }
 
 int main()

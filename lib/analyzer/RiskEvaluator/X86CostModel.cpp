@@ -57,6 +57,8 @@ using namespace llvm;
 #define WARN_DEFAULT_COST(type)  \
   errs() << "Warning: " <<  #type << " falling to default cost\n"
 
+//#define X86COSTMODEL_DEBUG
+
 X86CostModel::X86CostModel(TargetMachine *TM)
 {
   assert (TM && "Target machine cannot be NULL");
@@ -70,12 +72,15 @@ X86CostModel::X86CostModel(TargetMachine *TM)
 
   ST = new X86SubtargetStub(Bits);
 
+  
+  #ifdef X86COSTMODEL_DEBUG
   errs() << "has3DNow " << ST->has3DNow() << "\n";
   errs() << "hasAVX " << ST->hasAVX() << "\n";
   errs() << "is64Bit " << ST->is64Bit() << "\n";
   errs() << "hasBMI " << ST->hasBMI() << "\n";
   errs() << "isBTMemSlow " << ST->isBTMemSlow() << "\n";
   errs() << "hasCmpxchg16b " << ST->hasCmpxchg16b() << "\n";
+  #endif
 }
 
 unsigned X86CostModel::getNumberOfRegisters(bool Vector) const

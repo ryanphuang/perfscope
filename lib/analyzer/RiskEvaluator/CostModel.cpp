@@ -27,8 +27,17 @@
  *
  */
 
-#include "llvm/Support/raw_ostream.h"
+#include <stack>
+#include <utility>
+#include <queue>
+
 #include "llvm/IntrinsicInst.h"
+
+#include "llvm/ADT/DepthFirstIterator.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Analysis/PathNumbering.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/CFG.h"
 
 #include "analyzer/CostModel.h"
 
@@ -156,7 +165,7 @@ unsigned CostModel::getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
   return TCC_Basic;
 }
 
-unsigned CostModel::getInstructionCost(Instruction *I) const
+unsigned CostModel::getInstructionCost(const Instruction *I) const
 {
   if (isa<IntrinsicInst>(I)) {
     return TCC_Free; // simply ignore intrinsic instructions
@@ -188,7 +197,7 @@ unsigned CostModel::getInstructionCost(Instruction *I) const
       return getArithmeticInstrCost(I->getOpcode(), I->getType());
     }
     case Instruction::Select: {
-      SelectInst *SI = cast<SelectInst>(I);
+      const SelectInst *SI = cast<SelectInst>(I);
       Type *CondTy = SI->getCondition()->getType();
       return getCmpSelInstrCost(I->getOpcode(), I->getType(), CondTy);
     }
@@ -202,14 +211,14 @@ unsigned CostModel::getInstructionCost(Instruction *I) const
       return 0;
     }
     case Instruction::Store: {
-      StoreInst *SI = cast<StoreInst>(I);
+      const StoreInst *SI = cast<StoreInst>(I);
       Type *ValTy = SI->getValueOperand()->getType();
       return getMemoryOpCost(I->getOpcode(), ValTy,
                                    SI->getAlignment(),
                                    SI->getPointerAddressSpace());
     }
     case Instruction::Load: {
-      LoadInst *LI = cast<LoadInst>(I);
+      const LoadInst *LI = cast<LoadInst>(I);
       return getMemoryOpCost(I->getOpcode(), I->getType(),
                                   LI->getAlignment(),
                                   LI->getPointerAddressSpace());
@@ -230,7 +239,7 @@ unsigned CostModel::getInstructionCost(Instruction *I) const
       return getCastInstrCost(I->getOpcode(), I->getType(), SrcTy);
     }
     case Instruction::ExtractElement: {
-      ExtractElementInst * EEI = cast<ExtractElementInst>(I);
+      const ExtractElementInst * EEI = cast<ExtractElementInst>(I);
       ConstantInt *CI = dyn_cast<ConstantInt>(I->getOperand(1));
       unsigned Idx = -1;
       if (CI)
@@ -239,7 +248,7 @@ unsigned CostModel::getInstructionCost(Instruction *I) const
       EEI->getOperand(0)->getType(), Idx);
     }
     case Instruction::InsertElement: {
-      InsertElementInst * IE = cast<InsertElementInst>(I);
+      const InsertElementInst * IE = cast<InsertElementInst>(I);
       ConstantInt *CI = dyn_cast<ConstantInt>(IE->getOperand(2));
       unsigned Idx = -1;
       if (CI)
@@ -251,7 +260,7 @@ unsigned CostModel::getInstructionCost(Instruction *I) const
       // The target-independent implementation just measures the size of the
       // function by approximating that each argument will take on average one
       // instruction to prepare.
-      CallInst * CI = dyn_cast<CallInst>(I);
+      const CallInst * CI = cast<CallInst>(I);
       return TCC_Basic * (CI->getNumArgOperands() + 1);
     }
     default:
@@ -262,11 +271,82 @@ unsigned CostModel::getInstructionCost(Instruction *I) const
 
 unsigned CostModel::getBasicBlockCost(const BasicBlock *BB) const
 {
-  return TCC_Basic;
+  unsigned cost = 0;
+  unsigned c;
+  for (BasicBlock::const_iterator BI = BB->begin(), BE = BB->end(); BI != BE; BI++) {
+    c = getInstructionCost(BI);
+    if (c != (unsigned) -1)
+      cost += c;
+  }
+  return cost;
 }
 
-unsigned CostModel::getFunctionCost(const Function *F) const
+unsigned CostModel::getFunctionCost(Function *F) const
 {
-  return TCC_Basic;
-
+  if (F->begin() == F->end())
+    return 0;
+  std::stack<std::pair<const BasicBlock *, unsigned> > visitStack;
+  SmallPtrSet<const BasicBlock *, 8> visited;
+  const BasicBlock * BB = F->begin();
+  visitStack.push(std::make_pair(BB, getBasicBlockCost(BB)));
+  unsigned max = 0;
+  unsigned path = 0;
+  while (!visitStack.empty()) {
+    std::pair<const BasicBlock *, unsigned> item = visitStack.top();
+    visitStack.pop();
+    visited.insert(item.first);
+    errs() << " | " << item.first->getName() << "\n";
+    if (terminatingBlock(item.first)) {
+      path++;
+      if (item.second > max)
+        max = item.second;
+      errs() << " +Path #" << path << ": " << item.second << "\n";
+    }
+    for (succ_const_iterator si = succ_begin(item.first), se = succ_end(item.first);
+          si != se; si++) {
+      BB = *si;
+      if (visited.count(BB) != 0) {
+        if (terminatingBlock(BB)) {
+          path++;
+          if (item.second > max)
+            max = item.second;
+          errs() << " +Path #" << path << ": " << item.second << "\n";
+        }
+        continue;
+      }
+      visitStack.push(std::make_pair(BB, item.second + getBasicBlockCost(BB)));
+    }
+  }
+  return max;
+  /*
+  unsigned cost = 0;
+  unsigned max = 0;
+  unsigned path = 0;
+  bool cleanup = true;
+  for (df_iterator<const Function *> DI = df_begin(F), DE = df_end(F); DI != DE; ++DI) {
+    const BasicBlock *BB = *DI;
+    errs() << " | " << BB->getName() << "\n";
+    cost += getBasicBlockCost(BB);
+    const TerminatorInst * terminator  = BB->getTerminator();
+    // errs() << " # of successor: " << terminator->getNumSuccessors() << "\n";
+    if (isa<ReturnInst>(terminator) || isa<UnreachableInst>(terminator) ||
+        isa<ResumeInst>(terminator)) {
+      path++;
+      if (cost > max)
+        max = cost;
+      errs() << " +Path #" << path << ": " << cost << "\n";
+      cost = 0;
+      cleanup = false;
+    }
+    else
+      cleanup = true;
+  }
+  if (cleanup) { // in case there's one remaining path
+    path++;
+    if (cost > max)
+      max = cost;
+    errs() << " +Path #" << path << ": " << cost << "\n";
+  }
+  return max;
+  */
 }

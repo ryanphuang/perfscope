@@ -49,7 +49,7 @@ class CostModel {
 
   public:
     CostModel() {}
-
+  
     /// \brief Underlying constants for 'cost' values in this interface.
     ///
     /// Many APIs in this interface return a cost. This enum defines the
@@ -192,11 +192,19 @@ class CostModel {
     virtual unsigned getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
                                            ArrayRef<Type *> Tys) const;
 
+  protected:
+    inline bool terminatingBlock(const BasicBlock *BB) const
+    {
+      const TerminatorInst * terminator  = BB->getTerminator();
+      return (isa<ReturnInst>(terminator) || isa<UnreachableInst>(terminator) ||
+        isa<ResumeInst>(terminator)); 
+    }
+
   public:
     //Currently only need a virtual interface
-    virtual unsigned getInstructionCost(Instruction *I) const;
+    virtual unsigned getInstructionCost(const Instruction *I) const;
     virtual unsigned getBasicBlockCost(const BasicBlock *BB) const;
-    virtual unsigned getFunctionCost(const Function *F) const;
+    virtual unsigned getFunctionCost(Function *F) const;
 };
 
 
