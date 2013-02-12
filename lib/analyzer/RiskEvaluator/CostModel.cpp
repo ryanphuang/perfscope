@@ -318,35 +318,4 @@ unsigned CostModel::getFunctionCost(Function *F) const
     }
   }
   return max;
-  /*
-  unsigned cost = 0;
-  unsigned max = 0;
-  unsigned path = 0;
-  bool cleanup = true;
-  for (df_iterator<const Function *> DI = df_begin(F), DE = df_end(F); DI != DE; ++DI) {
-    const BasicBlock *BB = *DI;
-    errs() << " | " << BB->getName() << "\n";
-    cost += getBasicBlockCost(BB);
-    const TerminatorInst * terminator  = BB->getTerminator();
-    // errs() << " # of successor: " << terminator->getNumSuccessors() << "\n";
-    if (isa<ReturnInst>(terminator) || isa<UnreachableInst>(terminator) ||
-        isa<ResumeInst>(terminator)) {
-      path++;
-      if (cost > max)
-        max = cost;
-      errs() << " +Path #" << path << ": " << cost << "\n";
-      cost = 0;
-      cleanup = false;
-    }
-    else
-      cleanup = true;
-  }
-  if (cleanup) { // in case there's one remaining path
-    path++;
-    if (cost > max)
-      max = cost;
-    errs() << " +Path #" << path << ": " << cost << "\n";
-  }
-  return max;
-  */
 }
