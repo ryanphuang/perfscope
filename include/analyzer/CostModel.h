@@ -35,11 +35,13 @@
 #ifndef __COSTMODEL_H_
 #define __COSTMODEL_H_
 
-#include "llvm/Instructions.h"
 #include "llvm/Function.h"
-#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/Instructions.h"
 #include "llvm/Intrinsics.h"
 #include "llvm/Operator.h"
+
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/Support/CallSite.h"
 
 
@@ -204,6 +206,7 @@ class CostModel {
     //Currently only need a virtual interface
     virtual unsigned getInstructionCost(const Instruction *I) const;
     virtual unsigned getBasicBlockCost(const BasicBlock *BB) const;
+    virtual unsigned getLoopCost(const Loop *L) const;
     virtual unsigned getFunctionCost(Function *F) const;
 };
 

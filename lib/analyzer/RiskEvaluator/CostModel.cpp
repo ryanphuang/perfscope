@@ -286,6 +286,16 @@ unsigned CostModel::getBasicBlockCost(const BasicBlock *BB) const
   return cost;
 }
 
+unsigned CostModel::getLoopCost(const Loop *L) const
+{
+  unsigned cost = 0;
+  const std::vector<BasicBlock *> & blocks = L->getBlocks();
+  for (std::vector<BasicBlock *>::const_iterator i = blocks.begin(), 
+    e = blocks.end(); i != e; i++)
+    cost += getBasicBlockCost(*i);
+  return cost;
+}
+
 unsigned CostModel::getFunctionCost(Function *F) const
 {
   if (F->begin() == F->end())
@@ -334,39 +344,5 @@ unsigned CostModel::getFunctionCost(Function *F) const
   }
   errs() << "\n";
   #endif
-  /*
-  std::stack<std::pair<const BasicBlock *, unsigned> > visitStack;
-  SmallPtrSet<const BasicBlock *, 8> visited;
-  const BasicBlock * BB = F->begin();
-  visitStack.push(std::make_pair(BB, getBasicBlockCost(BB)));
-  unsigned max = 0;
-  unsigned path = 0;
-  while (!visitStack.empty()) {
-    std::pair<const BasicBlock *, unsigned> item = visitStack.top();
-    visitStack.pop();
-    visited.insert(item.first);
-    errs() << " | " << item.first->getName() << "\n";
-    if (terminatingBlock(item.first)) {
-      path++;
-      if (item.second > max)
-        max = item.second;
-      errs() << " +Path #" << path << ": " << item.second << "\n";
-    }
-    for (succ_const_iterator si = succ_begin(item.first), se = succ_end(item.first);
-          si != se; si++) {
-      BB = *si;
-      if (visited.count(BB) != 0) {
-        if (terminatingBlock(BB)) {
-          path++;
-          if (item.second > max)
-            max = item.second;
-          errs() << " +Path #" << path << ": " << item.second << "\n";
-        }
-        continue;
-      }
-      visitStack.push(std::make_pair(BB, item.second + getBasicBlockCost(BB)));
-    }
-  }
-  */
   return max;
 }
