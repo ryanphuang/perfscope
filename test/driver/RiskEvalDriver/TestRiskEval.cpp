@@ -166,15 +166,5 @@ int main(int argc, char **argv)
   FPasses->doInitialization();
   FPasses->run(*(map.begin()->first));
   FPasses->doFinalization();
-  /*
-  // Build up all of the passes that we want to do to the module.
-  PassManager PM;
-
-  // Add the target data from the target machine, if it exists, or the module.
-  if (const TargetData *TD = TM->getTargetData())
-    PM.add(new TargetData(*TD));
-  PM.add(new LocalRiskEvaluator(map)); 
-  PM.run(*M);
-  */
   return 0;
 }
