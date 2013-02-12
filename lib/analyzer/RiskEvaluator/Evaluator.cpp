@@ -51,15 +51,16 @@ bool LocalRiskEvaluator::runOnFunction(Function &F)
   unsigned old_depth = 0;
   for (InstVecIter I = inst_vec.begin(), E = inst_vec.end(); I != E; I++) {
   //for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; I++) {
+    const Instruction* inst = *I;
     unsigned depth = old_depth;
-    if ((*I)->getParent() != BB) {
-      depth = li.getLoopDepth((*I)->getParent());
-      BB = (*I)->getParent();
+    if (inst->getParent() != BB) {
+      BB = inst->getParent();
+      depth = li.getLoopDepth(BB);
       old_depth = depth;
     }
-    errs() << *I << " is in a " << depth << " level nested loop:\n";
+    errs() << *inst << " is in a " << depth << " level nested loop:\n";
     if (depth > 0) {
-      Loop * loop = li.getLoopFor((*I)->getParent());
+      Loop * loop = li.getLoopFor(inst->getParent());
       while (depth > 0 && loop) {
         BasicBlock * ExitBlock = loop->getExitingBlock();
         if (ExitBlock) {
