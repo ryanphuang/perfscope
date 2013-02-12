@@ -40,18 +40,26 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/InstIterator.h"
 
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+
+#include <map>
 
 namespace llvm {
 
 class LocalRiskEvaluator: public FunctionPass {
   private:
-    SmallVector<Instruction *, 8> * m_subject;
+    typedef SmallVector<const Instruction *, 8> InstVecTy;
+    typedef std::map<const Function *, InstVecTy> InstMapTy;
+    typedef SmallVector<const Instruction *, 8>::iterator InstVecIter;
+
+    InstMapTy m_inst_map;
 
   public:
     static char ID;
 
-    LocalRiskEvaluator(SmallVector<Instruction *, 8> * subject) : FunctionPass(ID), m_subject(subject) {} 
+    LocalRiskEvaluator(InstMapTy & inst_map) : FunctionPass(ID), 
+        m_inst_map(inst_map) {} 
 
     /// Returns the expected cost of the instruction.
     /// Returns -1 if the cost is unknown.

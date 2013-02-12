@@ -28,12 +28,49 @@
  *
  */
 
+#include "llvm/Support/raw_ostream.h"
+
 #include "analyzer/Evaluator.h"
 
 using namespace llvm;
 
 bool LocalRiskEvaluator::runOnFunction(Function &F)
 {
+  if (!m_inst_map.count(&F)) {
+    errs() << F.getName() << " not in the target\n";
+    return false;
+  }
+  InstVecTy inst_vec = m_inst_map[&F];
+  LoopInfo &li = getAnalysis<LoopInfo>(); 
+  if (li.empty()) {
+    errs() << "There's no loop in " << F.getName() << "\n";
+    return false;
+  }
+  ScalarEvolution *SE = &getAnalysis<ScalarEvolution>(); 
+  const BasicBlock * BB = 0;
+  unsigned old_depth = 0;
+  for (InstVecIter I = inst_vec.begin(), E = inst_vec.end(); I != E; I++) {
+  //for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; I++) {
+    unsigned depth = old_depth;
+    if ((*I)->getParent() != BB) {
+      depth = li.getLoopDepth((*I)->getParent());
+      BB = (*I)->getParent();
+      old_depth = depth;
+    }
+    errs() << *I << " is in a " << depth << " level nested loop:\n";
+    if (depth > 0) {
+      Loop * loop = li.getLoopFor((*I)->getParent());
+      while (depth > 0 && loop) {
+        BasicBlock * ExitBlock = loop->getExitingBlock();
+        if (ExitBlock) {
+          unsigned c = SE->getSmallConstantTripCount(loop, ExitBlock); 
+          errs() << "   * L" << depth << " trip count: " << c << "\n";
+        }
+        loop = loop->getParentLoop();
+        depth--;
+      }
+    }
+  }
   return false;
 }
 
