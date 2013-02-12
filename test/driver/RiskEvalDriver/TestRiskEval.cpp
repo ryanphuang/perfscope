@@ -59,6 +59,28 @@ using namespace llvm;
 
 X86CostModel * XCM = NULL;
 
+struct FooPass : public FunctionPass {
+    static char ID;
+    std::string PassName;
+
+    FooPass() : FunctionPass(ID) {
+      PassName = "Foo Function Pass: ";
+    }
+
+    virtual bool runOnFunction(Function &F) {
+      errs() << "Func: " << F.getName() << "\n";
+      return false;
+    }
+
+    virtual const char *getPassName() const { return PassName.c_str(); }
+
+    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+      AU.setPreservesAll();
+    }
+};
+
+char FooPass::ID = 0;
+
 void initPassRegistry(PassRegistry & Registry)
 {
     initializeCore(Registry);
@@ -118,15 +140,23 @@ int main(int argc, char **argv)
     exit(1);
   }
 
+  OwningPtr<FunctionPassManager> FPasses;
+  FPasses.reset(new FunctionPassManager(M));
+  FPasses->add(new FooPass());
+  FPasses->doInitialization();
+  PassRegistry &Registry = *PassRegistry::getPassRegistry();
+  initPassRegistry(Registry);
+
   LocalRiskEvaluator::InstMapTy map;
   //TODO nasty hard code, use file for test
-  for (Module::const_iterator MI = M->begin(), ME = M->end(); MI != ME; ++MI) {
-    const Function * F = MI;
+  for (Module::iterator MI = M->begin(), ME = M->end(); MI != ME; ++MI) {
+    Function * F = MI;
     if (F->getName() != "foo")
       continue;
+    FPasses->run(*F);
     map[F] = LocalRiskEvaluator::InstVecTy();
     int i = 0;
-    for (const_inst_iterator II = inst_begin(MI), IE = inst_end(MI); II != IE; ++II, ++i) {
+    for (inst_iterator II = inst_begin(F), IE = inst_end(F); II != IE; ++II, ++i) {
       if (i < 4)
         continue;
       if (i > 10)
@@ -135,10 +165,7 @@ int main(int argc, char **argv)
       map[F].push_back(inst);
     }
   }
-  
-  PassRegistry &Registry = *PassRegistry::getPassRegistry();
-  initPassRegistry(Registry);
-
+  FPasses->doFinalization();
   // Build up all of the passes that we want to do to the module.
   PassManager PM;
 
