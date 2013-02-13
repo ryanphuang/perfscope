@@ -405,29 +405,36 @@ Instruction * Matcher::matchInstruction(inst_iterator &fi, Function * f, Scope &
     return NULL;
   Instruction * inst = NULL;
   unsigned line = scope.begin;
-  for (inst_iterator fe = inst_end(f); fi != fe; ++fi) {
+  unsigned l = 0;
+  inst_iterator fe = inst_end(f);
+  for (; fi != fe; ++fi) {
     inst = &*fi;
-    unsigned l = ScopeInfoFinder::getInstLine(inst);
+    l = ScopeInfoFinder::getInstLine(inst);
     if (l == 0)
       continue;
     if (l == line) {
-      //TODO there could be multiple instructions at one line
-      scope.begin = l + 1; // adjust to next line
-      return inst;
+      break;
     }
-    if (l > line) {
+    if (l > line) { // (*)
       // Didn't find any instruction at line but find
       // one within the range.
       // Mod: [.........]
       //         Inst
-      if (l <= scope.end) {
-        scope.begin = l + 1; // adjust to next line
-        return inst;
-      }
+      if (l <= scope.end)
+        break;
       return NULL; // already passed
     }
   }
-  return NULL;
+  if (fi == fe)
+    return NULL;
+  ++fi; // adjust fi to the next instruction
+  //TODO there could be multiple instructions at one line
+  
+  // Always assume the next instruction shares the same line.
+  // If it doesn't, in the next call to matchInstruction,
+  // begin will be adjusted to the next line by place (*)
+  scope.begin = l; 
+  return inst;
 }
 
 Loop * Matcher::matchLoop(LoopInfo &li, const Scope & scope)
