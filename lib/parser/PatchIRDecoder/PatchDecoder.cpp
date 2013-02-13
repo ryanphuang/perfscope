@@ -254,7 +254,7 @@ bool Hunk::reduce()
         enclosing_scope.begin = mods.front()->scope.begin;
         enclosing_scope.end = mods.back()->scope.end;
         rep_enclosing_scope.begin = mods.front()->rep_scope.begin;
-        rep_enclosing_scope.end  = mods.front()->rep_scope.end;
+        rep_enclosing_scope.end  = mods.back()->rep_scope.end;
     }
     return true;
 }
