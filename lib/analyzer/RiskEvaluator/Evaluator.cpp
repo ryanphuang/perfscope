@@ -50,7 +50,6 @@ bool LocalRiskEvaluator::runOnFunction(Function &F)
   const BasicBlock * BB = 0;
   unsigned old_depth = 0;
   for (InstVecIter I = inst_vec.begin(), E = inst_vec.end(); I != E; I++) {
-  //for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; I++) {
     const Instruction* inst = *I;
     unsigned depth = old_depth;
     if (inst->getParent() != BB) {

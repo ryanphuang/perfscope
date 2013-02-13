@@ -35,6 +35,7 @@
 #include "mapper/CallSiteFinder.h"
 #include "mapper/Matcher.h"
 #include "mapper/Slicer.h"
+#include "analyzer/Evaluator.h"
 
 using namespace std;
 using namespace llvm;
@@ -71,6 +72,8 @@ static vector<string> syscalls;
 static vector<string> expcalls;
 static vector<string> lockcalls;
 
+typedef LocalRiskEvaluator::InstVecTy InstVecTy;
+typedef LocalRiskEvaluator::InstMapTy InstMapTy;
 
 static SmallVector<Scope, 4> *funcLoops;
 typedef SmallVector<Scope, 4>::iterator loop_iterator;
@@ -383,12 +386,10 @@ TargetData * getTargetData(PassManager & Passes, Module *M)
   return TD;
 }
 
-inline void reduce_hunk(Hunk *hunk)
-{
-}
-
 void analyze(char *input)
 {
+  llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
+
   PatchDecoder * decoder = new PatchDecoder(input);
   assert(decoder);
   Patch *patch = NULL;
@@ -439,6 +440,7 @@ void analyze(char *input)
           inst_iterator  fi;
           Function *func = NULL;
           Function *prevfunc = NULL;
+          InstMapTy instmap;
           while((hunk = chap->next_hunk())) {
             int s = 0;
           #ifdef PERFSCOPE_DEBUG
@@ -524,7 +526,8 @@ void analyze(char *input)
                 Instruction *inst;
                 bool found_inst = false;
                 while ( (inst = matcher.matchInstruction(fi, func, rep_scope)) != NULL) {
-                  assess(inst, (*HI)->type);
+                  instmap[func].push_back(inst);
+                  //assess(inst, (*HI)->type);
                   found_inst = true;
                 } 
                 #ifdef PERFSCOPE_DEBUG
@@ -540,6 +543,19 @@ void analyze(char *input)
               cout << "insignificant scope\n";
             }
             #endif
+          }
+          if (instmap.size()) {
+            OwningPtr<FunctionPassManager> FPasses;
+            FPasses.reset(new FunctionPassManager(module));
+            PassRegistry &Registry = *PassRegistry::getPassRegistry();
+            initPassRegistry(Registry);
+            FPasses->add(new LocalRiskEvaluator(instmap));
+            FPasses->doInitialization();
+            for (InstMapTy::iterator map_it = instmap.begin(), map_ie = instmap.end();
+                map_it != map_ie; ++map_it) {
+              FPasses->run(*(map_it->first));
+            }
+            FPasses->doFinalization();
           }
           break; // already found in existing module, no need to try loading others
         }

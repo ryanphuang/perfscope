@@ -151,7 +151,6 @@ int main(int argc, char **argv)
     Function * F = MI;
     if (F->getName() != "foo")
       continue;
-    map[F] = LocalRiskEvaluator::InstVecTy();
     int i = 0;
     for (inst_iterator II = inst_begin(F), IE = inst_end(F); II != IE; ++II, ++i) {
       if (i < 4)
