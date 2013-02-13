@@ -1,7 +1,7 @@
 #include "commons/handy.h"
 #include "mapper/Matcher.h"
 
-static bool LOCAL_DEBUG = true;
+static bool LOCAL_DEBUG = false;
 
 bool cmpDICU(const DICompileUnit & CU1, const DICompileUnit & CU2) 
 { 
@@ -401,6 +401,8 @@ Matcher::sp_iterator Matcher::slideSPToTarget(StringRef fname)
 
 Instruction * Matcher::matchInstruction(inst_iterator &fi, Function * f, Scope & scope)
 {
+  if (scope.begin > scope.end)
+    return NULL;
   Instruction * inst = NULL;
   unsigned line = scope.begin;
   for (inst_iterator fe = inst_end(f); fi != fe; ++fi) {
@@ -408,14 +410,20 @@ Instruction * Matcher::matchInstruction(inst_iterator &fi, Function * f, Scope &
     unsigned l = ScopeInfoFinder::getInstLine(inst);
     if (l == 0)
       continue;
-    if (l == line)
+    if (l == line) {
+      scope.begin = l + 1; // adjust to next line
       return inst;
+    }
     if (l > line) {
-      while (line < l && line <= scope.end)
-        line++;
-      if (line > scope.end || line > l)
-        return NULL; // already passed
-      return inst;
+      // Didn't find any instruction at line but find
+      // one within the range.
+      // Mod: [.........]
+      //         Inst
+      if (l <= scope.end) {
+        scope.begin = l + 1; // adjust to next line
+        return inst;
+      }
+      return NULL; // already passed
     }
   }
   return NULL;

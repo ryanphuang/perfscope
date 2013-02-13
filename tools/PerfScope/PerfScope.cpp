@@ -39,13 +39,14 @@
 using namespace std;
 using namespace llvm;
 
-#define LOCAL_DEBUG false
+#define PERFSCOPE_DEBUG false
 
 #define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
 
 static string DefaultDataLayout;
 
-static int strip_len = -1;
+static int module_strip_len = -1;
+static int patch_strip_len = 0;
 
 static int analysis_level = 1;
 
@@ -231,10 +232,10 @@ bool isInLoop(const Scope &scope)
   for (loop_iterator LI = funcLoops->begin(), LE = funcLoops->end();
       LI != LE; LI++) {
     if (LI->intersects(scope)) {
-      if (LOCAL_DEBUG)
-        cout << "loop: " << *LI << " ";
-      else
-        cout << *LI << " ";
+      #ifdef PERFSCOPE_DEBUG
+        cout << "loop: "; 
+      #endif
+      cout << *LI << " ";
       return true;
     }
   }
@@ -246,7 +247,7 @@ void assess(Instruction *I, MODTYPE type)
   if (isa<BranchInst>(I)) {
     /*
     BranchInst *bi = cast<BranchInst>(I);
-    if (LOCAL_DEBUG)
+    if (PERFSCOPE_DEBUG)
         errs() << "branch@" << ScopeInfoFinder::getInstLine(I) << "\n";
     if (bi->isConditional()) {
         unsigned n = bi->getNumSuccessors();
@@ -263,8 +264,9 @@ void assess(Instruction *I, MODTYPE type)
     //CallInst *ci = cast<CallInst>(I);
     Function *func = cs.getCalledFunction();
     if (func == NULL ) {
-      if (LOCAL_DEBUG)
-        cout << I->getOpcodeName() << "@" << ScopeInfoFinder::getInstLine(I) << ",";
+      #ifdef PERFSCOPE_DEBUG
+      cout << "Callee unknown\n";
+      #endif
       return;
     }
     else
@@ -334,18 +336,21 @@ void slice(DependenceGraph * depGraph, Instruction *I, MODTYPE type)
   }
   Slicer slicer(depGraph);
   if (slicer.sliceInit(*I, MemoryDeps)) {
-    if (LOCAL_DEBUG) 
-      errs() << "Slice for " << *I << "\n\t";
+    #ifdef PERFSCOPE_DEBUG
+    errs() << "Slice for " << *I << "\n\t";
+    #endif
     Instruction *N;
     cout << "<";
     while((N = slicer.sliceNext()) != NULL) {
-      if (LOCAL_DEBUG) 
-        errs() << *N << "||";
+      #ifdef PERFSCOPE_DEBUG
+      errs() << *N << "||";
+      #endif
       assess(N, type);
     }
     cout << ">";
-    if (LOCAL_DEBUG) 
-      errs() << "\n";
+    #ifdef PERFSCOPE_DEBUG
+    errs() << "\n";
+    #endif
   }
 }
 
@@ -379,57 +384,22 @@ TargetData * getTargetData(PassManager & Passes, Module *M)
 }
 
 
-void loadModRefs()
-{
-  // Create a PassManager to hold and optimize the collection of passes we are
-  // about to build.
-  //
-  Module *module = NULL;
-  for(list<Module *>::iterator mi = bmodules.begin(), me = bmodules.end(); mi != me ; mi++) {
-    module = *mi;
-    assert(module != NULL);
-    // Have to use a container to hold the PassManager for a while
-    // Otherwise, the IPModRef will be destroyed as PassManager is destructed.
-    PassManager *Passes = new PassManager();
-    TargetData * TD = getTargetData(*Passes, module);
-    if (TD) {
-      Passes->add(TD);
-    }
-    IPModRef *modref = new IPModRef();
-    Passes->add(modref);
-    //Passes->run(*module);
-    bmodrefs.push_back(modref);
-    bmanagers.push_back(Passes);
-  }
-}
-
 void analyze(char *input)
 {
-  llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   PatchDecoder * decoder = new PatchDecoder(input);
   assert(decoder);
   Patch *patch = NULL;
   Chapter *chap = NULL;
   Hunk * hunk = NULL;
-
-  // Allocate a full target machine description only if necessary.
-  // FIXME: The choice of target should be controllable on the command line.
-  std::auto_ptr<TargetMachine> target;
-
-  OwningPtr<FunctionPassManager> FPasses;
-  // Initialize passes
-  PassRegistry &Registry = *PassRegistry::getPassRegistry();
-  initPassRegistry(Registry);
-
-  // loadModRefs();
-
   Module *module = NULL; 
   while((patch = decoder->next_patch()) != NULL) {
-    if (LOCAL_DEBUG)
-      cout << "patch: " << patch->patchname << endl;
+    #ifdef PERFSCOPE_DEBUG
+    cout << "patch: " << patch->patchname << endl;
+    #endif
     while((chap = patch->next_chapter()) != NULL) {
-      if (LOCAL_DEBUG)
-        cout << "chapter: " << chap->filename << endl;
+      #ifdef PERFSCOPE_DEBUG
+      cout << "chapter: " << chap->filename << endl;
+      #endif
       if (src2obj(chap->fullname.c_str(), objname, &objlen) == NULL) { // skip header files for now
         chap->skip_rest_of_hunks();
         continue;
@@ -437,11 +407,8 @@ void analyze(char *input)
       bool found = false;
       list<int>::iterator ii = bstrips.begin(), ie = bstrips.end();
       list<string>::iterator si = bnames.begin(), se = bnames.end();
-      //list<IPModRef *>::iterator ipi = bmodrefs.begin(), ipe = bmodrefs.end();
-      //list<PassManager *>::iterator pmi = bmanagers.begin(), pme = bmanagers.end();
       for(list<Module *>::iterator mi = bmodules.begin(), me = bmodules.end(); 
           mi != me && ii != ie && si != se; mi++, ii++, si++) {
-        //mi != me && ii != ie && si != se && ipi != ipe && pmi != pme; mi++, ii++, si++, ipi++, pmi++)
         module = *mi;
         if (module == NULL) {
           module = ReadModule(Context, *si);
@@ -450,160 +417,128 @@ void analyze(char *input)
             continue;
           }
           *mi = module;
-          int tmps = strip_len;
+          int tmps = module_strip_len;
           if (tmps < 0) {
             tmps =  count_strips(*module);
-            if (LOCAL_DEBUG)
-              cout << "Calculated bstrips: " << tmps << " for " << *si << endl;
+            #ifdef PERFSCOPE_DEBUG
+            cout << "Calculated bstrips: " << tmps << " for " << *si << endl;
+            #endif
           }
           *ii = tmps;
         }
-        Matcher matcher(*module, *ii);
+        Matcher matcher(*module, *ii, patch_strip_len);
         // nasty hack here to avoid soft link handling inconsistency between diff and debug info
         if (chap->fullname == "src/backend/port/sysv_shmem.c") 
           chap->fullname = "src/backend/port/pg_shmem.c";
         Matcher::sp_iterator I  = matcher.resetTarget(chap->fullname);
-        if (I == matcher.sp_end()) {
+        if (I == matcher.sp_end())
           continue;
-        }
         else {
           found = true;
-          FPasses.reset(new FunctionPassManager(module));
-          FPasses->add(new LoopInfoPrinter());
-          FPasses->doInitialization();
-          Function *prevf = NULL;
           while((hunk = chap->next_hunk()) != NULL) {
-            if (LOCAL_DEBUG) {
-              cout << "hunk: " << hunk->start_line << endl;
-              cout << hunk->ctrlseq << endl;
-            }
+            #ifdef PERFSCOPE_DEBUG
+            cout << "hunk: " << hunk->start_line << endl;
+            cout << hunk->ctrlseq << endl;
+            #endif
             assert(hunk->reduce());
-            if (LOCAL_DEBUG)
-              cout << hunk->rep_enclosing_scope << endl;
+            #ifdef PERFSCOPE_DEBUG
+            cout << hunk->rep_enclosing_scope << endl;
+            #endif
             Function *f;
             int s = 0;
             Scope scope = hunk->rep_enclosing_scope;
-            if (LOCAL_DEBUG) 
-              cout << hunk->rep_enclosing_scope << " might touch ";
+            #ifdef PERFSCOPE_DEBUG
+            cout << hunk->rep_enclosing_scope << " might touch ";
+            #endif
             Scope ls;
             Hunk::iterator HI = hunk->begin(), HE = hunk->end();
-            for(; (f = matcher.matchFunction(I, scope)) != NULL; prevf = f) {
-              // The enclosing scope is a rough estimation:
-              // We need to rely on the actual modification
+            for(; (f = matcher.matchFunction(I, scope)) != NULL;) {
+              // The enclosing scope is the min, max range:
+              //        [Mods[first].begin, Mods[last].end]
+              // We should iterate the actual modification for intervals 
 
-              // Hunk: [  (..M1..)       (..M2..)  (..M3..) ]
-              //                   {f1}
+              // Hunk: [(..M1..)    (..M2..)  (..M3..)]
+              //                {f1}
 
-
-              // Skip the modifications didn't reach function's beginning
-              while(HI != HE && (*HI)->rep_scope.end < I->linenumber)
+              // Skip DEL modifications and modifications that are 
+              // before function's beginning
+              while(HI != HE && ((*HI)->type == DEL || 
+                    (*HI)->rep_scope.end < I->linenumber))
                 HI++;
 
-              // no need to test the loop scope
-              if (HI == HE || (*HI)->rep_scope.begin > I->lastline)
-                continue;
+              // Run over modifications, break out to the next hunk
+              if (HI == HE) {
+                break;
+              }
+
+              // Modification cross function boundary, this
+              // happens when the function lies in gaps.
+              // But by definition, there's no gab between Mods.
+              assert((*HI)->rep_scope.begin <= I->lastline);
 
               s++;
               const char *dname = cpp_demangle(I->name.c_str());
               if (dname == NULL)
                 dname = I->name.c_str();
-              if (LOCAL_DEBUG) {
-                cout << "scope #" << s << ": " << dname;
-                cout << " |=> " << scope << "\n";
-                cout << "\t";
-              }
-              else 
-                cout << dname << ":"; // Structued output
-              DependenceGraph * depGraph = NULL;
-              //PDG->runOnFunction(*f);
-              if (prevf != f) // Only runs analysis on different functions.
-                FPasses->run(*f);
-              if (analysis_level >= 2)
-              {
-                // Four situations(top mod, bottom func):
-                // 1):   |_________|
-                //            |________|
-                // 2):   |_________|
-                //         |____|
-                // 3):   |_________|
-                //     |_______|
-                // 4):   |_________|
-                //     |_______________| 
-                //
+              #ifdef PERFSCOPE_DEBUG
+              cout << "scope #" << s << ": " << dname;
+              cout << " |=> " << scope << "\n";
+              cout << "\t";
+              #endif
+              cout << dname << ":"; // Structued output
 
-                Hunk::iterator hit = HI;
-                for (; hit != HE; hit++) {
-                  if ((*hit)->type == DEL) // skip delete
-                    continue;
-                  Scope rep_scope = (*hit)->rep_scope;
-                  if (rep_scope.begin > I->lastline) // reach the boundary
-                    break;
-                  if (rep_scope.begin < I->linenumber)
-                    rep_scope.begin = I->linenumber;
-                  if (rep_scope.end > I->lastline)
-                    rep_scope.end = I->lastline;
-                  inst_iterator fi = inst_begin(f);
-                  inst_iterator fe = inst_end(f);
-                  Instruction *inst = matcher.matchInstruction(fi, f, rep_scope); 
-                  //TODO may not skip the whole Mod
-                  if (inst == NULL) {
-                    if (LOCAL_DEBUG)
-                      errs() << "Can't locate any instruction for mod @" << rep_scope << "\n";
-                  }
-                  else {
-                    while(fi != fe) {
-                      unsigned l = ScopeInfoFinder::getInstLine(&*fi);
-                      if (l > rep_scope.end)
-                        break;
-                      assess(&*fi, (*hit)->type);
-                      if (analysis_level >= 3)
-                        slice(depGraph, &*fi, (*hit)->type);
-                      fi++;
-                    } 
-                  }
-                }
-              }
-              cout << "$$";
-
-              //TODO merge the two
-
-              {
-                if (funcLoops->begin() == funcLoops->end()) {
-                  if (LOCAL_DEBUG)
-                    cout << "loop: none";
-                  cout << "\n";
+              // Four situations(top mod, bottom func):
+              // 1):   |_________|
+              //            |________|
+              // 2):   |_________|
+              //         |____|
+              // 3):   |_________|
+              //     |_______|
+              // 4):   |_________|
+              //     |_______________| 
+              //
+              inst_iterator fi = inst_begin(f);
+              inst_iterator fe = inst_end(f);
+              
+              // Find the instructions for Modifications within the range of the
+              // function
+              for (; HI != HE && (*HI)->rep_scope.begin <= I->lastline; ++HI) {
+                if ((*HI)->type == DEL) { // skip delete
                   continue;
                 }
+                // need to modify rep_scope to reflect 
+                // the processed lines
+                Scope & rep_scope = (*HI)->rep_scope; 
+                // reach the boundary
+                if (rep_scope.begin > I->lastline) 
+                  break;
+                // adjust replacement mod scope
+                if (rep_scope.begin < I->linenumber)
+                  rep_scope.begin = I->linenumber;
+                if (rep_scope.end > I->lastline)
+                  rep_scope.end = I->lastline;
+                ////////////////////////////////
 
-                // Only look into overlapping modifications when
-                // there's loop inside this function.
-
-                //TODO more elegant
-                //TODO loop finder no need to restart
-                bool match_loop = false;
-                for(; HI != HE && (*HI)->rep_scope.begin <= I->lastline; HI++) {
-                  if ((*HI)->type == DEL) // skip delete
-                    continue;
-                  match_loop = isInLoop((*HI)->rep_scope);
-                  if (match_loop || passLoopEnd((*HI)->rep_scope))
-                    break;
+                Instruction *inst;
+                bool found_inst = false;
+                while ( (inst = matcher.matchInstruction(fi, f, rep_scope)) != NULL) {
+                  assess(inst, (*HI)->type);
+                  found_inst = true;
+                } 
+                #ifdef PERFSCOPE_DEBUG
+                if (!found_inst) {
+                  errs() << "Can't locate any instruction for mod @" << rep_scope << "\n";
                 }
-                if (!match_loop) {
-                  if (prevf != f)
-                    match_loop = followCS(f, *FPasses);
-                  if (LOCAL_DEBUG && !match_loop)
-                    cout << "loop: none";
-                }
-                cout << "\n";
+                #endif
               }
-
+              cout << "$$";
             }
+            #ifdef PERFSCOPE_DEBUG
             if (s == 0) {
-              if (LOCAL_DEBUG)
-                cout << "insignificant scope\n";
+              cout << "insignificant scope\n";
             }
+            #endif
           }
-          FPasses->doFinalization();
         }
         break; // already found in existing module, no need to try loading others
       }
@@ -656,11 +591,12 @@ void load(LLVMContext & Context, list<string> & lst, bool before)
       cout << "cannot load module " << *it << endl;
       exit(1);
     }
-    int s = strip_len;
+    int s = module_strip_len;
     if (s < 0) {
       s =  count_strips(*module);
-      if (LOCAL_DEBUG)
-        cout << "Calculated bstrips: " << s << " for " << *it << endl;
+      #ifdef PERFSCOPE_DEBUG
+      cout << "Calculated bstrips: " << s << " for " << *it << endl;
+      #endif
     }
     if (before) {
       bmodules.push_back(module);
@@ -689,19 +625,20 @@ void readToVector(char *fname, vector<string> &vec)
   }
   if (vec.begin() != vec.end())
     sort(vec.begin(), vec.end());
-  if (LOCAL_DEBUG) {
+  #ifdef PERFSCOPE_DEBUG
     vector<string>::iterator it = vec.begin(), ie = vec.end();
     for (; it != ie; it++) {
       cout << *it << endl;
     }
-  }
+  #endif
 }
 
 static char const * option_help[] =
 {
   " -b FILE1,FILE2,...\tA comma separated list of bc files from before-revision source code.",
   " -a FILE1,FILE2,...\tA comma separated list of bc files from after-revision source code.",
-  " -p LEN\tLevel of components to be striped of the path inside the debug symbol.",
+  " -p LEN\tLevel of components to be striped of the path inside the patch file.",
+  " -m LEN\tLevel of components to be striped of the path inside the module file.",
   " -s FILE\tA file containing the list of system call names",
   " -l FILE\tA file containing the list of synchronization call names",
   " -e FILE\tA file containing the list of expensive function calls",
@@ -732,7 +669,7 @@ int main(int argc, char *argv[])
 
   int opt;
   int plen;
-  while((opt = getopt(argc, argv, "a:b:e:hl:s:p:L:")) != -1) {
+  while((opt = getopt(argc, argv, "a:b:e:hl:s:p:m:L:")) != -1) {
     switch(opt) {
       case 'a':
         parseList(anames, optarg, ",");
@@ -755,7 +692,15 @@ int main(int argc, char *argv[])
           fprintf(stderr, "Strip len must be positive integer\n");
           exit(1);
         }
-        strip_len = plen;
+        patch_strip_len = plen;
+        break;
+      case 'm':
+        plen = atoi(optarg);
+        if (plen <= 0) {
+          fprintf(stderr, "Strip len must be positive integer\n");
+          exit(1);
+        }
+        module_strip_len = plen;
         break;
       case 'h':
         usage();

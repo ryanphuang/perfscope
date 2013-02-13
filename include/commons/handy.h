@@ -69,4 +69,15 @@ void diegrace(const char *, ...) __attribute__ ((noreturn, format (printf, 1, 2)
 void *xmalloc(size_t) __attribute__ ((__malloc__));
 void *xrealloc (void *, size_t);
 
+#define gen_dbg(prefix, flag) \
+void prefix##_debug(const char * fmt, ...) __attribute__ ((format (printf, 1, 2)));  \
+void prefix##_debug(const char * fmt, ...) \
+{                              \
+  va_list args;                \
+  va_start(args, format);      \
+  vprintf(format, args);       \
+  va_end(args);                \
+  printf("\n");                \
+}                              
+
 #endif
