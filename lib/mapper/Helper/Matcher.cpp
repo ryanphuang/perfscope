@@ -411,6 +411,7 @@ Instruction * Matcher::matchInstruction(inst_iterator &fi, Function * f, Scope &
     if (l == 0)
       continue;
     if (l == line) {
+      //TODO there could be multiple instructions at one line
       scope.begin = l + 1; // adjust to next line
       return inst;
     }

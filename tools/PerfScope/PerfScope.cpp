@@ -497,6 +497,8 @@ void analyze(char *input)
               // 4):   |_________|
               //     |_______________| 
               //
+              // TODO in case, the adjacent hunks are inside the same function, 
+              // no need to restart search from beginning
               inst_iterator fi = inst_begin(f);
               inst_iterator fe = inst_end(f);
               
