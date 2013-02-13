@@ -154,7 +154,7 @@ class Matcher {
     void processDomTree(DominatorTree &);
 
     cu_iterator matchCompileUnit(StringRef);
-    Function * matchFunction(sp_iterator &, Scope &);
+    Function * matchFunction(sp_iterator &, Scope &, bool &);
     Instruction * matchInstruction(inst_iterator &, Function *, Scope &);
     static Loop * matchLoop(LoopInfo &li, const Scope &);
 

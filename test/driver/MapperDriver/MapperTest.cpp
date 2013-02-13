@@ -108,7 +108,11 @@ void testMatching(string & filename, Matcher & matcher, Scope & scope)
   int s = 0;
   errs() << scope << " might touch ";
   Matcher::sp_iterator I = matcher.resetTarget(filename);
-  while ((f = matcher.matchFunction(I, scope)) != NULL ) {
+  bool multiple = true;
+  while (multiple) {
+    f = matcher.matchFunction(I, scope, multiple);
+    if (f == NULL)
+      break;
     s++;
     errs() << "scope #" << s << ": " << f->getName() << " |=> " << scope << ", ";
   }
@@ -252,6 +256,8 @@ void test_Mapper(char *input)
           FPasses.reset(new FunctionPassManager(module));
           FPasses->add(new LoopInfoPrinter());
           FPasses->doInitialization();
+          Function *func = NULL;
+          Function *prevfunc = NULL;
           while((hunk = chap->next_hunk()) != NULL) {
             if (LOCAL_DEBUG) {
               cout << "hunk: " << hunk->start_line << endl;
@@ -260,14 +266,17 @@ void test_Mapper(char *input)
             assert(hunk->reduce());
             if (LOCAL_DEBUG)
               cout << hunk->enclosing_scope << endl;
-            Function *f;
             int s = 0;
             Scope scope = hunk->enclosing_scope;
             if (LOCAL_DEBUG) 
               cout << hunk->enclosing_scope << " might touch ";
             Scope ls;
             Hunk::iterator HI = hunk->begin(), HE = hunk->end();
-            while ((f = matcher.matchFunction(I, scope)) != NULL ) {
+            bool multiple = true;
+            for (; multiple; prevfunc = func) {
+              func = matcher.matchFunction(I, scope, multiple);
+              if (func == NULL)
+                break;
               // The enclosing scope is a rough estimation:
               // We need to rely on the actual modification
 
@@ -293,7 +302,8 @@ void test_Mapper(char *input)
               }
               else 
                 cout << dname << ":"; // Structued output
-              FPasses->run(*f);
+              if (prevfunc != func)
+                FPasses->run(*func);
               if (funcLoops.begin() == funcLoops.end()) {
                 if (LOCAL_DEBUG)
                   cout << "loop: none";

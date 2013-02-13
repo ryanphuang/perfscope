@@ -77,7 +77,11 @@ namespace {
         if (I == matcher.sp_end())
           return;
         errs() << "touch {";
-        while ((f = matcher.matchFunction(I, scope)) != NULL ) {
+        bool multiple = true;
+        while (multiple) {
+          f = matcher.matchFunction(I, scope, multiple);
+          if (f == NULL)
+            break;
           s++;
           errs() << "scope #" << s << ": " << f->getName() << " |=> " << scope << ", ";
         }

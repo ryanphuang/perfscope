@@ -383,6 +383,9 @@ TargetData * getTargetData(PassManager & Passes, Module *M)
   return TD;
 }
 
+inline void reduce_hunk(Hunk *hunk)
+{
+}
 
 void analyze(char *input)
 {
@@ -431,28 +434,25 @@ void analyze(char *input)
         if (chap->fullname == "src/backend/port/sysv_shmem.c") 
           chap->fullname = "src/backend/port/pg_shmem.c";
         Matcher::sp_iterator I  = matcher.resetTarget(chap->fullname);
-        if (I == matcher.sp_end())
-          continue;
-        else {
+        if (I != matcher.sp_end()) {
           found = true;
-          while((hunk = chap->next_hunk()) != NULL) {
-            #ifdef PERFSCOPE_DEBUG
-            cout << "hunk: " << hunk->start_line << endl;
-            cout << hunk->ctrlseq << endl;
-            #endif
-            assert(hunk->reduce());
-            #ifdef PERFSCOPE_DEBUG
-            cout << hunk->rep_enclosing_scope << endl;
-            #endif
-            Function *f;
+          inst_iterator  fi;
+          Function *func = NULL;
+          Function *prevfunc = NULL;
+          while((hunk = chap->next_hunk())) {
             int s = 0;
+          #ifdef PERFSCOPE_DEBUG
+            cout << "hunk from line " << hunk->start_line << endl;
+            cout << hunk->ctrlseq << endl;
+            cout << hunk->rep_enclosing_scope << endl;
+          #endif
             Scope scope = hunk->rep_enclosing_scope;
-            #ifdef PERFSCOPE_DEBUG
-            cout << hunk->rep_enclosing_scope << " might touch ";
-            #endif
-            Scope ls;
             Hunk::iterator HI = hunk->begin(), HE = hunk->end();
-            for(; (f = matcher.matchFunction(I, scope)) != NULL;) {
+            bool multiple = true;
+            for(; multiple; prevfunc = func) {
+              func = matcher.matchFunction(I, scope, multiple);
+              if (func == NULL)
+                break;
               // The enclosing scope is the min, max range:
               //        [Mods[first].begin, Mods[last].end]
               // We should iterate the actual modification for intervals 
@@ -499,8 +499,8 @@ void analyze(char *input)
               //
               // TODO in case, the adjacent hunks are inside the same function, 
               // no need to restart search from beginning
-              inst_iterator fi = inst_begin(f);
-              inst_iterator fe = inst_end(f);
+              if (prevfunc != func)
+                fi = inst_begin(func);
               
               // Find the instructions for Modifications within the range of the
               // function
@@ -523,7 +523,7 @@ void analyze(char *input)
 
                 Instruction *inst;
                 bool found_inst = false;
-                while ( (inst = matcher.matchInstruction(fi, f, rep_scope)) != NULL) {
+                while ( (inst = matcher.matchInstruction(fi, func, rep_scope)) != NULL) {
                   assess(inst, (*HI)->type);
                   found_inst = true;
                 } 
@@ -541,8 +541,8 @@ void analyze(char *input)
             }
             #endif
           }
+          break; // already found in existing module, no need to try loading others
         }
-        break; // already found in existing module, no need to try loading others
       }
       if (!found) 
         chap->skip_rest_of_hunks();

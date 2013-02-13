@@ -476,17 +476,16 @@ Loop * Matcher::matchLoop(LoopInfo &li, const Scope & scope)
  *  Note: finder.processModule(M) should be called before the first call of matchFunction.
  *
  * **/
-Function * Matcher::matchFunction(sp_iterator & I, Scope &scope)
+Function * Matcher::matchFunction(sp_iterator & I, Scope &scope, bool & multiple)
 {
   if (!initialized) {
     errs() << "Matcher is not initialized\n";
     return NULL;
   }
   // hit the boundary
-  if (scope.begin == 0 || scope.end == 0 || scope.end < scope.begin) {
+  if (scope.end < scope.begin) {
     return NULL;
   }
-
   /** Off-the-shelf SP finder **/
   sp_iterator E = sp_end();
   while (I != E) {
@@ -511,14 +510,30 @@ Function * Matcher::matchFunction(sp_iterator & I, Scope &scope)
   }
   if (I == E)
     return NULL;
-  // Lies in the gap
+
+  //
+  //                 |  f1   |        Cases of scope: 
+  //  f1.lastline -> |_______|      (1)  (2)  (3)  (4)  (5)
+  //                 +       +       ^    ^              ^
+  //                 +  GAP  +       |    |              |
+  //                 +       +       v    |              |
+  // f2.linenumber-> ---------            |              |
+  //                 |       |            v    ^    ^    |
+  //                 |  f2   |                 |    |    |
+  //  f2.lastline -> |_______|                 v    |    |
+  //                 +       +                      |    |
+  //                    ...                         v    v
+  //
+
+  // Case (1)
   if (I->linenumber > scope.end || (I->linenumber == scope.end && I->lastline > I->linenumber))
     return NULL;
-  if (I->lastline < scope.end)
-    scope.begin = I->lastline + 1;  // Multiple functions
-  else
-    scope.begin = 0;
-  return I->function;
+  if (I->lastline < scope.end) { // Case (4), (5)
+    scope.begin = I->lastline + 1;  // adjust beginning to next
+    multiple = true;
+  }
+  multiple = false;
+  return I->function; 
 }
 
 /**

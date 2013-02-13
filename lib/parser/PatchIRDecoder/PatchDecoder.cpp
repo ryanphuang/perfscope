@@ -361,6 +361,8 @@ Hunk * Chapter::next_hunk()
     if (hunk == NULL) {
         diegrace("out of memory");
     }
+    //NOTE: we do the reduction here to avoid call it explicitly
+    assert(hunk->reduce());
     return hunk;
 }
 
