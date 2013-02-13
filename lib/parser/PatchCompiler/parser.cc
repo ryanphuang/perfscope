@@ -1076,101 +1076,15 @@ scan_exit:
                 }
                 i0 = (nametype) i;
             }
-
-        /***
-        if (! posixly_correct)
-        {
-            i = best_name (p_name, stat_errno);
-
-            if (i == NONE && patch_get)
-            {
-                enum nametype nope = NONE;
-
-                for (i = OLD;  i <= INDEX;  i++)
-                    if (p_name[i])
-                    {
-                        char const *cs;
-                        char *getbuf;
-                        char *diffbuf;
-                        bool readonly = (outfile
-                                && strcmp (outfile, p_name[i]) != 0);
-
-                        if (nope == NONE || strcmp (p_name[nope], p_name[i]) != 0)
-                        {
-                            cs = (version_controller
-                                    (p_name[i], readonly, (struct stat *) 0,
-                                     &getbuf, &diffbuf));
-                            version_controlled[i] = !! cs;
-                            if (cs)
-                            {
-                                WARN_UNIMPL;
-                            }
-                        }
-
-                        nope = (nametype) i;
-                    }
-            }
-
-            if (i != NONE && st[i].st_size > 0)
-                i0 = (nametype) i;
-            if (i0 != NONE
-                    && ! maybe_reverse (p_name[i0], i == NONE,
-                        i == NONE || st[i].st_size == 0))
-                i = i0;
-
-            if (i == NONE && p_says_nonexistent[reverse])
-            {
-                int newdirs[3];
-                int newdirs_min = INT_MAX;
-                int distance_from_minimum[3];
-
-                for (i = OLD;  i <= INDEX;  i++)
-                    if (p_name[i])
-                    {
-                        newdirs[i] = (prefix_components (p_name[i], false)
-                                - prefix_components (p_name[i], true));
-                        if (newdirs[i] < newdirs_min)
-                            newdirs_min = newdirs[i];
-                    }
-
-                for (i = OLD;  i <= INDEX;  i++)
-                    if (p_name[i])
-                        distance_from_minimum[i] = newdirs[i] - newdirs_min;
-
-                i = best_name (p_name, distance_from_minimum);
-            }
-        }
-        ***/
     }
-
-
-    /**
-    if (i == NONE)
-    {
-        if (inname)
-        {
-            inerrno = stat (inname, &instat) == 0 ? 0 : errno;
-            maybe_reverse (inname, inerrno, inerrno || instat.st_size == 0);
-        }
-        else
-            inerrno = -1;
-    }
-    
-    else
-    {
-        inname = dupstr(p_name[i]);
-        inerrno = stat_errno[i];
-        invc = version_controlled[i];
-        instat = st[i];
-    }
-    **/
-    for (i = OLD; i <= INDEX; i++) {
-        if (p_name[i]) {
-            inname = dupstr(p_name[i]);
-            inerrno = stat_errno[i];
-            instat = st[i];
-            break;
-        }
+    //TODO nasty to prefer NEW over OLD
+    for (i = NEW; i >= OLD; i--) {
+      if (p_name[i]) {
+          inname = dupstr(p_name[i]);
+          inerrno = stat_errno[i];
+          instat = st[i];
+          break;
+      }
     }
     return retval;
 }

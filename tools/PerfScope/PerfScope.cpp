@@ -531,7 +531,7 @@ void analyze(char *input)
                 }
                 #endif
               }
-              cout << "$$";
+              cout << "$$\n";
             }
             #ifdef PERFSCOPE_DEBUG
             if (s == 0) {

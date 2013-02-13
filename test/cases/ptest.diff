@@ -1,0 +1,23 @@
+--- ptest.c	2013-02-12 21:20:03.989508695 -0800
++++ ptest.new.c	2013-02-12 21:23:39.847508429 -0800
+@@ -2,10 +2,12 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
++pthread_mutex_t mutex;
+ static int counter = 1;
+ 
+ void * routine(void *arg)
+ {
++  pthread_mutex_lock(&mutex);
+   unsigned i;
+   for (i = 0; i < (0xfffff); i++);
+   printf("hello %d start\n", counter);
+@@ -13,6 +15,7 @@ void * routine(void *arg)
+   for (i = 0; i < (0xfffff); i++);
+   printf("hello %d end\n", counter);
+   counter++;
++  pthread_mutex_unlock(&mutex);
+   return NULL;
+ }
+ 

@@ -1,0 +1,122 @@
+From: tomas
+Date: January 23 2007 1:54pm
+Subject: bk commit into 5.1 tree (tulin:1.2397)
+List-Archive: http://lists.mysql.com/commits/18626
+Message-Id: <200701231354.l0NDsILd012679@production.mysql.com>
+
+Below is the list of changes that have just been committed into a local
+5.1 repository of mysqldev. When mysqldev does a push these changes will
+be propagated to the main repository and, within 24 hours after the
+push, to the public repository.
+For information on how to access the public repository
+see http://dev.mysql.com/doc/mysql/en/installing-source-tree.html
+
+ChangeSet@stripped, 2007-01-23 14:53:59+01:00, tulin@stripped +4 -0
+  Merge mysql.com:/data0/mysqldev/users/tomas/mysql-5.0-build
+  into  mysql.com:/data0/mysqldev/users/tomas/mysql-5.1-build
+  MERGE: 1.1810.2371.62
+
+  cmd-line-utils/readline/undo.c@stripped, 2007-01-23 14:52:47+01:00, mysqldev@stripped +0 -0
+    Auto merged
+    MERGE: 1.10.1.2
+
+  configure.in@stripped, 2007-01-23 14:52:46+01:00, mysqldev@stripped +0 -0
+    Auto merged
+    MERGE: 1.245.1.176
+
+  sql/ha_ndbcluster.cc@stripped, 2007-01-23 14:52:47+01:00, mysqldev@stripped +0 -0
+    Auto merged
+    MERGE: 1.175.1.119
+
+  storage/myisam/mi_packrec.c@stripped, 2007-01-23 14:52:47+01:00, mysqldev@stripped +0 -0
+    Auto merged
+    MERGE: 1.30.13.2
+
+  storage/myisam/mi_packrec.c@stripped, 2007-01-23 14:52:46+01:00, mysqldev@stripped +0 -0
+    Merge rename: myisam/mi_packrec.c -> storage/myisam/mi_packrec.c
+
+# This is a BitKeeper patch.  What follows are the unified diffs for the
+# set of deltas contained in the patch.  The rest of the patch, the part
+# that BitKeeper cares about, is below these diffs.
+# User:	tulin
+# Host:	production.mysql.com
+# Root:	/data0/mysqldev/users/tomas/mysql-5.1-build/RESYNC
+
+--- 1.30.13.1/myisam/mi_packrec.c	2007-01-23 14:54:17 +01:00
++++ 1.47/storage/myisam/mi_packrec.c	2007-01-23 14:54:17 +01:00
+@@ -1481,56 +1481,33 @@
+ static int _mi_read_mempack_record(MI_INFO *info,my_off_t filepos,byte *buf);
+ static int _mi_read_rnd_mempack_record(MI_INFO*, byte *,my_off_t, my_bool);
+ 
+-#ifndef MAP_NORESERVE
+-#define MAP_NORESERVE 0		/* For irix */
+-#endif
+-#ifndef MAP_FAILED
+-#define MAP_FAILED -1
+-#endif
+-
+ my_bool _mi_memmap_file(MI_INFO *info)
+ {
+-  byte *file_map;
+   MYISAM_SHARE *share=info->s;
+   DBUG_ENTER("mi_memmap_file");
+ 
+-  if (!share->file_map)
++  if (!info->s->file_map)
+   {
+-    my_off_t data_file_length= share->state.state.data_file_length;
+-    if (data_file_length > (my_off_t) (~((size_t) 0)) - MEMMAP_EXTRA_MARGIN)
+-    {
+-      DBUG_PRINT("warning", ("File is too large for mmap"));
+-      DBUG_RETURN(0);
+-    }
+     if (my_seek(info->dfile,0L,MY_SEEK_END,MYF(0)) <
+-        data_file_length + MEMMAP_EXTRA_MARGIN)
++        share->state.state.data_file_length+MEMMAP_EXTRA_MARGIN)
+     {
+       DBUG_PRINT("warning",("File isn't extended for memmap"));
+       DBUG_RETURN(0);
+     }
+-    file_map=(byte*)
+-      my_mmap(0, (size_t) (data_file_length + MEMMAP_EXTRA_MARGIN), PROT_READ,
+-              MAP_SHARED | MAP_NORESERVE, info->dfile, 0L);
+-    if (file_map == (byte*) MAP_FAILED)
+-    {
+-      DBUG_PRINT("warning",("mmap failed: errno: %d",errno));
+-      my_errno=errno;
++    if (mi_dynmap_file(info, share->state.state.data_file_length))
+       DBUG_RETURN(0);
+-    }
+-    share->file_map= file_map;
+   }
+   info->opt_flag|= MEMMAP_USED;
+-  info->read_record=share->read_record=_mi_read_mempack_record;
+-  share->read_rnd=_mi_read_rnd_mempack_record;
++  info->read_record= share->read_record= _mi_read_mempack_record;
++  share->read_rnd= _mi_read_rnd_mempack_record;
+   DBUG_RETURN(1);
+ }
+ 
+ 
+ void _mi_unmap_file(MI_INFO *info)
+ {
+-  VOID(my_munmap(info->s->file_map,
+-	      (size_t) info->s->state.state.data_file_length+
+-	      MEMMAP_EXTRA_MARGIN));
++  VOID(my_munmap(info->s->file_map, 
++                 (size_t) info->s->mmaped_length + MEMMAP_EXTRA_MARGIN));
+ }
+ 
+ 
+
+--- 1.384/sql/ha_ndbcluster.cc	2007-01-23 14:54:17 +01:00
++++ 1.385/sql/ha_ndbcluster.cc	2007-01-23 14:54:17 +01:00
+@@ -7806,7 +7806,7 @@
+ retry:
+     if(report_error)
+     {
+-      if (file)
++      if (file && pTrans)
+       {
+         reterr= file->ndb_err(pTrans);
+       }
