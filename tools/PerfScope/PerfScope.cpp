@@ -72,8 +72,8 @@ static vector<string> syscalls;
 static vector<string> expcalls;
 static vector<string> lockcalls;
 
-typedef LocalRiskEvaluator::InstVecTy InstVecTy;
-typedef LocalRiskEvaluator::InstMapTy InstMapTy;
+typedef RiskEvaluator::InstVecTy InstVecTy;
+typedef RiskEvaluator::InstMapTy InstMapTy;
 
 static SmallVector<Scope, 4> *funcLoops;
 typedef SmallVector<Scope, 4>::iterator loop_iterator;
@@ -549,7 +549,7 @@ void analyze(char *input)
             FPasses.reset(new FunctionPassManager(module));
             PassRegistry &Registry = *PassRegistry::getPassRegistry();
             initPassRegistry(Registry);
-            FPasses->add(new LocalRiskEvaluator(instmap));
+            FPasses->add(new RiskEvaluator(instmap));
             FPasses->doInitialization();
             for (InstMapTy::iterator map_it = instmap.begin(), map_ie = instmap.end();
                 map_it != map_ie; ++map_it) {

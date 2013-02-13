@@ -47,7 +47,7 @@
 
 namespace llvm {
 
-class LocalRiskEvaluator: public FunctionPass {
+class RiskEvaluator: public FunctionPass {
   public:
     typedef SmallVector<Instruction *, 8> InstVecTy;
     typedef std::map<Function *, InstVecTy> InstMapTy;
@@ -59,7 +59,7 @@ class LocalRiskEvaluator: public FunctionPass {
   public:
     static char ID;
 
-    LocalRiskEvaluator(InstMapTy & inst_map) : FunctionPass(ID), 
+    RiskEvaluator(InstMapTy & inst_map) : FunctionPass(ID), 
         m_inst_map(inst_map) {} 
 
     /// Returns the expected cost of the instruction.

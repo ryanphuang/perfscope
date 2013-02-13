@@ -34,7 +34,7 @@
 
 using namespace llvm;
 
-bool LocalRiskEvaluator::runOnFunction(Function &F)
+bool RiskEvaluator::runOnFunction(Function &F)
 {
   if (!m_inst_map.count(&F)) {
     errs() << F.getName() << " not in the target\n";
@@ -74,4 +74,4 @@ bool LocalRiskEvaluator::runOnFunction(Function &F)
   return false;
 }
 
-char LocalRiskEvaluator::ID = 0;
+char RiskEvaluator::ID = 0;

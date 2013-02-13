@@ -145,7 +145,7 @@ int main(int argc, char **argv)
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
   initPassRegistry(Registry);
 
-  LocalRiskEvaluator::InstMapTy map;
+  RiskEvaluator::InstMapTy map;
   //TODO nasty hard code, use file for test
   for (Module::iterator MI = M->begin(), ME = M->end(); MI != ME; ++MI) {
     Function * F = MI;
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
       map[F].push_back(inst);
     }
   }
-  FPasses->add(new LocalRiskEvaluator(map));
+  FPasses->add(new RiskEvaluator(map));
   FPasses->doInitialization();
   FPasses->run(*(map.begin()->first));
   FPasses->doFinalization();
