@@ -38,7 +38,6 @@
 
 #include "commons/handy.h"
 #include "commons/LLVMHelper.h"
-#include "commons/CallSiteFinder.h"
 #include "parser/PatchDecoder.h"
 #include "mapper/PgmDependenceGraph.h"
 #include "mapper/DifferenceEngine.h"
@@ -71,7 +70,6 @@ static int analysis_level = 1;
 
 static char * program_name;
 
-static char * bc_fname = NULL;
 static char * id_fname = NULL;
 
 static LLVMContext & Context = getGlobalContext();
@@ -96,39 +94,6 @@ typedef RiskEvaluator::InstMapTy InstMapTy;
 static int objlen = MAX_PATH;
 static char objname[MAX_PATH];
 
-
-void test_CallGraph()
-{
-  if (bc_fname == NULL) {
-    cout << "NULL bc_fname" << endl;
-  }
-  LLVMContext ctx;
-  Module * module = ReadModule(ctx, bc_fname);
-  if (module != NULL) {
-    Function* func = module->getFunction("_ZL23test_if_skip_sort_orderP13st_join_tableP8st_ordermbP6BitmapILj64EE");
-    if (func == NULL) {
-      cout << "Cannot find function!" << endl;
-      return;
-    }
-    CallSiteFinder csf(func);
-    CallSiteFinder::cs_iterator i = csf.begin(), e = csf.end();
-    if(i == e) {
-      cout << "No function";
-    }
-    else {
-      cout << "The following functions";
-    }
-    const char *name = func->getName().data();
-    cout << " called " << cpp_demangle(name) << endl;
-    for (; i != e; i++) {
-      name = (*i)->getName().data();
-      cout << cpp_demangle(name) << endl;
-    }
-  }
-  else {
-    cout << "Cannot load " << bc_fname << endl;
-  }
-}
 
 void assess(Instruction *I, MODTYPE type)
 {

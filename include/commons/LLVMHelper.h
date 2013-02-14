@@ -32,6 +32,7 @@
 
 #include "llvm/Module.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/PassRegistry.h"
 
 namespace llvm {
 

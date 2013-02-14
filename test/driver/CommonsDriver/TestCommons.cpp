@@ -1,5 +1,5 @@
 /**
- *  @file          /home/ryan/project/perfscope/test/driver/CommonsDriver/CommonsTest.cpp
+ *  @file          test/driver/CommonsDriver/CommonsTest.cpp
  *
  *  @version       1.0
  *  @created       02/04/2013 05:57:23 PM
@@ -30,9 +30,15 @@
 #include <iostream>
 #include <map>
 
+#include "llvm/LLVMContext.h"
+#include "llvm/Module.h"
+
 #include "commons/handy.h"
+#include "commons/CallSiteFinder.h"
+#include "commons/LLVMHelper.h"
 
 using namespace std;
+using namespace llvm;
 
 inline static void begin_test(const char * name)
 {
@@ -233,6 +239,32 @@ void test_pendswith()
 
 
 }
+
+void test_CallGraph(Module *module, const char * fname)
+{
+  if (module != NULL) {
+    Function* func = module->getFunction(fname);
+    if (func == NULL) {
+      cout << "Cannot find function '" << fname << "'" << endl;
+      return;
+    }
+    CallSiteFinder csf(func);
+    CallSiteFinder::cs_iterator i = csf.begin(), e = csf.end();
+    if(i == e) {
+      cout << "No function";
+    }
+    else {
+      cout << "The following functions";
+    }
+    const char *name = func->getName().data();
+    cout << " called " << cpp_demangle(name) << endl;
+    for (; i != e; i++) {
+      name = (*i)->getName().data();
+      cout << cpp_demangle(name) << endl;
+    }
+  }
+}
+
 
 int main()
 {
