@@ -59,8 +59,8 @@ bool RiskEvaluator::assess(Instruction *I)
       const char *dname = cpp_demangle(func->getName().data());
       for (Profile::iterator it = profile->begin(), ie = profile->end(); 
           it != ie; ++it) {
-        if (std::binary_search(it->calls.begin(), it->calls.end(), dname)) {
-          errs() << "*" << HotTypeStr(it->type) << "*";
+        if (std::binary_search(it->second.begin(), it->second.end(), dname)) {
+          errs() << "*" << toStr(it->first) << "*";
           return true;
         }
       }

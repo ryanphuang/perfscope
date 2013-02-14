@@ -105,6 +105,14 @@ size_t fgetline(FILE * fp, char *buf, size_t & bufsize, unsigned &lineno)
     return i;
 }
 
+char * fgetline(FILE * fp, char * buf, size_t bufsize)
+{
+  if (fgets(buf, bufsize, fp) == NULL)
+    return NULL;
+  buf[strcspn(buf, "\n")] = '\0';
+  return buf;
+}
+
 char *src2obj(const char *name, char *outbuf, int *buflen)
 {
     if (outbuf != NULL && buflen == NULL)
@@ -433,9 +441,10 @@ void readlines2vector(char *fname, std::vector<std::string> &vec)
   if (vec.begin() != vec.end())
     std::sort(vec.begin(), vec.end());
   #ifdef HANDY_DEBUG
-    vector<string>::iterator it = vec.begin(), ie = vec.end();
-    for (; it != ie; it++)
-      printf("%s\n", it->c_str()); 
+  vector<string>::iterator it = vec.begin(), ie = vec.end();
+  for (; it != ie; it++)
+    printf("%s\n", it->c_str()); 
   #endif
+  fclose(fp);
 }
 

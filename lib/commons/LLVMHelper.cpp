@@ -29,6 +29,7 @@
 
 #include <string>
 #include <iostream>
+#include <algorithm>
 
 #include "llvm/Analysis/DebugInfo.h"
 
@@ -59,15 +60,48 @@ gen_dbg_nop(helper)
 
 namespace llvm {
 
-const char * HotTypeStr(const HotFuncType type)
+static const char * HotTypeName[HOTTYPES] = {
+  "INVALIDTYPE",
+  "SYSCALL",
+  "LOCKCALL",
+  "EXPCALL",
+  "FREQCALL"
+};
+
+static const char * HotTypeStr[HOTTYPES] = {
+  "invalid type",
+  "system call",
+  "lock call",
+  "expensive call",
+  "frequent call"
+};
+
+const char * toStr(const HotFuncType type)
 {
-  switch (type) {
-    case SYSCALL:   return "system call";
-    case LOCKCALL:  return "lock call";
-    case EXPCALL:   return "expensive call";
-    case FREQCALL:  return "frequent call";
+  if (type < 0 || type >= HOTTYPES)
+    return "UNKNOWN";
+  return HotTypeStr[type];
+}
+
+const char * toName(const HotFuncType type)
+{
+  if (type < 0 || type >= HOTTYPES)
+    return "UNKNOWN";
+  return HotTypeName[type];
+}
+
+HotFuncType fromHotTypeName(const char * name)
+{
+  int i;
+  HotFuncType type;
+  for (i = SYSCALL; i <= FREQCALL; i++) {
+    type = (HotFuncType) i;
+    if (strcmp(name, toName(type)) == 0)
+      break;
   }
-  return "unknown";
+  if (i > FREQCALL)
+    return INVALIDTYPE;
+  return type;
 }
 
 size_t count_strips(Module * M)
@@ -171,6 +205,69 @@ TargetData * getTargetData(Module *M)
   if (!ModuleDataLayout.empty())
     TD = new TargetData(ModuleDataLayout);
   return TD;
+}
+
+void indent(raw_ostream & OS, unsigned space)
+{
+  while (space--) {
+    OS << " ";
+  }
+}
+
+bool parseProfile(const char *fname, Profile &profile)
+{
+  FILE *fp = fopen(fname,"r");
+  if (fp == NULL) {
+    perror("Read profile file");
+    return false;
+  }
+  char buf[256];
+  bool preamble = false;
+  HotFuncType type = SYSCALL; 
+  unsigned line = 0;
+  while (fgetline(fp, buf, 256) != NULL) {
+    line++;
+    if (strcmp(buf, PROFILE_SEGMENT_BEGIN) == 0) {
+      if (preamble) {
+        fprintf(stderr, "Warning: empty profile segment %s\n", toStr(type));
+      }
+      // Preamble detected. Expect next line to be 
+      // segment type
+      if (fgetline(fp, buf, 256) == NULL) {
+        syntaxerr("expected profile segment type", line);
+        return false;
+      }
+      line++;
+      type = fromHotTypeName(buf);
+      if (type == INVALIDTYPE) {
+        syntaxerr("unknown profile segment type", line);
+        return false;
+      }
+      if (fgetline(fp, buf, 256) == NULL || strcmp(buf, PROFILE_SEGMENT_END) != 0) {
+        syntaxerr("expected profile segment end", line);
+        return false;
+      }
+      line++;
+      preamble = true;
+      continue;
+    }
+    else
+      if (strcmp(buf, PROFILE_SEGMENT_END) == 0) {
+        syntaxerr("expected profile segment begin", line);
+        return false;
+      }
+      else {
+        preamble = false;
+        if (strlen(buf))
+          profile[type].push_back(buf);
+      }
+  }
+  for (Profile::iterator it = profile.begin(), ie = profile.end(); it != ie; ++it) {
+    std::vector<std::string> &vec = it->second;
+    std::sort(vec.begin(), vec.end());
+  }
+  fclose(fp);
+  return true;
 }
 
 } // End of llvm namespace

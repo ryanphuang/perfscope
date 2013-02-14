@@ -50,17 +50,16 @@ struct ModuleArg {
   ModuleArg(std::string n, Module *m = NULL, int s = 0) : name(n), module(m), strips(s) {}
 };
 
-enum HotFuncType {SYSCALL, LOCKCALL, EXPCALL, FREQCALL};
+#define HOTTYPES 5
 
-struct HotFuncs {
-  HotFuncType type;
-  std::vector<std::string> calls;
-  HotFuncs(HotFuncType type = SYSCALL) : type(type){}
-};
+enum HotFuncType {INVALIDTYPE, SYSCALL, LOCKCALL, EXPCALL, FREQCALL};
 
-const char * HotTypeStr(const HotFuncType type);
+HotFuncType fromHotTypeName(const char * name);
 
-typedef std::vector<HotFuncs> Profile;
+const char * toStr(const HotFuncType type);
+const char * toName(const HotFuncType type);
+
+typedef std::map<HotFuncType, std::vector<std::string> > Profile;
 
 /// Infer the level of strips in the module.
 /// The algorithm is to use the length of longest 
@@ -84,6 +83,14 @@ void initPassRegistry(PassRegistry & Registry);
 /// Get the TargetData in the given Module
 /// Return NULL if it cannot be created
 TargetData * getTargetData(Module *M);
+
+void indent(raw_ostream & OS, unsigned space);
+
+#define PROFILE_SEGMENT_BEGIN "===="
+#define PROFILE_SEGMENT_TYPE(type) #type
+#define PROFILE_SEGMENT_END "===="
+
+bool parseProfile(const char *fname, Profile &profile);
 
 } // End of llvm namespace
 

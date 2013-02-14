@@ -36,6 +36,12 @@
 # endif
 
 size_t fgetline(FILE *, char *, size_t & , unsigned &);
+char * fgetline(FILE *, char *, size_t);
+
+inline void syntaxerr(const char * msg, unsigned line)
+{
+  fprintf(stderr, "Syntax error at line %u: %s\n", line, msg);
+}
 
 char *dupstr(const char *);
 

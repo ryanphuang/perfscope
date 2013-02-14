@@ -272,15 +272,27 @@ void analyze(char *input)
 
 static char const * option_help[] =
 {
-  " -b FILE1,FILE2,...\tA comma separated list of bc files from before-revision source code.",
-  " -a FILE1,FILE2,...\tA comma separated list of bc files from after-revision source code.",
-  " -p LEN\tLevel of components to be striped of the path inside the patch file.",
-  " -m LEN\tLevel of components to be striped of the path inside the module file.",
-  " -s FILE\tA file containing the list of system call names",
-  " -l FILE\tA file containing the list of synchronization call names",
-  " -e FILE\tA file containing the list of expensive function calls",
-  " -L LEVEL\tSpecify the level of analysis",
-  " -h\tPrint this message.",
+  " -b FILE1,FILE2,...\n\tA comma separated list of bc files from before-revision source code.",
+  " -a FILE1,FILE2,...\n\tA comma separated list of bc files from after-revision source code.",
+  " -p LEN\n\tLevel of components to be striped of the path inside the patch file.",
+  " -m LEN\n\tLevel of components to be striped of the path inside the module file.",
+  " -e FILE\n\tProfile file containing segments of different hot function calls.\n\t\t"
+             "Format of the profile is:\n\t\t"
+             PROFILE_SEGMENT_BEGIN 
+             "\n\t\t"
+             PROFILE_SEGMENT_TYPE(SYSCALL)
+             "|"
+             PROFILE_SEGMENT_TYPE(LOCKCALL)
+             "|"
+             PROFILE_SEGMENT_TYPE(EXPCALL)
+             "|"
+             PROFILE_SEGMENT_TYPE(FREQCALL)
+             "|"
+             "\n\t\t"
+             PROFILE_SEGMENT_END 
+             "\n\t\tFUNCTION NAME\n\t\t...",
+  " -L LEVEL\n\tSpecify the level of analysis",
+  " -h\n\tPrint this message.",
   0
 };
 
@@ -316,23 +328,9 @@ int main(int argc, char *argv[])
         break;
       case 'e':
       {
-        HotFuncs exp(EXPCALL);
-        readlines2vector(optarg, exp.calls);
-        profile.push_back(exp);
-        break;
-      }
-      case 'l':
-      {
-        HotFuncs loc(LOCKCALL);
-        readlines2vector(optarg, loc.calls);
-        profile.push_back(loc);
-        break;
-      }
-      case 's':
-      {
-        HotFuncs sys(LOCKCALL);
-        readlines2vector(optarg, sys.calls);
-        profile.push_back(sys);
+        if (!parseProfile(optarg, profile)) {
+          exit(1);
+        }
         break;
       }
       case 'p':
@@ -346,6 +344,7 @@ int main(int argc, char *argv[])
         break;
       }
       case 'm':
+      {
         plen = atoi(optarg);
         if (plen <= 0) {
           fprintf(stderr, "Strip len must be positive integer\n");
@@ -353,16 +352,19 @@ int main(int argc, char *argv[])
         }
         module_strip_len = plen;
         break;
+      }
       case 'h':
         usage();
         exit(0);
       case 'L':
+      {
         analysis_level = atoi(optarg);
         if (analysis_level <= 0) {
           fprintf(stderr, "Level of analysis must be positive integer\n");
           exit(1);
         }
         break;
+      }
       case '?':
       default:
         usage();
@@ -370,7 +372,7 @@ int main(int argc, char *argv[])
     }
   }
   if (newmods.begin() == newmods.end()) {
-    fprintf(stderr, "Must specify before-revision bitcode file argument\n");
+    fprintf(stderr, "Must specify after-revision bitcode file argument\n");
     exit(1);
   }
   if (optind != argc-1) {

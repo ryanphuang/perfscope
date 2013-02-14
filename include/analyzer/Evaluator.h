@@ -55,6 +55,13 @@ class RiskEvaluator: public FunctionPass {
     typedef SmallVector<Instruction *, 8> InstVecTy;
     typedef std::map<Function *, InstVecTy> InstMapTy;
 
+    enum RiskLevel {
+      NoRisk,
+      LowRisk,
+      MediumRisk,
+      HighRisk
+    };
+
   private:
     typedef SmallVector<Instruction *, 8>::iterator InstVecIter;
     InstMapTy m_inst_map;
