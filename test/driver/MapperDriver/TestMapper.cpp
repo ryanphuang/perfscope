@@ -22,9 +22,9 @@
 #include "llvm/Target/TargetData.h"
 
 #include "commons/handy.h"
+#include "commons/CallSiteFinder.h"
 
 #include "parser/PatchDecoder.h"
-#include "mapper/CallSiteFinder.h"
 #include "mapper/Matcher.h"
 
 using namespace std;

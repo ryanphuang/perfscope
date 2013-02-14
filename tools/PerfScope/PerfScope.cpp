@@ -38,10 +38,10 @@
 
 #include "commons/handy.h"
 #include "commons/LLVMHelper.h"
+#include "commons/CallSiteFinder.h"
 #include "parser/PatchDecoder.h"
 #include "mapper/PgmDependenceGraph.h"
 #include "mapper/DifferenceEngine.h"
-#include "mapper/CallSiteFinder.h"
 #include "mapper/Matcher.h"
 #include "mapper/Slicer.h"
 #include "analyzer/Evaluator.h"
