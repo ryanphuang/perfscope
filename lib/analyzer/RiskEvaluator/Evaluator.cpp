@@ -59,11 +59,14 @@ bool RiskEvaluator::assess(Instruction *I)
       const char *dname = cpp_demangle(func->getName().data());
       for (Profile::iterator it = profile->begin(), ie = profile->end(); 
           it != ie; ++it) {
-        if (std::binary_search(it->calls.begin(), it->calls.end(), dname))
-          std::cout << HotTypeStr(it->type) << std::endl;
+        if (std::binary_search(it->calls.begin(), it->calls.end(), dname)) {
+          errs() << "*" << HotTypeStr(it->type) << "*";
+          return true;
+        }
       }
     }
   }
+  return false;
 }
 
 bool RiskEvaluator::runOnFunction(Function &F)
@@ -82,7 +85,7 @@ bool RiskEvaluator::runOnFunction(Function &F)
   const BasicBlock * BB = 0;
   unsigned old_depth = 0;
   for (InstVecIter I = inst_vec.begin(), E = inst_vec.end(); I != E; I++) {
-    const Instruction* inst = *I;
+    Instruction* inst = *I;
     unsigned depth = old_depth;
     if (inst->getParent() != BB) {
       BB = inst->getParent();
@@ -93,6 +96,12 @@ bool RiskEvaluator::runOnFunction(Function &F)
     if (cost_model)
       errs() << "  cost: " << cost_model->getInstructionCost(inst) << "\n";
     errs() << "  loop depth: " << depth << "\n";
+    errs() << "  hotness: ";
+    if (assess(inst))
+      errs() << " hot";
+    else
+      errs() << " cold";
+    errs() << "\n";
     if (depth > 0) {
       Loop * loop = li.getLoopFor(inst->getParent());
       while (depth > 0 && loop) {

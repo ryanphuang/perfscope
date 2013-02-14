@@ -76,9 +76,7 @@ static LLVMContext & Context = getGlobalContext();
 static vector<ModuleArg> newmods;
 static vector<ModuleArg> oldmods;
 
-static vector<string> syscalls;
-static vector<string> expcalls;
-static vector<string> lockcalls;
+static Profile profile;
 
 typedef RiskEvaluator::InstVecTy InstVecTy;
 typedef RiskEvaluator::InstMapTy InstMapTy;
@@ -86,48 +84,12 @@ typedef RiskEvaluator::InstMapTy InstMapTy;
 static int objlen = MAX_PATH;
 static char objname[MAX_PATH];
 
-void assess(Instruction *I, MODTYPE type)
-{
-  if (isa<BranchInst>(I)) {
-    BranchInst *bi = cast<BranchInst>(I);
-    perf_debug("branch inst with %d successors\n", bi->getNumSuccessors());
-  } 
-  if (isa<CmpInst>(I)) {
-
-  } else if (isa<CallInst>(I) || isa<InvokeInst>(I)) {
-    CallSite cs(I);
-    //CallInst *ci = cast<CallInst>(I);
-    Function *func = cs.getCalledFunction();
-    if (func == NULL ) {
-      #ifdef PERFSCOPE_DEBUG
-      cout << "Callee unknown\n";
-      #endif
-      return;
-    }
-    else
-      if(func->isIntrinsic())
-        return;
-    const char *dname = cpp_demangle(func->getName().data());
-    if (binary_search(syscalls.begin(), syscalls.end(), dname))
-      cout << "S%";
-    else if (binary_search(expcalls.begin(), expcalls.end(), dname))
-      cout << "E%";
-    else if (binary_search(lockcalls.begin(), lockcalls.end(), dname))
-      cout << "L%";
-    else
-      cout << "N%";
-    cout << dname << "@" << ScopeInfoFinder::getInstLine(I) << ",";
-    ////////////////
-    //////////////////
-  }
-}
-
 void runevaluator(Module * module, CostModel * model, InstMapTy & instmap)
 {
   if (instmap.size()) {
     OwningPtr<FunctionPassManager> FPasses;
     FPasses.reset(new FunctionPassManager(module));
-    FPasses->add(new RiskEvaluator(instmap, model));
+    FPasses->add(new RiskEvaluator(instmap, model, &profile));
     FPasses->doInitialization();
     for (InstMapTy::iterator map_it = instmap.begin(), map_ie = instmap.end();
         map_it != map_ie; ++map_it) {
@@ -353,15 +315,28 @@ int main(int argc, char *argv[])
         parseList(oldmods, optarg, ",");
         break;
       case 'e':
-        readlines2vector(optarg, expcalls);
+      {
+        HotFuncs exp(EXPCALL);
+        readlines2vector(optarg, exp.calls);
+        profile.push_back(exp);
         break;
+      }
       case 'l':
-        readlines2vector(optarg, lockcalls);
+      {
+        HotFuncs loc(LOCKCALL);
+        readlines2vector(optarg, loc.calls);
+        profile.push_back(loc);
         break;
+      }
       case 's':
-        readlines2vector(optarg, syscalls);
+      {
+        HotFuncs sys(LOCKCALL);
+        readlines2vector(optarg, sys.calls);
+        profile.push_back(sys);
         break;
+      }
       case 'p':
+      {
         plen = atoi(optarg);
         if (plen <= 0) {
           fprintf(stderr, "Strip len must be positive integer\n");
@@ -369,6 +344,7 @@ int main(int argc, char *argv[])
         }
         patch_strip_len = plen;
         break;
+      }
       case 'm':
         plen = atoi(optarg);
         if (plen <= 0) {

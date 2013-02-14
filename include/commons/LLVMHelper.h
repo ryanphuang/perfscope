@@ -55,6 +55,7 @@ enum HotFuncType {SYSCALL, LOCKCALL, EXPCALL, FREQCALL};
 struct HotFuncs {
   HotFuncType type;
   std::vector<std::string> calls;
+  HotFuncs(HotFuncType type = SYSCALL) : type(type){}
 };
 
 const char * HotTypeStr(const HotFuncType type);
