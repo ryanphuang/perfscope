@@ -43,6 +43,8 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 
+#include "analyzer/CostModel.h"
+
 #include <map>
 
 namespace llvm {
@@ -55,18 +57,13 @@ class RiskEvaluator: public FunctionPass {
   private:
     typedef SmallVector<Instruction *, 8>::iterator InstVecIter;
     InstMapTy m_inst_map;
+    CostModel * cost_model;
 
   public:
     static char ID;
 
-    RiskEvaluator(InstMapTy & inst_map) : FunctionPass(ID), 
-        m_inst_map(inst_map) {} 
-
-    /// Returns the expected cost of the instruction.
-    /// Returns -1 if the cost is unknown.
-    /// Note, this method does not cache the cost calculation and it
-    /// can be expensive in some cases.
-    unsigned getInstructionCost(Instruction *I) const;
+    RiskEvaluator(InstMapTy & inst_map, CostModel * model = NULL) : FunctionPass(ID), 
+        m_inst_map(inst_map), cost_model(model) {} 
 
     virtual bool runOnFunction(Function &F); 
 

@@ -204,6 +204,10 @@ class CostModel {
 
   public:
     //Currently only need a virtual interface
+    /// Returns the expected cost of the instruction.
+    /// Returns -1 if the cost is unknown.
+    /// Note, this method does not cache the cost calculation and it
+    /// can be expensive in some cases.
     virtual unsigned getInstructionCost(const Instruction *I) const;
     virtual unsigned getBasicBlockCost(const BasicBlock *BB) const;
     virtual unsigned getLoopCost(const Loop *L) const;

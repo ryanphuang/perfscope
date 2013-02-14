@@ -10,23 +10,33 @@
 #include <list>
 
 #include "llvm/LLVMContext.h"
+#include "llvm/IntrinsicInst.h"
 #include "llvm/Module.h"
 #include "llvm/PassManager.h"
 #include "llvm/Type.h"
+
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Triple.h"
+
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
+#include "llvm/Target/TargetLowering.h"
+
+#include "llvm/Support/Host.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/IRReader.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/InstVisitor.h"
 #include "llvm/Support/InstIterator.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/IntrinsicInst.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/TargetRegistry.h"
 
 #include "commons/handy.h"
 #include "parser/PatchDecoder.h"
@@ -36,6 +46,7 @@
 #include "mapper/Matcher.h"
 #include "mapper/Slicer.h"
 #include "analyzer/Evaluator.h"
+#include "analyzer/X86CostModel.h"
 
 using namespace std;
 using namespace llvm;
@@ -58,15 +69,15 @@ static char * id_fname = NULL;
 
 static LLVMContext & Context = getGlobalContext();
 
-static list<Module *> bmodules;
-static list<IPModRef *> bmodrefs;
-static list<PassManager *>bmanagers;
-static list<string> bnames;
-static list<int> bstrips;
+struct ModuleArg {
+  string name;
+  Module *module;
+  int strips;
+  ModuleArg(string n, Module *m = NULL, int s = 0) : name(n), module(m), strips(s) {}
+};
 
-static list<Module *> amodules;
-static list<string> anames;
-static list<int> astrips;
+static vector<ModuleArg> newmods;
+static vector<ModuleArg> oldmods;
 
 static vector<string> syscalls;
 static vector<string> expcalls;
@@ -178,9 +189,9 @@ void test_CallGraph()
   }
 }
 
-size_t count_strips(Module & M)
+size_t count_strips(Module * M)
 {
-  if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu")) {
+  if (NamedMDNode *CU_Nodes = M->getNamedMetadata("llvm.dbg.cu")) {
     size_t buf_len = 128;
     char *buf = (char *) malloc(buf_len);
     for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
@@ -386,21 +397,126 @@ TargetData * getTargetData(PassManager & Passes, Module *M)
   return TD;
 }
 
+TargetMachine * getTargetMachine()
+{
+  const std::string TripleStr = "x86_64-unknown-linux-gnu";
+  const std::string FeatureStr = "";
+  const std::string CPUStr = llvm::sys::getHostCPUName();
+  errs() << "CPU String is " << CPUStr << "\n";
+  std::string Err;
+  const Target* T;
+  LLVMInitializeX86TargetInfo();
+  LLVMInitializeX86Target();
+  LLVMInitializeX86TargetMC();
+  LLVMInitializeX86AsmPrinter();
+  LLVMInitializeX86AsmParser();
+
+  T = TargetRegistry::lookupTarget(TripleStr, Err);
+  if(!Err.empty()) {
+    errs() << "Cannot find target: " << Err << "\n";
+    exit(1);
+  }
+  // Create TargetMachine
+  TargetMachine* TM = T->createTargetMachine(TripleStr, CPUStr, FeatureStr);
+  if(TM == NULL) {
+    errs() << "Cannot create target machine\n";
+    exit(1);
+  }
+  return TM;
+}
+
+void assess(Module * module, CostModel * model, InstMapTy & instmap)
+{
+  if (instmap.size()) {
+    OwningPtr<FunctionPassManager> FPasses;
+    FPasses.reset(new FunctionPassManager(module));
+    FPasses->add(new RiskEvaluator(instmap, model));
+    FPasses->doInitialization();
+    for (InstMapTy::iterator map_it = instmap.begin(), map_ie = instmap.end();
+        map_it != map_ie; ++map_it) {
+      FPasses->run(*(map_it->first));
+    }
+    FPasses->doFinalization();
+  }
+}
+void parseList(vector<ModuleArg> & vec, char *arg, const char *delim)
+{
+  char *str = strtok(arg, delim);
+  while (str != NULL) {
+    vec.push_back(ModuleArg(string(str))); 
+    str = strtok(NULL, delim);
+  }
+}
+
+bool load(LLVMContext & context, ModuleArg & mod)
+{
+  mod.module = ReadModule(context, mod.name);
+  if (mod.module == NULL)  {
+    cout << "cannot load module " << mod.name << endl;
+    return false;
+  }
+  int s = module_strip_len;
+  if (s < 0) {
+    s =  count_strips(mod.module);
+#ifdef PERFSCOPE_DEBUG
+    cout << "Calculated bstrips: " << s << " for " << mod.name << endl;
+#endif
+  }
+  mod.strips = s;
+  return true;
+}
+
+void load(LLVMContext & context, vector<ModuleArg> & vec)
+{
+  vector<ModuleArg>::iterator it = vec.begin(), ie = vec.end();
+  for (; it != ie; it++) {
+    if (!load(context, *it))
+      exit(1);
+  }
+}
+
+void readToVector(char *fname, vector<string> &vec)
+{
+  FILE *fp = fopen(fname,"r");
+  if (fp == NULL) {
+    perror("Read file");
+    return;
+  }
+  char buf[256];
+  while (fgets(buf, 256, fp) != NULL) {
+    buf[strcspn(buf, "\n")] = '\0';
+    if (buf[0] == 0)
+      continue;
+    vec.push_back(buf);
+  }
+  if (vec.begin() != vec.end())
+    sort(vec.begin(), vec.end());
+  #ifdef PERFSCOPE_DEBUG
+    vector<string>::iterator it = vec.begin(), ie = vec.end();
+    for (; it != ie; it++) {
+      cout << *it << endl;
+    }
+  #endif
+}
+
+
 void analyze(char *input)
 {
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
+  PassRegistry &Registry = *PassRegistry::getPassRegistry();
+  initPassRegistry(Registry);
 
+  X86CostModel * XCM = new X86CostModel(getTargetMachine());
   PatchDecoder * decoder = new PatchDecoder(input);
   assert(decoder);
   Patch *patch = NULL;
   Chapter *chap = NULL;
   Hunk * hunk = NULL;
-  Module *module = NULL; 
-  while((patch = decoder->next_patch()) != NULL) {
+  while ((patch = decoder->next_patch()) != NULL) {
     #ifdef PERFSCOPE_DEBUG
     cout << "patch: " << patch->patchname << endl;
     #endif
-    while((chap = patch->next_chapter()) != NULL) {
+    while ((chap = patch->next_chapter()) != NULL) {
       #ifdef PERFSCOPE_DEBUG
       cout << "chapter: " << chap->filename << endl;
       #endif
@@ -409,28 +525,11 @@ void analyze(char *input)
         continue;
       }
       bool found = false;
-      list<int>::iterator ii = bstrips.begin(), ie = bstrips.end();
-      list<string>::iterator si = bnames.begin(), se = bnames.end();
-      for(list<Module *>::iterator mi = bmodules.begin(), me = bmodules.end(); 
-          mi != me && ii != ie && si != se; mi++, ii++, si++) {
-        module = *mi;
-        if (module == NULL) {
-          module = ReadModule(Context, *si);
-          if (module == NULL)  {
-            cout << "cannot load module " << *si<< endl;
-            continue;
-          }
-          *mi = module;
-          int tmps = module_strip_len;
-          if (tmps < 0) {
-            tmps =  count_strips(*module);
-            #ifdef PERFSCOPE_DEBUG
-            cout << "Calculated bstrips: " << tmps << " for " << *si << endl;
-            #endif
-          }
-          *ii = tmps;
-        }
-        Matcher matcher(*module, *ii, patch_strip_len);
+      for (vector<ModuleArg>::iterator it = newmods.begin(), ie = newmods.end();
+          it != ie; ++it) {
+        if (it->module == NULL && load(Context, *it))
+          continue;
+        Matcher matcher(*(it->module), it->strips, patch_strip_len);
         // nasty hack here to avoid soft link handling inconsistency between diff and debug info
         if (chap->fullname == "src/backend/port/sysv_shmem.c") 
           chap->fullname = "src/backend/port/pg_shmem.c";
@@ -544,19 +643,7 @@ void analyze(char *input)
             }
             #endif
           }
-          if (instmap.size()) {
-            OwningPtr<FunctionPassManager> FPasses;
-            FPasses.reset(new FunctionPassManager(module));
-            PassRegistry &Registry = *PassRegistry::getPassRegistry();
-            initPassRegistry(Registry);
-            FPasses->add(new RiskEvaluator(instmap));
-            FPasses->doInitialization();
-            for (InstMapTy::iterator map_it = instmap.begin(), map_ie = instmap.end();
-                map_it != map_ie; ++map_it) {
-              FPasses->run(*(map_it->first));
-            }
-            FPasses->doFinalization();
-          }
+          assess(it->module, XCM, instmap);
           break; // already found in existing module, no need to try loading others
         }
       }
@@ -564,91 +651,6 @@ void analyze(char *input)
         chap->skip_rest_of_hunks();
     }
   }
-}
-
-void parseList(list<string> & vec, char *arg, const char *delim)
-{
-  char *str = strtok(arg, delim);
-  while (str != NULL) {
-    vec.push_back(string(str)); 
-    str = strtok(NULL, delim);
-  }
-}
-
-Module *loadFromSource(const char *sourcename)
-{
-  if (src2obj(sourcename, objname, &objlen) == NULL) // skip header files for now
-    return NULL;
-  LLVMContext Context;
-  Module *module = ReadModule(Context, objname);
-  return module;
-}
-
-void delayedLoad(LLVMContext & Context, list<string> & lst, bool before)
-{
-  list<string>::iterator it = lst.begin(), et = lst.end();
-  // just initialize
-  for (; it != et; it++) {
-    if (before) {
-      bmodules.push_back(NULL);
-      bstrips.push_back(0);
-    }
-    else{
-      amodules.push_back(NULL);
-      astrips.push_back(0);
-    }
-  }
-}
-
-void load(LLVMContext & Context, list<string> & lst, bool before)
-{
-  list<string>::iterator it = lst.begin(), et = lst.end();
-  for (; it != et; it++) {
-    Module *module = ReadModule(Context, *it);
-    if (module == NULL)  {
-      cout << "cannot load module " << *it << endl;
-      exit(1);
-    }
-    int s = module_strip_len;
-    if (s < 0) {
-      s =  count_strips(*module);
-      #ifdef PERFSCOPE_DEBUG
-      cout << "Calculated bstrips: " << s << " for " << *it << endl;
-      #endif
-    }
-    if (before) {
-      bmodules.push_back(module);
-      bstrips.push_back(s);
-    }
-    else {
-      amodules.push_back(module);
-      astrips.push_back(s);
-    }
-  }
-}
-
-void readToVector(char *fname, vector<string> &vec)
-{
-  FILE *fp = fopen(fname,"r");
-  if (fp == NULL) {
-    perror("Read file");
-    return;
-  }
-  char buf[256];
-  while (fgets(buf, 256, fp) != NULL) {
-    buf[strcspn(buf, "\n")] = '\0';
-    if (buf[0] == 0)
-      continue;
-    vec.push_back(buf);
-  }
-  if (vec.begin() != vec.end())
-    sort(vec.begin(), vec.end());
-  #ifdef PERFSCOPE_DEBUG
-    vector<string>::iterator it = vec.begin(), ie = vec.end();
-    for (; it != ie; it++) {
-      cout << *it << endl;
-    }
-  #endif
 }
 
 static char const * option_help[] =
@@ -690,10 +692,10 @@ int main(int argc, char *argv[])
   while((opt = getopt(argc, argv, "a:b:e:hl:s:p:m:L:")) != -1) {
     switch(opt) {
       case 'a':
-        parseList(anames, optarg, ",");
+        parseList(newmods, optarg, ",");
         break;
       case 'b':
-        parseList(bnames, optarg, ",");
+        parseList(oldmods, optarg, ",");
         break;
       case 'e':
         readToVector(optarg, expcalls);
@@ -736,7 +738,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
   }
-  if (bnames.begin() == bnames.end()) {
+  if (newmods.begin() == newmods.end()) {
     fprintf(stderr, "Must specify before-revision bitcode file argument\n");
     exit(1);
   }
@@ -745,10 +747,8 @@ int main(int argc, char *argv[])
     exit(1);
   }
   id_fname = dupstr(argv[optind]);
-  //delayedLoad(Context, anames, false);
-  //delayedLoad(Context, anames, false);
-  load(Context, anames, false);
-  load(Context, bnames, true);
+  load(Context, oldmods);
+  load(Context, newmods);
 
   struct timeval tim;
   gettimeofday(&tim, NULL);

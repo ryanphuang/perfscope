@@ -57,7 +57,10 @@ bool RiskEvaluator::runOnFunction(Function &F)
       depth = li.getLoopDepth(BB);
       old_depth = depth;
     }
-    errs() << *inst << " is in a " << depth << " level nested loop:\n";
+    errs() << *inst << "\n";
+    if (cost_model)
+      errs() << "  cost: " << cost_model->getInstructionCost(inst) << "\n";
+    errs() << "  loop depth: " << depth << "\n";
     if (depth > 0) {
       Loop * loop = li.getLoopFor(inst->getParent());
       while (depth > 0 && loop) {
