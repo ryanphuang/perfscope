@@ -28,11 +28,43 @@
  *
  */
 
+#include <algorithm>
+#include <iostream>
+
+#include "llvm/Function.h"
+#include "llvm/Instruction.h"
+
+#include "llvm/Support/CallSite.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "commons/handy.h"
+#include "commons/LLVMHelper.h"
 #include "analyzer/Evaluator.h"
 
 using namespace llvm;
+
+bool RiskEvaluator::assess(Instruction *I)
+{
+  if (isa<CallInst>(I) || isa<InvokeInst>(I)) {
+    CallSite cs(I);
+    Function *func = cs.getCalledFunction();
+    if (func == NULL ) {
+      std::cout << "Callee unknown\n";
+      return false;
+    }
+    else
+      if(func->isIntrinsic())
+        return false;
+    if (profile) {
+      const char *dname = cpp_demangle(func->getName().data());
+      for (Profile::iterator it = profile->begin(), ie = profile->end(); 
+          it != ie; ++it) {
+        if (std::binary_search(it->calls.begin(), it->calls.end(), dname))
+          std::cout << HotTypeStr(it->type) << std::endl;
+      }
+    }
+  }
+}
 
 bool RiskEvaluator::runOnFunction(Function &F)
 {

@@ -30,12 +30,36 @@
 #ifndef __LLVMHELPER_H_
 #define __LLVMHELPER_H_
 
+#include <iostream>
+#include <string>
+#include <vector>
+#include <map>
+
 #include "llvm/Module.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/PassRegistry.h"
+
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
 
+struct ModuleArg {
+  std::string name;
+  Module *module;
+  int strips;
+  ModuleArg(std::string n, Module *m = NULL, int s = 0) : name(n), module(m), strips(s) {}
+};
+
+enum HotFuncType {SYSCALL, LOCKCALL, EXPCALL, FREQCALL};
+
+struct HotFuncs {
+  HotFuncType type;
+  std::vector<std::string> calls;
+};
+
+const char * HotTypeStr(const HotFuncType type);
+
+typedef std::vector<HotFuncs> Profile;
 
 /// Infer the level of strips in the module.
 /// The algorithm is to use the length of longest 
@@ -59,8 +83,6 @@ void initPassRegistry(PassRegistry & Registry);
 /// Get the TargetData in the given Module
 /// Return NULL if it cannot be created
 TargetData * getTargetData(Module *M);
-
-
 
 } // End of llvm namespace
 

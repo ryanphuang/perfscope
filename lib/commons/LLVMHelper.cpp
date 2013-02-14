@@ -58,6 +58,18 @@ gen_dbg_nop(helper)
 #endif
 
 namespace llvm {
+
+const char * HotTypeStr(const HotFuncType type)
+{
+  switch (type) {
+    case SYSCALL:   return "system call";
+    case LOCKCALL:  return "lock call";
+    case EXPCALL:   return "expensive call";
+    case FREQCALL:  return "frequent call";
+  }
+  return "unknown";
+}
+
 size_t count_strips(Module * M)
 {
   if (NamedMDNode *CU_Nodes = M->getNamedMetadata("llvm.dbg.cu")) {

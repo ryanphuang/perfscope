@@ -44,6 +44,7 @@
 #include "llvm/ADT/SmallVector.h"
 
 #include "analyzer/CostModel.h"
+#include "commons/LLVMHelper.h"
 
 #include <map>
 
@@ -58,18 +59,21 @@ class RiskEvaluator: public FunctionPass {
     typedef SmallVector<Instruction *, 8>::iterator InstVecIter;
     InstMapTy m_inst_map;
     CostModel * cost_model;
+    Profile * profile;
 
   public:
     static char ID;
 
-    RiskEvaluator(InstMapTy & inst_map, CostModel * model = NULL) : FunctionPass(ID), 
-        m_inst_map(inst_map), cost_model(model) {} 
+    RiskEvaluator(InstMapTy & inst_map, CostModel * model = NULL, 
+        Profile * profile = NULL) : FunctionPass(ID), m_inst_map(inst_map), 
+        cost_model(model), profile(profile) {} 
 
     virtual bool runOnFunction(Function &F); 
 
+    bool assess(Instruction *I);
+
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();
-      //AU.addRequiredID(LoopSimplifyID);
       AU.addRequired<LoopInfo>();
       AU.addRequired<ScalarEvolution>(); 
     }

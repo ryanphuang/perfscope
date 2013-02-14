@@ -52,6 +52,7 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "commons/LLVMHelper.h"
 #include "analyzer/X86CostModel.h"
 #include "analyzer/Evaluator.h"
 
@@ -80,19 +81,6 @@ struct FooPass : public FunctionPass {
 };
 
 char FooPass::ID = 0;
-
-void initPassRegistry(PassRegistry & Registry)
-{
-    initializeCore(Registry);
-    initializeScalarOpts(Registry);
-    initializeIPO(Registry);
-    initializeAnalysis(Registry);
-    initializeIPA(Registry);
-    initializeTransformUtils(Registry);
-    initializeInstCombine(Registry);
-    initializeInstrumentation(Registry);
-    initializeTarget(Registry);
-}
 
 int main(int argc, char **argv)
 {

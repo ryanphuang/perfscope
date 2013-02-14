@@ -54,7 +54,6 @@ using namespace llvm;
 
 #define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
 
-
 gen_dbg(perf)
 
 #ifdef PERFSCOPE_DEBUG
@@ -74,13 +73,6 @@ static char * id_fname = NULL;
 
 static LLVMContext & Context = getGlobalContext();
 
-struct ModuleArg {
-  string name;
-  Module *module;
-  int strips;
-  ModuleArg(string n, Module *m = NULL, int s = 0) : name(n), module(m), strips(s) {}
-};
-
 static vector<ModuleArg> newmods;
 static vector<ModuleArg> oldmods;
 
@@ -94,21 +86,11 @@ typedef RiskEvaluator::InstMapTy InstMapTy;
 static int objlen = MAX_PATH;
 static char objname[MAX_PATH];
 
-
 void assess(Instruction *I, MODTYPE type)
 {
   if (isa<BranchInst>(I)) {
-    /*
     BranchInst *bi = cast<BranchInst>(I);
-    if (PERFSCOPE_DEBUG)
-        errs() << "branch@" << ScopeInfoFinder::getInstLine(I) << "\n";
-    if (bi->isConditional()) {
-        unsigned n = bi->getNumSuccessors();
-        for (unsigned i = 0; i < n; i++) {
-            BasicBlock * BB = bi->getSuccessor(i);
-        }
-    }
-    */
+    perf_debug("branch inst with %d successors\n", bi->getNumSuccessors());
   } 
   if (isa<CmpInst>(I)) {
 
@@ -139,7 +121,8 @@ void assess(Instruction *I, MODTYPE type)
     //////////////////
   }
 }
-void assess(Module * module, CostModel * model, InstMapTy & instmap)
+
+void runevaluator(Module * module, CostModel * model, InstMapTy & instmap)
 {
   if (instmap.size()) {
     OwningPtr<FunctionPassManager> FPasses;
@@ -315,7 +298,7 @@ void analyze(char *input)
             if (s == 0)
               perf_debug("insignificant scope\n");
           }
-          assess(it->module, XCM, instmap);
+          runevaluator(it->module, XCM, instmap);
           break; // already found in existing module, no need to try loading others
         }
       }
