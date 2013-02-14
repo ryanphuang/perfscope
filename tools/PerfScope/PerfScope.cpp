@@ -20,11 +20,9 @@
 #include "llvm/ADT/Triple.h"
 
 #include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetLibraryInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Target/TargetLowering.h"
 
@@ -39,6 +37,7 @@
 #include "llvm/Support/TargetRegistry.h"
 
 #include "commons/handy.h"
+#include "commons/LLVMHelper.h"
 #include "parser/PatchDecoder.h"
 #include "mapper/PgmDependenceGraph.h"
 #include "mapper/DifferenceEngine.h"
@@ -48,6 +47,7 @@
 #include "analyzer/Evaluator.h"
 #include "analyzer/X86CostModel.h"
 
+
 using namespace std;
 using namespace llvm;
 
@@ -55,7 +55,14 @@ using namespace llvm;
 
 #define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
 
-static string DefaultDataLayout;
+
+gen_dbg(perf)
+
+#ifdef PERFSCOPE_DEBUG
+gen_dbg_impl(perf)
+#else
+gen_dbg_nop(perf)
+#endif
 
 static int module_strip_len = -1;
 static int patch_strip_len = 0;
@@ -86,75 +93,9 @@ static vector<string> lockcalls;
 typedef RiskEvaluator::InstVecTy InstVecTy;
 typedef RiskEvaluator::InstMapTy InstMapTy;
 
-static SmallVector<Scope, 4> *funcLoops;
-typedef SmallVector<Scope, 4>::iterator loop_iterator;
-
-// static SmallVector<Function *, 16> targetFuncs;
-
-static DenseMap< Function *, SmallVector<Scope, 4> *> loopMap(16);
-typedef DenseMap< Function *, SmallVector<Scope, 4> *>::iterator loop_map_iterator;
-
-struct LoopInfoPrinter : public FunctionPass {
-  static char ID;
-  std::string PassName;
-
-  LoopInfoPrinter() : FunctionPass(ID) {
-    PassName = "LoopInfo Printer: ";
-  }
-
-  virtual bool runOnFunction(Function &F) {
-    if (loopMap.count(&F))
-      return false;
-    LoopInfo &li = getAnalysis<LoopInfo>();
-    funcLoops = new SmallVector<Scope, 4>();
-    funcLoops->clear();
-    Scope ls;
-    for (LoopInfo::iterator LII = li.begin(),  LIE = li.end(); 
-        LII != LIE; LII++) {
-      if (ScopeInfoFinder::getLoopScope(ls, *LII)) { 
-        funcLoops->push_back(ls);
-      }
-    }
-    loopMap[&F] = funcLoops;
-    return false;
-  }
-
-  virtual const char *getPassName() const { return PassName.c_str(); }
-
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.setPreservesAll();
-    //AU.addRequired<DominatorTree>();
-    AU.addRequired<LoopInfo>();
-  }
-};
-
-struct CallSiteVisitor : public InstVisitor<CallSiteVisitor> {
-  unsigned Count;
-
-  CallSiteVisitor() : Count(0) {}
-  void visitCallInst(CallInst &I)
-  {
-    cout << "Call Inst Encountered! " << endl;
-    Count++;
-  }
-};
-
-char LoopInfoPrinter::ID = 0;
-
-struct stat sourcestat;
-
 static int objlen = MAX_PATH;
 static char objname[MAX_PATH];
 
-/// Reads a module from a file.  On error, messages are written to stderr
-/// and null is returned.
-static Module *ReadModule(LLVMContext &Context, StringRef Name) {
-  SMDiagnostic Diag;
-  Module *M = ParseIRFile(Name, Diag, Context);
-  if (!M)
-    cerr << "IR file parsing failed: " << Diag.getMessage() << endl;
-  return M;
-}
 
 void test_CallGraph()
 {
@@ -187,73 +128,6 @@ void test_CallGraph()
   else {
     cout << "Cannot load " << bc_fname << endl;
   }
-}
-
-size_t count_strips(Module * M)
-{
-  if (NamedMDNode *CU_Nodes = M->getNamedMetadata("llvm.dbg.cu")) {
-    size_t buf_len = 128;
-    char *buf = (char *) malloc(buf_len);
-    for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
-      DICompileUnit CU1(CU_Nodes->getOperand(i));
-      if (i == 0) {
-        if (i + 1 != e) {
-          i++;
-          DICompileUnit CU2(CU_Nodes->getOperand(i));
-          buf = common_prefix(buf, buf_len, CU1.getDirectory().data(), CU2.getDirectory().data());
-        }
-        else {
-          size_t cu_len = CU1.getDirectory().size();
-          if (cu_len > buf_len) {
-            buf = (char *) realloc(buf, cu_len);
-            buf_len = cu_len;
-          }
-          strcpy(buf, CU1.getDirectory().data()); 
-        }
-      }
-      else {
-        buf = common_prefix(buf, buf_len, buf, CU1.getDirectory().data());
-      }
-    }
-    unsigned cnt = countnchr(buf, -1, '/');
-    if (buf[strlen(buf) - 1] != '/')
-      cnt++;
-    //TODO dirty hacks
-    // workaround problem where a single bc file inside the project's
-    // subdirectory is provided. e.g. /home/ryan/Project/mysql/storage/innodb_plugin
-    // will be the inferred root path.
-    if (endswith(buf, "innodb_plugin"))
-      cnt -= 2;
-    else if (endswith(buf, "src/")) // hack for postgresql/src/
-      cnt -= 1;
-
-    return  cnt;
-  }
-  return 0;
-}
-
-inline bool passLoopEnd(const Scope &scope)
-{
-  if(funcLoops->empty())
-    return false;
-  return scope.begin > funcLoops->back().end;
-}
-
-bool isInLoop(const Scope &scope)
-{
-  // Will only match the *first* in top level matching loop.
-  // FIXME may need to get all the loops.
-  for (loop_iterator LI = funcLoops->begin(), LE = funcLoops->end();
-      LI != LE; LI++) {
-    if (LI->intersects(scope)) {
-      #ifdef PERFSCOPE_DEBUG
-        cout << "loop: "; 
-      #endif
-      cout << *LI << " ";
-      return true;
-    }
-  }
-  return false;
 }
 
 void assess(Instruction *I, MODTYPE type)
@@ -300,131 +174,6 @@ void assess(Instruction *I, MODTYPE type)
     //////////////////
   }
 }
-
-bool followCS(Function *func, FunctionPassManager & FPass)
-{
-  Value::use_iterator i = func->use_begin(), e = func->use_end();
-  if(i == e) {
-    cout << "<- ->";
-    return false;
-  }
-  else {
-    cout << "<- ";
-  }
-  const char *name; 
-  for (; i != e; ++i) {
-    if (Instruction* use = dyn_cast<Instruction>(*i)) {
-      CallSite call(use);
-      Function *callee = call.getCalledFunction();
-      Function *caller = call.getCaller(); 
-      if (caller != NULL) {
-        if (callee != NULL && callee == func) {
-          name = caller->getName().data();
-          SmallVector<Scope, 4> * old = funcLoops;
-          FPass.run(*caller);
-          unsigned line = ScopeInfoFinder::getInstLine(use); 
-          cout << cpp_demangle(name) << "@" << line; 
-          Scope scope(line);
-          if (isInLoop(scope)) {
-            funcLoops = old;
-            cout << "->";
-            return true;
-          }
-          funcLoops = old;
-          cout << "->";
-        }
-      }
-    }
-  }
-  return false;
-}
-
-void slice(DependenceGraph * depGraph, Instruction *I, MODTYPE type)
-{
-  if (depGraph == NULL) {
-    // errs() << "NULL dependence graph, not slicing\n";
-    return;
-  }
-  if (isa<DbgInfoIntrinsic>(I)) { // Skip intrinsics 
-    return;
-  }
-  Slicer slicer(depGraph);
-  if (slicer.sliceInit(*I, MemoryDeps)) {
-    #ifdef PERFSCOPE_DEBUG
-    errs() << "Slice for " << *I << "\n\t";
-    #endif
-    Instruction *N;
-    cout << "<";
-    while((N = slicer.sliceNext()) != NULL) {
-      #ifdef PERFSCOPE_DEBUG
-      errs() << *N << "||";
-      #endif
-      assess(N, type);
-    }
-    cout << ">";
-    #ifdef PERFSCOPE_DEBUG
-    errs() << "\n";
-    #endif
-  }
-}
-
-void initPassRegistry(PassRegistry & Registry)
-{
-  initializeCore(Registry);
-  initializeScalarOpts(Registry);
-  initializeIPO(Registry);
-  initializeAnalysis(Registry);
-  initializeIPA(Registry);
-  initializeTransformUtils(Registry);
-  initializeInstCombine(Registry);
-  initializeInstrumentation(Registry);
-  initializeTarget(Registry);
-}
-
-
-TargetData * getTargetData(PassManager & Passes, Module *M)
-{
-  // Add an appropriate TargetLibraryInfo pass for the module's triple.
-  TargetLibraryInfo *TLI = new TargetLibraryInfo(Triple(M->getTargetTriple()));
-  Passes.add(TLI);
-  // Add an appropriate TargetData instance for this module.
-  TargetData *TD = 0;
-  const std::string &ModuleDataLayout = M->getDataLayout();
-  if (!ModuleDataLayout.empty())
-    TD = new TargetData(ModuleDataLayout);
-  else if (!DefaultDataLayout.empty())
-    TD = new TargetData(DefaultDataLayout);
-  return TD;
-}
-
-TargetMachine * getTargetMachine()
-{
-  const std::string TripleStr = "x86_64-unknown-linux-gnu";
-  const std::string FeatureStr = "";
-  const std::string CPUStr = llvm::sys::getHostCPUName();
-  errs() << "CPU String is " << CPUStr << "\n";
-  std::string Err;
-  const Target* T;
-  LLVMInitializeX86TargetInfo();
-  LLVMInitializeX86Target();
-  LLVMInitializeX86TargetMC();
-  LLVMInitializeX86AsmPrinter();
-  LLVMInitializeX86AsmParser();
-
-  T = TargetRegistry::lookupTarget(TripleStr, Err);
-  if(!Err.empty()) {
-    errs() << "Cannot find target: " << Err << "\n";
-    exit(1);
-  }
-  // Create TargetMachine
-  TargetMachine* TM = T->createTargetMachine(TripleStr, CPUStr, FeatureStr);
-  if(TM == NULL) {
-    errs() << "Cannot create target machine\n";
-    exit(1);
-  }
-  return TM;
-}
-
 void assess(Module * module, CostModel * model, InstMapTy & instmap)
 {
   if (instmap.size()) {
@@ -439,6 +188,7 @@ void assess(Module * module, CostModel * model, InstMapTy & instmap)
     FPasses->doFinalization();
   }
 }
+
 void parseList(vector<ModuleArg> & vec, char *arg, const char *delim)
 {
   char *str = strtok(arg, delim);
@@ -458,9 +208,7 @@ bool load(LLVMContext & context, ModuleArg & mod)
   int s = module_strip_len;
   if (s < 0) {
     s =  count_strips(mod.module);
-#ifdef PERFSCOPE_DEBUG
-    cout << "Calculated bstrips: " << s << " for " << mod.name << endl;
-#endif
+    perf_debug("Calculated bstrips: %d for %s\n", s, mod.name.c_str());
   }
   mod.strips = s;
   return true;
@@ -475,31 +223,6 @@ void load(LLVMContext & context, vector<ModuleArg> & vec)
   }
 }
 
-void readToVector(char *fname, vector<string> &vec)
-{
-  FILE *fp = fopen(fname,"r");
-  if (fp == NULL) {
-    perror("Read file");
-    return;
-  }
-  char buf[256];
-  while (fgets(buf, 256, fp) != NULL) {
-    buf[strcspn(buf, "\n")] = '\0';
-    if (buf[0] == 0)
-      continue;
-    vec.push_back(buf);
-  }
-  if (vec.begin() != vec.end())
-    sort(vec.begin(), vec.end());
-  #ifdef PERFSCOPE_DEBUG
-    vector<string>::iterator it = vec.begin(), ie = vec.end();
-    for (; it != ie; it++) {
-      cout << *it << endl;
-    }
-  #endif
-}
-
-
 void analyze(char *input)
 {
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
@@ -513,13 +236,9 @@ void analyze(char *input)
   Chapter *chap = NULL;
   Hunk * hunk = NULL;
   while ((patch = decoder->next_patch()) != NULL) {
-    #ifdef PERFSCOPE_DEBUG
-    cout << "patch: " << patch->patchname << endl;
-    #endif
+    perf_debug("patch: %s\n", patch->patchname.c_str());
     while ((chap = patch->next_chapter()) != NULL) {
-      #ifdef PERFSCOPE_DEBUG
-      cout << "chapter: " << chap->filename << endl;
-      #endif
+      perf_debug("chapter: %s\n", chap->filename.c_str());
       if (src2obj(chap->fullname.c_str(), objname, &objlen) == NULL) { // skip header files for now
         chap->skip_rest_of_hunks();
         continue;
@@ -542,12 +261,10 @@ void analyze(char *input)
           InstMapTy instmap;
           while((hunk = chap->next_hunk())) {
             int s = 0;
-          #ifdef PERFSCOPE_DEBUG
-            cout << "hunk from line " << hunk->start_line << endl;
-            cout << hunk->ctrlseq << endl;
-            cout << hunk->rep_enclosing_scope << endl;
-          #endif
             Scope scope = hunk->rep_enclosing_scope;
+            perf_debug("hunk\n  begin: line %d\n  ctrl seq.: %s\n"
+                        "  scope: [#%lu, #%lu]\n", hunk->start_line, hunk->ctrlseq,
+                        scope.begin, scope.end);  
             Hunk::iterator HI = hunk->begin(), HE = hunk->end();
             bool multiple = true;
             for(; multiple; prevfunc = func) {
@@ -581,12 +298,8 @@ void analyze(char *input)
               const char *dname = cpp_demangle(I->name.c_str());
               if (dname == NULL)
                 dname = I->name.c_str();
-              #ifdef PERFSCOPE_DEBUG
-              cout << "scope #" << s << ": " << dname;
-              cout << " |=> " << scope << "\n";
-              cout << "\t";
-              #endif
-              cout << dname << ":"; // Structued output
+              perf_debug("scope #%d: %s |=> [#%lu, #%lu]\n  %s:", s,
+                          dname, scope.begin, scope.end, dname);
 
               // Four situations(top mod, bottom func):
               // 1):   |_________|
@@ -626,22 +339,16 @@ void analyze(char *input)
                 bool found_inst = false;
                 while ( (inst = matcher.matchInstruction(fi, func, rep_scope)) != NULL) {
                   instmap[func].push_back(inst);
-                  //assess(inst, (*HI)->type);
                   found_inst = true;
                 } 
-                #ifdef PERFSCOPE_DEBUG
-                if (!found_inst) {
-                  errs() << "Can't locate any instruction for mod @" << rep_scope << "\n";
-                }
-                #endif
+                if (!found_inst) 
+                  perf_debug("Can't locate any instruction for mod @[#%lu, #%lu]\n",
+                     rep_scope.begin, rep_scope.end); 
               }
-              cout << "$$\n";
+              perf_debug("$$\n");
             }
-            #ifdef PERFSCOPE_DEBUG
-            if (s == 0) {
-              cout << "insignificant scope\n";
-            }
-            #endif
+            if (s == 0)
+              perf_debug("insignificant scope\n");
           }
           assess(it->module, XCM, instmap);
           break; // already found in existing module, no need to try loading others
@@ -698,13 +405,13 @@ int main(int argc, char *argv[])
         parseList(oldmods, optarg, ",");
         break;
       case 'e':
-        readToVector(optarg, expcalls);
+        readlines2vector(optarg, expcalls);
         break;
       case 'l':
-        readToVector(optarg, lockcalls);
+        readlines2vector(optarg, lockcalls);
         break;
       case 's':
-        readToVector(optarg, syscalls);
+        readlines2vector(optarg, syscalls);
         break;
       case 'p':
         plen = atoi(optarg);

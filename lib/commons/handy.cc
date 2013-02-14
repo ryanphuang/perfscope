@@ -1,4 +1,5 @@
 #include <cxxabi.h>
+#include <algorithm>
 
 #include "commons/handy.h"
 
@@ -413,5 +414,28 @@ const char * cpp_demangle(const char *name)
     if (ret == NULL) // normal C names will be demangled to NULL
         return name;
     return ret;
+}
+
+void readlines2vector(char *fname, std::vector<std::string> &vec)
+{
+  FILE *fp = fopen(fname,"r");
+  if (fp == NULL) {
+    perror("Read file");
+    return;
+  }
+  char buf[256];
+  while (fgets(buf, 256, fp) != NULL) {
+    buf[strcspn(buf, "\n")] = '\0';
+    if (buf[0] == 0)
+      continue;
+    vec.push_back(buf);
+  }
+  if (vec.begin() != vec.end())
+    std::sort(vec.begin(), vec.end());
+  #ifdef HANDY_DEBUG
+    vector<string>::iterator it = vec.begin(), ie = vec.end();
+    for (; it != ie; it++)
+      printf("%s\n", it->c_str()); 
+  #endif
 }
 

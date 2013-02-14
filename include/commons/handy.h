@@ -14,6 +14,8 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <errno.h>
+#include <vector>
+#include <string>
 
 #define __set_errno(e) (errno = (e))
 
@@ -54,6 +56,8 @@ char *src2obj(const char *, char *, int *);
 
 const char * cpp_demangle(const char *);
 
+void readlines2vector(char *, std::vector<std::string> &);
+
 #define streq(a,b) (!strcmp((a), (b)))
 
 
@@ -69,15 +73,22 @@ void diegrace(const char *, ...) __attribute__ ((noreturn, format (printf, 1, 2)
 void *xmalloc(size_t) __attribute__ ((__malloc__));
 void *xrealloc (void *, size_t);
 
-#define gen_dbg(prefix, flag) \
-void prefix##_debug(const char * fmt, ...) __attribute__ ((format (printf, 1, 2)));  \
-void prefix##_debug(const char * fmt, ...) \
-{                              \
-  va_list args;                \
-  va_start(args, format);      \
-  vprintf(format, args);       \
-  va_end(args);                \
-  printf("\n");                \
-}                              
+#define gen_dbg(prefix)                                                             \
+static void prefix##_debug(const char * fmt, ...)                                   \
+  __attribute__ ((format (printf, 1, 2)));
+
+#define gen_dbg_impl(prefix)                                                        \
+static void prefix##_debug(const char * fmt, ...)                                   \
+{                                                                                   \
+  va_list args;                                                                     \
+  va_start(args, fmt);                                                              \
+  vprintf(fmt, args);                                                               \
+  va_end(args);                                                                     \
+}
+
+#define gen_dbg_nop(prefix)                                                         \
+static void prefix##_debug(const char * fmt, ...)                                   \
+{                                                                                   \
+}
 
 #endif
