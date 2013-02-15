@@ -1,0 +1,18 @@
+--- loop.1.c	2013-02-14 14:52:08.662632153 -0800
++++ loop.1.new.c	2013-02-14 14:53:50.972508545 -0800
+@@ -1,4 +1,6 @@
+-#include<stdio.h>
++#include <stdio.h>
++#include <sys/types.h>
++#include <unistd.h>
+ 
+ int foo(int c)
+ {
+@@ -6,6 +8,7 @@ int foo(int c)
+         for (int j = 0; j < 5; j++) {
+             c += i;
+             c *= j;
++            pid_t pid = getpid();
+         }
+         if (c > 100)
+           return c;
