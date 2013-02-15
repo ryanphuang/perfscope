@@ -117,7 +117,6 @@ bool RiskEvaluator::runOnFunction(Function &F)
       errs() << "  intrinsic\n";
       continue;
     }
-    /*
     if (cost_model)
       errs() << "  cost: " << cost_model->getInstructionCost(inst) << "\n";
     errs() << "  hotness: ";
@@ -126,7 +125,6 @@ bool RiskEvaluator::runOnFunction(Function &F)
     else
       errs() << " cold";
     errs() << "\n";
-    */
     if (LI->empty())
       continue;
     inhot(inst);

@@ -84,11 +84,20 @@ typedef RiskEvaluator::InstMapTy InstMapTy;
 static int objlen = MAX_PATH;
 static char objname[MAX_PATH];
 
+/// Apply mem2reg transformation to the whole module
+void mem2reg(Module * module)
+{
+  if (module == NULL)
+    return;
+  PassManager Passes;
+  Passes.add(createPromoteMemoryToRegisterPass());
+  Passes.run(*module);
+}
+
 void runevaluator(Module * module, CostModel * model, InstMapTy & instmap)
 {
   if (instmap.size()) {
-    OwningPtr<FunctionPassManager> FPasses;
-    FPasses.reset(new FunctionPassManager(module));
+    OwningPtr<FunctionPassManager> FPasses(new FunctionPassManager(module));
     FPasses->add(new RiskEvaluator(instmap, model, &profile));
     FPasses->doInitialization();
     for (InstMapTy::iterator map_it = instmap.begin(), map_ie = instmap.end();
@@ -169,6 +178,9 @@ void analyze(char *input)
           Function *func = NULL;
           Function *prevfunc = NULL;
           InstMapTy instmap;
+          OwningPtr<FunctionPassManager> Mem2RegPass(new FunctionPassManager(it->module));
+          Mem2RegPass->add(createPromoteMemoryToRegisterPass());
+          Mem2RegPass->doInitialization();
           while((hunk = chap->next_hunk())) {
             int s = 0;
             Scope scope = hunk->rep_enclosing_scope;
@@ -181,6 +193,9 @@ void analyze(char *input)
               func = matcher.matchFunction(I, scope, multiple);
               if (func == NULL)
                 break;
+              if (prevfunc != func) // Only transform the new functions
+                Mem2RegPass->run(*func);
+
               // The enclosing scope is the min, max range:
               //        [Mods[first].begin, Mods[last].end]
               // We should iterate the actual modification for intervals 
@@ -261,6 +276,7 @@ void analyze(char *input)
               perf_debug("insignificant scope\n");
           }
           runevaluator(it->module, XCM, instmap);
+          Mem2RegPass->doFinalization();
           break; // already found in existing module, no need to try loading others
         }
       }
