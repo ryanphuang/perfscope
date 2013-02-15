@@ -113,13 +113,6 @@ int main(int argc, char **argv)
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
   initPassRegistry(Registry);
 
-  // Create a PassManager to hold and optimize the collection of passes we are
-  // about to build.
-  //
-  // PassManager Passes;
-  // Passes.add(createPromoteMemoryToRegisterPass());
-  // Passes.run(*M);
-
   Function *func = M->getFunction(argv[2]);
   if (func == NULL) {
     errs() << "Unable to find function '" << argv[2] << "'\n";
