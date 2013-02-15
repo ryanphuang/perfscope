@@ -43,6 +43,8 @@
 #include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Target/TargetLowering.h"
 
+#include "llvm/Transforms/Scalar.h"
+
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/InstIterator.h"
@@ -84,36 +86,16 @@ char FooPass::ID = 0;
 
 int main(int argc, char **argv)
 {
-  if (argc <= 1) {
-    errs() << "Usage: riskeval INPUT\n";
+  if (argc <= 2) {
+    errs() << "Usage: riskeval INPUT FUNCTION\n";
     exit(1);
   }
 
-  const std::string TripleStr = "x86_64-unknown-linux-gnu";
-  const std::string FeatureStr = "";
-  const std::string CPUStr = llvm::sys::getHostCPUName();
-  errs() << "CPU String is " << CPUStr << "\n";
-  std::string Err;
-  const Target* T;
-
-  LLVMInitializeX86TargetInfo();
-  LLVMInitializeX86Target();
-  LLVMInitializeX86TargetMC();
-  LLVMInitializeX86AsmPrinter();
-  LLVMInitializeX86AsmParser();
-
-  T = TargetRegistry::lookupTarget(TripleStr, Err);
-  if(!Err.empty()) {
-    errs() << "Cannot find target: " << Err << "\n";
-    exit(1);
-  }
-  // Create TargetMachine
-  TargetMachine* TM = T->createTargetMachine(TripleStr, CPUStr, FeatureStr);
+  TargetMachine* TM = getTargetMachine();
   if(TM == NULL) {
     errs() << "Cannot create target machine\n";
     exit(1);
   }
-
   XCM = new X86CostModel(TM);
 
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
@@ -128,30 +110,38 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  OwningPtr<FunctionPassManager> FPasses;
-  FPasses.reset(new FunctionPassManager(M));
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
   initPassRegistry(Registry);
 
-  RiskEvaluator::InstMapTy map;
-  //TODO nasty hard code, use file for test
-  for (Module::iterator MI = M->begin(), ME = M->end(); MI != ME; ++MI) {
-    Function * F = MI;
-    if (F->getName() != "foo")
-      continue;
-    int i = 0;
-    for (inst_iterator II = inst_begin(F), IE = inst_end(F); II != IE; ++II, ++i) {
-      if (i < 4)
-        continue;
-      if (i > 10)
-        break;
-      Instruction * inst = &*II;
-      map[F].push_back(inst);
-    }
+  // Create a PassManager to hold and optimize the collection of passes we are
+  // about to build.
+  //
+  // PassManager Passes;
+  // Passes.add(createPromoteMemoryToRegisterPass());
+  // Passes.run(*M);
+
+  Function *func = M->getFunction(argv[2]);
+  if (func == NULL) {
+    errs() << "Unable to find function '" << argv[2] << "'\n";
+    exit(1);
   }
+
+  OwningPtr<FunctionPassManager> FPasses;
+  FPasses.reset(new FunctionPassManager(M));
+  FPasses->add(createPromoteMemoryToRegisterPass());
+  FPasses->doInitialization();
+  FPasses->run(*func);
+  FPasses->doFinalization();
+
+  RiskEvaluator::InstMapTy map;
+  for (inst_iterator II = inst_begin(func), IE = inst_end(func); II != IE; ++II) {
+    Instruction * inst = &*II;
+    map[func].push_back(inst);
+  }
+  FPasses.reset(new FunctionPassManager(M));
   FPasses->add(new RiskEvaluator(map));
   FPasses->doInitialization();
-  FPasses->run(*(map.begin()->first));
+  FPasses->run(*func);
   FPasses->doFinalization();
   return 0;
 }
