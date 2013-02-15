@@ -43,6 +43,11 @@ inline void syntaxerr(const char * msg, unsigned line)
   fprintf(stderr, "Syntax error at line %u: %s\n", line, msg);
 }
 
+inline void indent(int space)
+{
+  while(space--) printf(" ");
+}
+
 char *dupstr(const char *);
 
 bool isempty(const char *);

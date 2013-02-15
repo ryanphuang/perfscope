@@ -207,7 +207,7 @@ TargetData * getTargetData(Module *M)
   return TD;
 }
 
-void indent(raw_ostream & OS, unsigned space)
+void indent(raw_ostream & OS, int space)
 {
   while (space--) {
     OS << " ";

@@ -44,7 +44,79 @@
 
 using namespace llvm;
 
-bool RiskEvaluator::assess(Instruction *I)
+static int INDENT = 0;
+
+#define EVALUATOR_DEBUG
+
+gen_dbg(eval)
+
+#ifdef EVALUATOR_DEBUG
+gen_dbg_impl(eval)
+#else
+gen_dbg_nop(eval)
+#endif
+
+#ifdef EVALUATOR_DEBUG
+inline void errind(int addition = 0)
+{
+  indent(INDENT + addition);
+}
+#else
+inline void errind(int addition = 0)
+{
+}
+#endif
+
+static RiskEvaluator::RiskLevel Judge[2][2] = {
+  {RiskEvaluator::LowRisk, RiskEvaluator::MediumRisk},
+  {RiskEvaluator::MediumRisk, RiskEvaluator::HighRisk}
+};
+
+RiskEvaluator::RiskLevel RiskEvaluator::assess(Instruction *I, 
+      std::map<Loop *, unsigned> & LoopDepthMap)
+{
+  errs() << *I << "\n";
+  errind();
+  if (isa<IntrinsicInst>(I)) {
+    eval_debug("intrinsic\n");
+    return NoRisk;
+  }
+  eval_debug("expensive:\n");
+  bool exp = expensive(I);
+  errind(2);
+  eval_debug("%s\n", (exp ? "yes" : "no"));
+  bool hot = false;
+  if (!LI->empty()) {
+    errind();
+    eval_debug("hot:\n");
+    hot = inhot(I, LoopDepthMap);
+    errind(2);
+    eval_debug("%s\n", (hot ? "yes" : "no"));
+  }
+  return Judge[hot][exp];
+}
+
+unsigned RiskEvaluator::getLoopDepth(Loop *L, std::map<Loop *, unsigned> & LoopDepthMap)
+{
+  std::map<Loop *, unsigned>::iterator it = LoopDepthMap.find(L);
+  if (it != LoopDepthMap.end())
+    return it->second;
+  SmallVector<BasicBlock *, 4> exits;
+  L->getExitingBlocks(exits);
+  unsigned count = 0;
+  for (SmallVector<BasicBlock *, 4>::iterator ei = exits.begin(), ee = exits.end();
+      ei != ee; ++ei) {
+    if (*ei) {
+      unsigned c = SE->getSmallConstantTripCount(L, *ei); 
+      if (c > count)
+        count = c;
+    }
+  }
+  LoopDepthMap[L] = count;
+  return count;
+}
+
+bool RiskEvaluator::expensive(Instruction * I)
 {
   if (isa<CallInst>(I) || isa<InvokeInst>(I)) {
     CallSite cs(I);
@@ -61,43 +133,33 @@ bool RiskEvaluator::assess(Instruction *I)
       for (Profile::iterator it = profile->begin(), ie = profile->end(); 
           it != ie; ++it) {
         if (std::binary_search(it->second.begin(), it->second.end(), dname)) {
-          errs() << "*" << toStr(it->first) << "*";
+          errind(2);
+          eval_debug("*%s*\n",toStr(it->first)); 
           return true;
         }
       }
     }
   }
+  if(cost_model) {
+    unsigned cost = cost_model->getInstructionCost(I); 
+    errind(2);
+    eval_debug("cost: %u\n", cost);
+  }
   return false;
 }
 
-bool RiskEvaluator::expensive(Instruction * I)
-{
-  return true;
-}
-
-bool RiskEvaluator::inhot(Instruction *I)
+bool RiskEvaluator::inhot(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap)
 {
   assert(LI && SE && "Require Loop information and ScalarEvolution");
-  unsigned depth = 0;
   const BasicBlock * BB = I->getParent();
   Loop * loop = LI->getLoopFor(BB);
+  unsigned depth = 0;
   while (loop) {
     depth++;
-    SmallVector<BasicBlock *, 4> exits;
-    loop->getExitingBlocks(exits);
-    unsigned count = 0;
-    for (SmallVector<BasicBlock *, 4>::iterator ei = exits.begin(), ee = exits.end();
-        ei != ee; ++ei) {
-      if (*ei) {
-        unsigned c = SE->getSmallConstantTripCount(loop, *ei); 
-        if (c > count)
-          count = c;
-      }
-    }
-    errs() << "   * L" << depth << " trip count: " << count << "\n";
+    errind(2);
+    eval_debug("L%u trip count:%u\n", depth, getLoopDepth(loop, LoopDepthMap));
     loop = loop->getParentLoop();
   }
-  errs() << "  loop depth: " << depth << "\n";
   return true;
 }
 
@@ -107,27 +169,14 @@ bool RiskEvaluator::runOnFunction(Function &F)
     errs() << F.getName() << " not in the target\n";
     return false;
   }
-  InstVecTy &inst_vec = m_inst_map[&F];
   LI = &getAnalysis<LoopInfo>(); 
   SE = &getAnalysis<ScalarEvolution>(); 
+  INDENT = 4;
+  InstVecTy &inst_vec = m_inst_map[&F];
+  std::map<Loop *, unsigned> LoopDepthMap;
   for (InstVecIter I = inst_vec.begin(), E = inst_vec.end(); I != E; I++) {
     Instruction* inst = *I;
-    errs() << *inst << "\n";
-    if (isa<IntrinsicInst>(inst)) {
-      errs() << "  intrinsic\n";
-      continue;
-    }
-    if (cost_model)
-      errs() << "  cost: " << cost_model->getInstructionCost(inst) << "\n";
-    errs() << "  hotness: ";
-    if (assess(inst))
-      errs() << " hot";
-    else
-      errs() << " cold";
-    errs() << "\n";
-    if (LI->empty())
-      continue;
-    inhot(inst);
+    assess(inst, LoopDepthMap);
   }
   return false;
 }

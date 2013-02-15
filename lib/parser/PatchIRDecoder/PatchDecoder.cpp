@@ -231,7 +231,7 @@ bool Hunk::reduce()
                 break;
             
             default:
-                fprintf(stderr, "Invalid control character at position %d", i);
+                fprintf(stderr, "Invalid control character at position %u", i);
                 return false;
         }
 

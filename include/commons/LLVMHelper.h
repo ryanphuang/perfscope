@@ -84,7 +84,7 @@ void initPassRegistry(PassRegistry & Registry);
 /// Return NULL if it cannot be created
 TargetData * getTargetData(Module *M);
 
-void indent(raw_ostream & OS, unsigned space);
+void indent(raw_ostream & OS, int space);
 
 #define PROFILE_SEGMENT_BEGIN "===="
 #define PROFILE_SEGMENT_TYPE(type) #type

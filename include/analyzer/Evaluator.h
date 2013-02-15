@@ -59,10 +59,10 @@ class RiskEvaluator: public FunctionPass {
     typedef std::map<Function *, InstVecTy> InstMapTy;
 
     enum RiskLevel {
-      NoRisk,
-      LowRisk,
-      MediumRisk,
-      HighRisk
+      NoRisk,     // e.g., renaming, formatting
+      LowRisk,    // e.g., a few number of arithmetic operations in regular places
+      MediumRisk, // e.g., arithmetic operations in tight loop
+      HighRisk    // e.g., expensive operations in tight loop
     };
 
   private:
@@ -85,9 +85,11 @@ class RiskEvaluator: public FunctionPass {
 
     virtual bool runOnFunction(Function &F); 
 
-    bool assess(Instruction *I);
+    RiskLevel assess(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap);
 
-    bool inhot(Instruction *I);
+    unsigned getLoopDepth(Loop *L, std::map<Loop *, unsigned> & LoopDepthMap);
+
+    bool inhot(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap);
 
     bool expensive(Instruction *I);
 
