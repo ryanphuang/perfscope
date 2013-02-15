@@ -33,6 +33,7 @@
 
 #include "llvm/Function.h"
 #include "llvm/Instruction.h"
+#include "llvm/IntrinsicInst.h"
 
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/raw_ostream.h"
@@ -49,7 +50,7 @@ bool RiskEvaluator::assess(Instruction *I)
     CallSite cs(I);
     Function *func = cs.getCalledFunction();
     if (func == NULL ) {
-      std::cout << "Callee unknown\n";
+      errs() << "Callee unknown\n";
       return false;
     }
     else
@@ -69,53 +70,69 @@ bool RiskEvaluator::assess(Instruction *I)
   return false;
 }
 
+bool RiskEvaluator::expensive(Instruction * I)
+{
+  return true;
+}
+
+bool RiskEvaluator::inhot(Instruction *I)
+{
+  assert(LI && SE && "Require Loop information and ScalarEvolution");
+  unsigned depth = 0;
+  const BasicBlock * BB = I->getParent();
+  Loop * loop = LI->getLoopFor(BB);
+  while (loop) {
+    depth++;
+    SmallVector<BasicBlock *, 4> exits;
+    loop->getExitingBlocks(exits);
+    unsigned count = 0;
+    for (SmallVector<BasicBlock *, 4>::iterator ei = exits.begin(), ee = exits.end();
+        ei != ee; ++ei) {
+      if (*ei) {
+        unsigned c = SE->getSmallConstantTripCount(loop, *ei); 
+        if (c > count)
+          count = c;
+      }
+    }
+    errs() << "   * L" << depth << " trip count: " << count << "\n";
+    loop = loop->getParentLoop();
+  }
+  errs() << "  loop depth: " << depth << "\n";
+  return true;
+}
+
 bool RiskEvaluator::runOnFunction(Function &F)
 {
   if (!m_inst_map.count(&F)) {
     errs() << F.getName() << " not in the target\n";
     return false;
   }
-  InstVecTy inst_vec = m_inst_map[&F];
-  LoopInfo &li = getAnalysis<LoopInfo>(); 
-  if (li.empty()) {
-    errs() << "There's no loop in " << F.getName() << "\n";
-    return false;
-  }
-  ScalarEvolution *SE = &getAnalysis<ScalarEvolution>(); 
-  const BasicBlock * BB = 0;
-  unsigned old_depth = 0;
+  InstVecTy &inst_vec = m_inst_map[&F];
+  LI = &getAnalysis<LoopInfo>(); 
+  SE = &getAnalysis<ScalarEvolution>(); 
   for (InstVecIter I = inst_vec.begin(), E = inst_vec.end(); I != E; I++) {
     Instruction* inst = *I;
-    unsigned depth = old_depth;
-    if (inst->getParent() != BB) {
-      BB = inst->getParent();
-      depth = li.getLoopDepth(BB);
-      old_depth = depth;
-    }
     errs() << *inst << "\n";
+    if (isa<IntrinsicInst>(inst)) {
+      errs() << "  intrinsic\n";
+      continue;
+    }
+    /*
     if (cost_model)
       errs() << "  cost: " << cost_model->getInstructionCost(inst) << "\n";
-    errs() << "  loop depth: " << depth << "\n";
     errs() << "  hotness: ";
     if (assess(inst))
       errs() << " hot";
     else
       errs() << " cold";
     errs() << "\n";
-    if (depth > 0) {
-      Loop * loop = li.getLoopFor(inst->getParent());
-      while (depth > 0 && loop) {
-        BasicBlock * ExitBlock = loop->getExitingBlock();
-        if (ExitBlock) {
-          unsigned c = SE->getSmallConstantTripCount(loop, ExitBlock); 
-          errs() << "   * L" << depth << " trip count: " << c << "\n";
-        }
-        loop = loop->getParentLoop();
-        depth--;
-      }
-    }
+    */
+    if (LI->empty())
+      continue;
+    inhot(inst);
   }
   return false;
 }
 
 char RiskEvaluator::ID = 0;
+const char * RiskEvaluator::PassName = "Risk evaluator pass";

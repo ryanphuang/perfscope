@@ -33,6 +33,9 @@
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Instructions.h"
+
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/DominanceFrontier.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
@@ -67,17 +70,26 @@ class RiskEvaluator: public FunctionPass {
     InstMapTy m_inst_map;
     CostModel * cost_model;
     Profile * profile;
+    LoopInfo * LI;
+    ScalarEvolution *SE;
 
   public:
     static char ID;
+    static const char * PassName; 
 
     RiskEvaluator(InstMapTy & inst_map, CostModel * model = NULL, 
         Profile * profile = NULL) : FunctionPass(ID), m_inst_map(inst_map), 
-        cost_model(model), profile(profile) {} 
+        cost_model(model), profile(profile), LI(NULL), SE(NULL) {}
+
+    virtual const char *getPassName() const { return PassName;}
 
     virtual bool runOnFunction(Function &F); 
 
     bool assess(Instruction *I);
+
+    bool inhot(Instruction *I);
+
+    bool expensive(Instruction *I);
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();
