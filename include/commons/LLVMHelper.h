@@ -56,8 +56,8 @@ enum HotFuncType {INVALIDTYPE, SYSCALL, LOCKCALL, EXPCALL, FREQCALL};
 
 HotFuncType fromHotTypeName(const char * name);
 
-const char * toStr(const HotFuncType type);
-const char * toName(const HotFuncType type);
+const char * toHotStr(const HotFuncType type);
+const char * toHotName(const HotFuncType type);
 
 typedef std::map<HotFuncType, std::vector<std::string> > Profile;
 

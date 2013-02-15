@@ -65,6 +65,8 @@ class RiskEvaluator: public FunctionPass {
       HighRisk    // e.g., expensive operations in tight loop
     };
 
+    #define RISKLEVELS 4
+
   private:
     typedef SmallVector<Instruction *, 8>::iterator InstVecIter;
     InstMapTy m_inst_map;
@@ -72,6 +74,8 @@ class RiskEvaluator: public FunctionPass {
     Profile * profile;
     LoopInfo * LI;
     ScalarEvolution *SE;
+    unsigned AllRiskStat[RISKLEVELS + 1];
+    unsigned FuncRiskStat[RISKLEVELS + 1];
 
   public:
     static char ID;
@@ -79,7 +83,11 @@ class RiskEvaluator: public FunctionPass {
 
     RiskEvaluator(InstMapTy & inst_map, CostModel * model = NULL, 
         Profile * profile = NULL) : FunctionPass(ID), m_inst_map(inst_map), 
-        cost_model(model), profile(profile), LI(NULL), SE(NULL) {}
+        cost_model(model), profile(profile), LI(NULL), SE(NULL) 
+    {
+      memset(AllRiskStat, 0, sizeof(AllRiskStat));
+      memset(FuncRiskStat, 0, sizeof(FuncRiskStat));
+    }
 
     virtual const char *getPassName() const { return PassName;}
 
@@ -92,6 +100,12 @@ class RiskEvaluator: public FunctionPass {
     bool inhot(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap);
 
     bool expensive(Instruction *I);
+
+    const char * toRiskStr(RiskLevel risk);
+  
+    void clearFuncStat();
+    void statFuncRisk(const char * funcname);
+    void statAllRisk();
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();

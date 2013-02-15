@@ -72,6 +72,20 @@ static RiskEvaluator::RiskLevel Judge[2][2] = {
   {RiskEvaluator::MediumRisk, RiskEvaluator::HighRisk}
 };
 
+static const char * RiskLevelStr[RISKLEVELS] = {
+  "no risk",
+  "low risk",
+  "medium risk",
+  "high risk"
+};
+
+const char * RiskEvaluator::toRiskStr(RiskEvaluator::RiskLevel risk)
+{
+  if (risk < 0 || risk > RISKLEVELS)
+    return "UNKNOWN";
+  return RiskLevelStr[risk];
+}
+
 RiskEvaluator::RiskLevel RiskEvaluator::assess(Instruction *I, 
       std::map<Loop *, unsigned> & LoopDepthMap)
 {
@@ -134,7 +148,7 @@ bool RiskEvaluator::expensive(Instruction * I)
           it != ie; ++it) {
         if (std::binary_search(it->second.begin(), it->second.end(), dname)) {
           errind(2);
-          eval_debug("*%s*\n",toStr(it->first)); 
+          eval_debug("*%s*\n",toHotStr(it->first)); 
           return true;
         }
       }
@@ -169,6 +183,7 @@ bool RiskEvaluator::runOnFunction(Function &F)
     errs() << F.getName() << " not in the target\n";
     return false;
   }
+  memset(FuncRiskStat, 0, sizeof(FuncRiskStat));
   LI = &getAnalysis<LoopInfo>(); 
   SE = &getAnalysis<ScalarEvolution>(); 
   INDENT = 4;
@@ -176,10 +191,33 @@ bool RiskEvaluator::runOnFunction(Function &F)
   std::map<Loop *, unsigned> LoopDepthMap;
   for (InstVecIter I = inst_vec.begin(), E = inst_vec.end(); I != E; I++) {
     Instruction* inst = *I;
-    assess(inst, LoopDepthMap);
+    RiskLevel risk = assess(inst, LoopDepthMap);
+    errind();
+    eval_debug("%s\n", toRiskStr(risk));
+    FuncRiskStat[risk]++;
+    AllRiskStat[risk]++;
   }
+  statFuncRisk(F.getName().data());
   return false;
 }
+
+void RiskEvaluator::statFuncRisk(const char * funcname)
+{
+  eval_debug("===='%s' risk summary====\n", funcname);
+  for (int i = NoRisk; i <= HighRisk; i++) {
+    eval_debug("%s: %u\n", toRiskStr((RiskLevel) i), FuncRiskStat[i]);
+  }
+}
+
+void RiskEvaluator::statAllRisk()
+{
+  eval_debug("====Overall risk summary====\n");
+  for (int i = NoRisk; i <= HighRisk; i++) {
+    eval_debug("%s: %u\n", toRiskStr((RiskLevel) i), AllRiskStat[i]);
+  }
+}
+
+
 
 char RiskEvaluator::ID = 0;
 const char * RiskEvaluator::PassName = "Risk evaluator pass";
