@@ -95,7 +95,7 @@ class DepIterator: public std::iterator<std::forward_iterator_tag, DepNode::Half
 
   public:
     unsigned char              m_state;        // state of the iterator
-    DepGraph                   m_graph;        // dependence graph
+    DepGraph    *              m_graph;        // dependence graph
     Instruction *              m_inst;         // instruction to be analyzed
     DepType                    m_request;      // dependence request type
     bool                       m_forward;      // forward iterator or backward
@@ -112,7 +112,7 @@ class DepIterator: public std::iterator<std::forward_iterator_tag, DepNode::Half
     bool setMemDepIter();
 
   public:
-    DepIterator(DepGraph & graph, Instruction * inst, DepType request, bool forward);
+    DepIterator(DepGraph * graph, Instruction * inst, DepType request, bool forward);
 
     bool next();
     _Self & operator++() { next(); return *this;}

@@ -39,10 +39,8 @@
 #include "commons/handy.h"
 #include "commons/LLVMHelper.h"
 #include "parser/PatchDecoder.h"
-#include "mapper/PgmDependenceGraph.h"
 #include "mapper/DifferenceEngine.h"
 #include "mapper/Matcher.h"
-#include "mapper/Slicer.h"
 #include "analyzer/Evaluator.h"
 #include "analyzer/X86CostModel.h"
 
@@ -50,7 +48,7 @@
 using namespace std;
 using namespace llvm;
 
-#define PERFSCOPE_DEBUG false
+//#define PERFSCOPE_DEBUG
 
 #define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
 
@@ -98,7 +96,7 @@ void runevaluator(Module * module, CostModel * model, InstMapTy & instmap)
 {
   if (instmap.size()) {
     OwningPtr<FunctionPassManager> FPasses(new FunctionPassManager(module));
-    FPasses->add(new RiskEvaluator(instmap, model, &profile));
+    FPasses->add(new RiskEvaluator(instmap, model, &profile, analysis_level));
     FPasses->doInitialization();
     for (InstMapTy::iterator map_it = instmap.begin(), map_ie = instmap.end();
         map_it != map_ie; ++map_it) {
@@ -154,6 +152,7 @@ void analyze(char *input)
   Patch *patch = NULL;
   Chapter *chap = NULL;
   Hunk * hunk = NULL;
+  bool insignificant = true;
   while ((patch = decoder->next_patch()) != NULL) {
     perf_debug("patch: %s\n", patch->patchname.c_str());
     while ((chap = patch->next_chapter()) != NULL) {
@@ -274,6 +273,8 @@ void analyze(char *input)
             }
             if (s == 0)
               perf_debug("insignificant scope\n");
+            else
+              insignificant = false;
           }
           runevaluator(it->module, XCM, instmap);
           Mem2RegPass->doFinalization();
@@ -284,6 +285,8 @@ void analyze(char *input)
         chap->skip_rest_of_hunks();
     }
   }
+  if (insignificant)
+    printf("trivial\n");
 }
 
 static char const * option_help[] =
@@ -396,15 +399,21 @@ int main(int argc, char *argv[])
     exit(1);
   }
   id_fname = dupstr(argv[optind]);
+  struct timeval ltim;
+  gettimeofday(&ltim, NULL);
+  double lt1 = ltim.tv_sec * 1000.0 + (ltim.tv_usec/1000.0);
   load(Context, oldmods);
   load(Context, newmods);
+  gettimeofday(&ltim, NULL);
+  double lt2 = ltim.tv_sec * 1000.0 + (ltim.tv_usec/1000.0);
+  fprintf(stderr, "%.4f ms\n", lt2-lt1);
 
-  struct timeval tim;
-  gettimeofday(&tim, NULL);
-  double t1 = tim.tv_sec * 1000.0 +(tim.tv_usec/1000.0);
+  struct timeval atim;
+  gettimeofday(&atim, NULL);
+  double at1 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
   analyze(id_fname);
-  gettimeofday(&tim, NULL);
-  double t2 = tim.tv_sec * 1000.0 +(tim.tv_usec/1000.0);
-  fprintf(stderr, "%.4f ms\n", t2-t1);
+  gettimeofday(&atim, NULL);
+  double at2 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
+  fprintf(stderr, "%.4f ms\n", at2-at1);
   return 0;
 }

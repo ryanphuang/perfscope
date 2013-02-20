@@ -57,68 +57,6 @@ struct Criterion {
           line(line), inst(inst), forward(forward), request(request) {}
 };
 
-/* 
-class Slice {
-    private:
-      Criterion m_criterion;
-      MemDepGraph * m_ssa_graph;
-      MemDepGraph * m_mem_graph;
-      DepIter<MemDepGraph> * m_mem_iter; 
-      DepIter<SSADepGraph> * m_ssa_iter; 
-
-    protected:
-      bool validCriterion()
-      {
-        //TODO: look up line
-        if (m_criterion.inst == NULL)
-          return false;
-        if (m_criterion.request & MemDep) {
-          if (m_mem_graph == NULL)
-            return false;
-          m_mem_iter = new DepIter(m_mem_graph, 
-            m_mem_graph->getNode(m_criterion.inst), !m_criterion.forward);
-        }
-        if (m_criterion.request & SSADep) {
-          if (m_ssa_graph == NULL)
-            return false;
-          m_ssa_iter = new DepIter(m_ssa_graph, 
-            m_ssa_graph->getNode(m_criterion.inst), !m_criterion.forward);
-        }
-        m_node = m_graph->getNode(m_criterion.inst);
-        return m_node != NULL;
-      }
-
-    public:
-      Slice(DepGraph *graph, Criterion criterion) : 
-        m_criterion(criterion), m_mem_iter(NULL), m_ssa_iter(NULL)
-      {
-        assert(graph != NULL); 
-        m_mem_graph = grap->mem_graph;
-        m_ssa_graph = grap->ssa_graph;
-        assert(validCriterion() && "Invalid criterion");
-      }
-      ~Slice()
-      {
-        if (m_ssa_iter != NULL)
-          delete m_ssa_iter;
-        if (m_mem_iter != NULL)
-          delete m_mem_iter;
-      }
-
-      Instruction * next() 
-      {
-        if (m_criterion.request & MemDep)
-          ++*m_mem_iter;
-        if (m_criterion.request & MemDep)
-          ++*m_mem_iter;
-          
-      }
-      void print(raw_ostream & OS)
-      {
-      }
-      inline void dump() { print(dbgs()); }
-};
-*/
 
 class Slicer {
     private:
@@ -129,7 +67,7 @@ class Slicer {
       bool validCriterion();
 
     public:
-      Slicer(DepGraph &graph, Criterion criterion); 
+      Slicer(DepGraph * graph, Criterion criterion); 
       ~Slicer();
 
       Instruction * next(); 

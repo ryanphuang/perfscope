@@ -48,7 +48,7 @@
 #include "commons/handy.h"
 #include "commons/LLVMHelper.h"
 
-#define LLVMHELPER_DEBUG
+//#define LLVMHELPER_DEBUG
 
 gen_dbg(helper)
 

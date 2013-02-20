@@ -33,7 +33,7 @@
 
 using namespace llvm;
 
-Slicer::Slicer(DepGraph &graph, Criterion criterion) : m_criterion(criterion)
+Slicer::Slicer(DepGraph *graph, Criterion criterion) : m_criterion(criterion)
 { 
   m_iter = new DepIterator(graph, m_criterion.inst, 
     m_criterion.request, m_criterion.forward);

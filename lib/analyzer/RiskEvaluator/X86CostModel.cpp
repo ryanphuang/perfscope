@@ -68,7 +68,9 @@ X86CostModel::X86CostModel(TargetMachine *TM)
 
   const MCSubtargetInfo &TSI = TM->getSubtarget<MCSubtargetInfo>();
   uint64_t Bits = TSI.getFeatureBits();
+  #ifdef X86COSTMODEL_DEBUG
   errs() << "Feature bits: " << Bits << "\n";
+  #endif
 
   ST = new X86SubtargetStub(Bits);
 

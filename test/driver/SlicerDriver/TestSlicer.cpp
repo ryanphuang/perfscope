@@ -73,7 +73,7 @@ namespace {
           errs() << " ========\n";
           errs() << " Slicing:\n";
           //if (inst->mayReadOrWriteMemory()) {
-            Slicer * slicer = new Slicer(*graph, Criterion(0, inst, true, SSADep));
+            Slicer * slicer = new Slicer(graph, Criterion(0, inst, true, SSADep));
             slicer->print(errs());
           //
           errs() << " =======\n\n";

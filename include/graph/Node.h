@@ -73,7 +73,6 @@ class Node {
     typedef typename container_type::iterator out_iterator;
 
     Node(NodeValTy & v) : val (v) {}
-    ~Node(){}
 
     inline in_iterator in_begin()
     {

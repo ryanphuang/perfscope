@@ -48,6 +48,8 @@
 
 #include "analyzer/CostModel.h"
 #include "commons/LLVMHelper.h"
+#include "dependence/DepGraphBuilder.h"
+#include "slicer/Slicer.h"
 
 #include <map>
 
@@ -76,14 +78,15 @@ class RiskEvaluator: public FunctionPass {
     ScalarEvolution *SE;
     unsigned AllRiskStat[RISKLEVELS + 1];
     unsigned FuncRiskStat[RISKLEVELS + 1];
+    unsigned level; // denote the level of the analysis
 
   public:
     static char ID;
     static const char * PassName; 
 
     RiskEvaluator(InstMapTy & inst_map, CostModel * model = NULL, 
-        Profile * profile = NULL) : FunctionPass(ID), m_inst_map(inst_map), 
-        cost_model(model), profile(profile), LI(NULL), SE(NULL) 
+        Profile * profile = NULL, unsigned level = 1) : FunctionPass(ID), m_inst_map(inst_map), 
+        cost_model(model), profile(profile), LI(NULL), SE(NULL), level(level)
     {
       memset(AllRiskStat, 0, sizeof(AllRiskStat));
       memset(FuncRiskStat, 0, sizeof(FuncRiskStat));
@@ -111,7 +114,13 @@ class RiskEvaluator: public FunctionPass {
       AU.setPreservesAll();
       AU.addRequired<LoopInfo>();
       AU.addRequired<ScalarEvolution>(); 
+      AU.addRequired<DepGraphBuilder>();
+      AU.addRequired<MemoryDependenceAnalysis>();
     }
+  
+  private:
+    inline void statPrint(unsigned stat[RISKLEVELS+1]);
+
 };
 
 } // End of llvm namespace

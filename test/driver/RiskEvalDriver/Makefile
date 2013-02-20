@@ -13,7 +13,7 @@ TOOLNAME=riskevaldriver
 #
 # LIBRARYNAME = LLVMCostDriver
 # LOADABLE_MODULE = 1
-USEDLIBS = commons.a riskeval.a
+USEDLIBS = commons.a riskeval.a slicer.a dependence.a
 
 # LLVMLIBS = LLVMSupport.a
 LINK_COMPONENTS = all

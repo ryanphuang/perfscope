@@ -46,7 +46,7 @@ using namespace llvm;
 
 static int INDENT = 0;
 
-#define EVALUATOR_DEBUG
+//#define EVALUATOR_DEBUG
 
 gen_dbg(eval)
 
@@ -89,7 +89,9 @@ const char * RiskEvaluator::toRiskStr(RiskEvaluator::RiskLevel risk)
 RiskEvaluator::RiskLevel RiskEvaluator::assess(Instruction *I, 
       std::map<Loop *, unsigned> & LoopDepthMap)
 {
+  #ifdef EVALUATOR_DEBUG
   errs() << *I << "\n";
+  #endif
   errind();
   if (isa<IntrinsicInst>(I)) {
     eval_debug("intrinsic\n");
@@ -189,11 +191,27 @@ bool RiskEvaluator::runOnFunction(Function &F)
   INDENT = 4;
   InstVecTy &inst_vec = m_inst_map[&F];
   std::map<Loop *, unsigned> LoopDepthMap;
+  DepGraph * graph = NULL;
+  if (level > 1) {
+    DepGraphBuilder & builder = getAnalysis<DepGraphBuilder>();
+    graph = builder.getDepGraph();
+  }
   for (InstVecIter I = inst_vec.begin(), E = inst_vec.end(); I != E; I++) {
     Instruction* inst = *I;
     RiskLevel risk = assess(inst, LoopDepthMap);
     errind();
     eval_debug("%s\n", toRiskStr(risk));
+    if (graph != NULL) {
+      Slicer slicer(graph, Criterion(0, inst, true, AllDep));
+      Instruction * propagate;
+      eval_debug("Evaluating slice...\n");
+      while ((propagate = slicer.next()) != NULL) {
+        RiskLevel r = assess(propagate, LoopDepthMap);
+        errind();
+        eval_debug("%s\n", toRiskStr(r));
+      }
+      eval_debug("Slice evaluation done.\n");
+    }
     FuncRiskStat[risk]++;
     AllRiskStat[risk]++;
   }
@@ -201,23 +219,24 @@ bool RiskEvaluator::runOnFunction(Function &F)
   return false;
 }
 
+inline void RiskEvaluator::statPrint(unsigned stat[RISKLEVELS+1])
+{
+  for (int i = NoRisk; i <= HighRisk; i++) {
+    printf("%s:\t%u\n", toRiskStr((RiskLevel) i), stat[i]);
+  }
+}
+
 void RiskEvaluator::statFuncRisk(const char * funcname)
 {
-  eval_debug("===='%s' risk summary====\n", funcname);
-  for (int i = NoRisk; i <= HighRisk; i++) {
-    eval_debug("%s: %u\n", toRiskStr((RiskLevel) i), FuncRiskStat[i]);
-  }
+  printf("===='%s' risk summary====\n", funcname);
+  statPrint(FuncRiskStat);
 }
 
 void RiskEvaluator::statAllRisk()
 {
   eval_debug("====Overall risk summary====\n");
-  for (int i = NoRisk; i <= HighRisk; i++) {
-    eval_debug("%s: %u\n", toRiskStr((RiskLevel) i), AllRiskStat[i]);
-  }
+  statPrint(AllRiskStat);
 }
-
-
 
 char RiskEvaluator::ID = 0;
 const char * RiskEvaluator::PassName = "Risk evaluator pass";

@@ -37,13 +37,13 @@ bool DepIterator::validate()
 {
   if (m_inst == NULL)
     return false;
-  if ((m_request & MemDep) && m_graph.mem_graph == NULL)
+  if ((m_request & MemDep) && m_graph->mem_graph == NULL)
     return false;
-  if ((m_request & SSADep) && m_graph.ssa_graph == NULL) 
+  if ((m_request & SSADep) && m_graph->ssa_graph == NULL) 
     return false;
   return true;
 }
-DepIterator::DepIterator(DepGraph & graph, Instruction * inst, DepType request, bool forward)
+DepIterator::DepIterator(DepGraph * graph, Instruction * inst, DepType request, bool forward)
     : m_state(Ready), m_graph(graph), m_inst(inst), m_request(request), m_forward(forward)
 {
   assert(validate() && "Invalid request parameter");
@@ -59,14 +59,15 @@ DepIterator::DepIterator(DepGraph & graph, Instruction * inst, DepType request, 
 bool DepIterator::setSSADepIter()
 {
   m_depinst = NULL;
-  if (!(m_request & SSADep) || (m_state & SSADone)) {
+  if (!(m_request & SSADep) || (m_state & SSADone) || 
+      !m_inst->mayReadOrWriteMemory()) { // ignore all non-memory instructions
     m_state |= SSADone; // mark SSADone so the test of done() can succeed
     return false;
   }
   // we don't increment on first time
   if (m_state & Ready) {
     m_state &= ~Ready; // clear ready flag
-    m_ssa_iter = SSADepIter::begin(m_graph.ssa_graph, m_inst, !m_forward);
+    m_ssa_iter = SSADepIter::begin(m_graph->ssa_graph, m_inst, !m_forward);
   }
   else
     ++m_ssa_iter;
@@ -83,14 +84,15 @@ bool DepIterator::setSSADepIter()
 bool DepIterator::setMemDepIter()
 {
   m_depinst = NULL; // invalidate depinst
-  if (!(m_request & MemDep) || (m_state & MemDone)) {
+  if (!(m_request & MemDep) || (m_state & MemDone) ||
+        !m_inst->mayReadOrWriteMemory()) {
     m_state |= MemDone; // mark MemDone so the test of done() can succeed
     return false;
   }
   // we don't increment on first time
   if (m_state & Ready) {
     m_state &= ~Ready; // clear ready flag
-    m_mem_iter = MemDepIter::begin(m_graph.mem_graph, m_graph.mem_graph->get(m_inst), !m_forward);
+    m_mem_iter = MemDepIter::begin(m_graph->mem_graph, m_graph->mem_graph->get(m_inst), !m_forward);
   }
   else
     ++m_mem_iter; 

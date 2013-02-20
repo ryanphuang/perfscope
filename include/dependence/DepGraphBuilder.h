@@ -58,7 +58,7 @@ class DepGraphBuilder : public FunctionPass {
 
   public:
     static char ID; // Pass identification, replacement for typeid
-    DepGraphBuilder (DepType request = DataDep, bool must = false) : 
+    DepGraphBuilder (DepType request = DataDep, bool must = true) : 
       FunctionPass(ID), m_graph(NULL), m_request(request), m_must(must) 
     {
     }
