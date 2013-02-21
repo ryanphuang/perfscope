@@ -47,11 +47,9 @@
 #include "commons/LLVMHelper.h"
 #include "analyzer/Evaluator.h"
 
-namespace llvm {
-
 static int INDENT = 0;
 
-//#define EVALUATOR_DEBUG
+#define EVALUATOR_DEBUG
 
 gen_dbg(eval)
 
@@ -71,6 +69,8 @@ inline void errind(int addition = 0)
 {
 }
 #endif
+
+namespace llvm {
 
 static RiskLevel RiskMatrix[HOTNESSES][EXPNESSES] = {
   {LowRisk, LowRisk, ModerateRisk},
