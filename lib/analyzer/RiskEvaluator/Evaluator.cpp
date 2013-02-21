@@ -30,8 +30,12 @@
 
 #include <algorithm>
 #include <iostream>
+#include <queue>
 
 #include "llvm/Function.h"
+
+#include "llvm/ADT/SmallPtrSet.h"
+
 #include "llvm/Instruction.h"
 #include "llvm/IntrinsicInst.h"
 
@@ -39,10 +43,11 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include "commons/handy.h"
+#include "commons/CallSiteFinder.h"
 #include "commons/LLVMHelper.h"
 #include "analyzer/Evaluator.h"
 
-using namespace llvm;
+namespace llvm {
 
 static int INDENT = 0;
 
@@ -67,27 +72,55 @@ inline void errind(int addition = 0)
 }
 #endif
 
-static RiskEvaluator::RiskLevel Judge[2][2] = {
-  {RiskEvaluator::LowRisk, RiskEvaluator::MediumRisk},
-  {RiskEvaluator::MediumRisk, RiskEvaluator::HighRisk}
+static RiskLevel RiskMatrix[HOTNESSES][EXPNESSES] = {
+  {LowRisk, LowRisk, ModerateRisk},
+  {LowRisk, ModerateRisk, HighRisk},
+  {ModerateRisk, HighRisk, ExtremeRisk}
 };
 
 static const char * RiskLevelStr[RISKLEVELS] = {
   "no risk",
   "low risk",
-  "medium risk",
-  "high risk"
+  "moderate risk",
+  "high risk",
+  "extreme risk"
 };
 
-const char * RiskEvaluator::toRiskStr(RiskEvaluator::RiskLevel risk)
+static const char * HotStr[HOTNESSES] = {
+  "cold",
+  "normal",
+  "hot"
+};
+
+static const char * ExpStr[EXPNESSES] = {
+  "minor",
+  "normal",
+  "expensive"
+};
+
+const char * toRiskStr(RiskLevel risk)
 {
   if (risk < 0 || risk > RISKLEVELS)
     return "UNKNOWN";
   return RiskLevelStr[risk];
 }
 
-RiskEvaluator::RiskLevel RiskEvaluator::assess(Instruction *I, 
-      std::map<Loop *, unsigned> & LoopDepthMap)
+const char * toHotStr(Hotness hot)
+{
+  if (hot < 0 || hot > HOTNESSES)
+    return "UNKNOWN";
+  return HotStr[hot];
+}
+
+const char * toExpStr(Expensiveness exp)
+{
+  if (exp < 0 || exp > EXPNESSES)
+    return "UNKNOWN";
+  return ExpStr[exp];
+}
+
+RiskLevel RiskEvaluator::assess(Instruction *I, 
+      std::map<Loop *, unsigned> & LoopDepthMap, Hotness FuncHotness)
 {
   #ifdef EVALUATOR_DEBUG
   errs() << *I << "\n";
@@ -97,19 +130,22 @@ RiskEvaluator::RiskLevel RiskEvaluator::assess(Instruction *I,
     eval_debug("intrinsic\n");
     return NoRisk;
   }
-  eval_debug("expensive:\n");
-  bool exp = expensive(I);
+  eval_debug("expensiveness:\n");
+  Expensiveness exp = calcInstExp(I);
   errind(2);
-  eval_debug("%s\n", (exp ? "yes" : "no"));
-  bool hot = false;
+  eval_debug("%s\n", toExpStr(exp)); 
+  Hotness hot = Regular;
   if (!LI->empty()) {
     errind();
-    eval_debug("hot:\n");
-    hot = inhot(I, LoopDepthMap);
+    eval_debug("hotness:\n");
+    if (FuncHotness <= Hot)
+      hot = calcInstHotness(I, LoopDepthMap); 
+    else
+      hot = Hot;
     errind(2);
-    eval_debug("%s\n", (hot ? "yes" : "no"));
+    eval_debug("%s\n", toHotStr(hot));
   }
-  return Judge[hot][exp];
+  return RiskMatrix[hot][exp];
 }
 
 unsigned RiskEvaluator::getLoopDepth(Loop *L, std::map<Loop *, unsigned> & LoopDepthMap)
@@ -132,51 +168,128 @@ unsigned RiskEvaluator::getLoopDepth(Loop *L, std::map<Loop *, unsigned> & LoopD
   return count;
 }
 
-bool RiskEvaluator::expensive(Instruction * I)
+Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
 {
+  if (func == NULL || level <= 0)
+    return Cold;
+  SmallPtrSet<Function *, 4> visited;
+  typedef std::pair<Function *, int> FuncDep;
+  std::queue<FuncDep> bfsQueue;
+  bfsQueue.push(std::make_pair(func, 1));
+  eval_debug("Callers:\n");
+  unsigned callers = 0;
+  while (!bfsQueue.empty()) {
+    callers++;
+    FuncDep & item = bfsQueue.front();
+    errind(2);
+    const char *name = item.first->getName().data();
+    eval_debug("Depth #%d: %s ", item.second, cpp_demangle(name));
+    Hotness hot = calcFuncHotness(name);
+    eval_debug("%s", toHotStr(hot));
+    if (hot == Hot) {
+      eval_debug("\n");
+      return Hot;
+    }
+    // Don't trace upward too much
+    if (item.second >= level) {
+      eval_debug("\n");
+      bfsQueue.pop();
+      continue;
+    }
+    CallSiteFinder csf(item.first);
+    CallSiteFinder::cs_iterator i = csf.begin(), e = csf.end();
+    if(i == e) {
+      eval_debug(", no caller\n"); 
+      bfsQueue.pop();
+      continue;
+    }
+    // Push to the queue and increment the depth
+    for (; i != e; i++)
+      bfsQueue.push(std::make_pair(*i, item.second + 1));
+    bfsQueue.pop();
+    eval_debug("\n");
+  }
+  if (callers > CALLERHOT)
+    return Hot;
+  //TODO define cold function
+  return Regular;
+}
+
+Hotness RiskEvaluator::calcFuncHotness(const char * funcName)
+{
+  if (profile) {
+    for (Profile::iterator it = profile->begin(), ie = profile->end(); 
+        it != ie; ++it) {
+      if (std::binary_search(it->second.begin(), it->second.end(), funcName)) {
+        errind(2);
+        eval_debug("*%s*\n",toHotStr(it->first)); 
+        return Hot;
+      }
+    }
+  }
+  return Regular;
+}
+
+Hotness RiskEvaluator::calcFuncHotness(Function * func)
+{
+  if (func)
+    return calcFuncHotness(cpp_demangle(func->getName().data()));
+  return Cold;
+}
+
+Expensiveness RiskEvaluator::calcInstExp(Instruction * I)
+{
+  Expensiveness exp = Minor;
   if (isa<CallInst>(I) || isa<InvokeInst>(I)) {
     CallSite cs(I);
     Function *func = cs.getCalledFunction();
-    if (func == NULL ) {
-      errs() << "Callee unknown\n";
-      return false;
+    if (func == NULL || func->isIntrinsic()) {
+      #ifdef EVALUATOR_DEBUG
+      if (func == NULL)
+        errs() << "Callee unknown\n";
+      #endif
+      return exp;
     }
-    else
-      if(func->isIntrinsic())
-        return false;
-    if (profile) {
-      const char *dname = cpp_demangle(func->getName().data());
-      for (Profile::iterator it = profile->begin(), ie = profile->end(); 
-          it != ie; ++it) {
-        if (std::binary_search(it->second.begin(), it->second.end(), dname)) {
-          errind(2);
-          eval_debug("*%s*\n",toHotStr(it->first)); 
-          return true;
-        }
-      }
-    }
+    //TODO better way
+    if (calcFuncHotness(func) == Hot)
+      return Expensive;
   }
   if(cost_model) {
     unsigned cost = cost_model->getInstructionCost(I); 
     errind(2);
     eval_debug("cost: %u\n", cost);
+    if (cost == 0)
+      exp = Minor;
+    else
+      if (cost > INSTEXP)
+        exp = Expensive;
+      else
+        exp = Normal;
   }
-  return false;
+  return exp;
 }
 
-bool RiskEvaluator::inhot(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap)
+Hotness RiskEvaluator::calcInstHotness(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap)
 {
   assert(LI && SE && "Require Loop information and ScalarEvolution");
   const BasicBlock * BB = I->getParent();
   Loop * loop = LI->getLoopFor(BB);
   unsigned depth = 0;
+  Hotness hot = Cold;
   while (loop) {
     depth++;
     errind(2);
-    eval_debug("L%u trip count:%u\n", depth, getLoopDepth(loop, LoopDepthMap));
+    unsigned cnt = getLoopDepth(loop, LoopDepthMap);
+    eval_debug("L%u trip count:%u\n", depth, cnt);
+    // loop count cannot be determined, so it's potentially
+    // very tight!
+    if (cnt == 0 || cnt > LOOPCOUNTTIGHT) 
+      hot = Hot;
+    else
+      hot = Regular;
     loop = loop->getParentLoop();
   }
-  return true;
+  return hot;
 }
 
 bool RiskEvaluator::runOnFunction(Function &F)
@@ -192,13 +305,14 @@ bool RiskEvaluator::runOnFunction(Function &F)
   InstVecTy &inst_vec = m_inst_map[&F];
   std::map<Loop *, unsigned> LoopDepthMap;
   DepGraph * graph = NULL;
+  Hotness funcHot = calcCallerHotness(&F, depth);
   if (level > 1) {
     DepGraphBuilder & builder = getAnalysis<DepGraphBuilder>();
     graph = builder.getDepGraph();
   }
   for (InstVecIter I = inst_vec.begin(), E = inst_vec.end(); I != E; I++) {
     Instruction* inst = *I;
-    RiskLevel risk = assess(inst, LoopDepthMap);
+    RiskLevel risk = assess(inst, LoopDepthMap, funcHot);
     errind();
     eval_debug("%s\n", toRiskStr(risk));
     if (graph != NULL) {
@@ -206,7 +320,7 @@ bool RiskEvaluator::runOnFunction(Function &F)
       Instruction * propagate;
       eval_debug("Evaluating slice...\n");
       while ((propagate = slicer.next()) != NULL) {
-        RiskLevel r = assess(propagate, LoopDepthMap);
+        RiskLevel r = assess(propagate, LoopDepthMap, funcHot);
         errind();
         eval_debug("%s\n", toRiskStr(r));
       }
@@ -238,5 +352,8 @@ void RiskEvaluator::statAllRisk()
   statPrint(AllRiskStat);
 }
 
+
 char RiskEvaluator::ID = 0;
 const char * RiskEvaluator::PassName = "Risk evaluator pass";
+} // End of llvm namespace
+

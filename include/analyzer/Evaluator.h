@@ -48,6 +48,7 @@
 
 #include "analyzer/CostModel.h"
 #include "commons/LLVMHelper.h"
+#include "commons/CallSiteFinder.h"
 #include "dependence/DepGraphBuilder.h"
 #include "slicer/Slicer.h"
 
@@ -55,19 +56,43 @@
 
 namespace llvm {
 
+enum RiskLevel {
+  NoRisk,       // e.g., renaming, formatting
+  LowRisk,      // e.g., a few number of arithmetic operations in cold path
+  ModerateRisk, // e.g., expensive operations in cold path
+  HighRisk,     // e.g., expensive operations in tight loop
+  ExtremeRisk   // e.g., expensive operations in tight loop
+};
+const char * toRiskStr(RiskLevel risk);
+#define RISKLEVELS 5
+
+enum Hotness {
+  Cold,
+  Regular,
+  Hot
+};
+#define HOTNESSES 3
+const char * toHotStr(Hotness hot);
+
+enum Expensiveness {
+  Minor,
+  Normal,
+  Expensive
+};
+
+#define EXPNESSES 3
+const char * toExpStr(Expensiveness exp);
+
+#define LOOPCOUNTTIGHT 10 // the threshold of a tight loop
+
+#define INSTEXP 10 // threshold of an expensive instruction
+
+#define CALLERHOT 10 // threshold of how many callers is a function defined hot
+
 class RiskEvaluator: public FunctionPass {
   public:
     typedef SmallVector<Instruction *, 8> InstVecTy;
     typedef std::map<Function *, InstVecTy> InstMapTy;
-
-    enum RiskLevel {
-      NoRisk,     // e.g., renaming, formatting
-      LowRisk,    // e.g., a few number of arithmetic operations in regular places
-      MediumRisk, // e.g., arithmetic operations in tight loop
-      HighRisk    // e.g., expensive operations in tight loop
-    };
-
-    #define RISKLEVELS 4
 
   private:
     typedef SmallVector<Instruction *, 8>::iterator InstVecIter;
@@ -79,14 +104,16 @@ class RiskEvaluator: public FunctionPass {
     unsigned AllRiskStat[RISKLEVELS + 1];
     unsigned FuncRiskStat[RISKLEVELS + 1];
     unsigned level; // denote the level of the analysis
+    unsigned depth; // denote the depth of tracing up
 
   public:
     static char ID;
     static const char * PassName; 
 
     RiskEvaluator(InstMapTy & inst_map, CostModel * model = NULL, 
-        Profile * profile = NULL, unsigned level = 1) : FunctionPass(ID), m_inst_map(inst_map), 
-        cost_model(model), profile(profile), LI(NULL), SE(NULL), level(level)
+        Profile * profile = NULL, unsigned level = 1, unsigned depth = 2) : FunctionPass(ID), 
+        m_inst_map(inst_map), cost_model(model), profile(profile), LI(NULL), SE(NULL), 
+        level(level), depth(depth)
     {
       memset(AllRiskStat, 0, sizeof(AllRiskStat));
       memset(FuncRiskStat, 0, sizeof(FuncRiskStat));
@@ -96,16 +123,18 @@ class RiskEvaluator: public FunctionPass {
 
     virtual bool runOnFunction(Function &F); 
 
-    RiskLevel assess(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap);
+    RiskLevel assess(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap, Hotness FuncHotness);
 
     unsigned getLoopDepth(Loop *L, std::map<Loop *, unsigned> & LoopDepthMap);
 
-    bool inhot(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap);
+    Hotness calcInstHotness(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap);
 
-    bool expensive(Instruction *I);
+    Hotness calcFuncHotness(Function * func);
+    Hotness calcFuncHotness(const char * funcName);
+    Hotness calcCallerHotness(Function * func, int level = 3);
 
-    const char * toRiskStr(RiskLevel risk);
-  
+    Expensiveness calcInstExp(Instruction *I);
+
     void clearFuncStat();
     void statFuncRisk(const char * funcname);
     void statAllRisk();
