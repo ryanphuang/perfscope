@@ -57,7 +57,7 @@
 namespace llvm {
 
 enum RiskLevel {
-  NoRisk,       // e.g., renaming, formatting
+  NoRisk = 0,       // e.g., renaming, formatting
   LowRisk,      // e.g., a few number of arithmetic operations in cold path
   ModerateRisk, // e.g., expensive operations in cold path
   HighRisk,     // e.g., expensive operations in tight loop
@@ -67,7 +67,7 @@ const char * toRiskStr(RiskLevel risk);
 #define RISKLEVELS 5
 
 enum Hotness {
-  Cold,
+  Cold = 0,
   Regular,
   Hot
 };
@@ -75,7 +75,7 @@ enum Hotness {
 const char * toHotStr(Hotness hot);
 
 enum Expensiveness {
-  Minor,
+  Minor = 0,
   Normal,
   Expensive
 };
@@ -101,8 +101,8 @@ class RiskEvaluator: public FunctionPass {
     Profile * profile;
     LoopInfo * LI;
     ScalarEvolution *SE;
-    unsigned AllRiskStat[RISKLEVELS + 1];
-    unsigned FuncRiskStat[RISKLEVELS + 1];
+    unsigned AllRiskStat[RISKLEVELS];
+    unsigned FuncRiskStat[RISKLEVELS];
     unsigned level; // denote the level of the analysis
     unsigned depth; // denote the depth of tracing up
 
@@ -148,7 +148,7 @@ class RiskEvaluator: public FunctionPass {
     }
   
   private:
-    inline void statPrint(unsigned stat[RISKLEVELS+1]);
+    inline void statPrint(unsigned stat[RISKLEVELS]);
 
 };
 

@@ -88,7 +88,7 @@ static const char * RiskLevelStr[RISKLEVELS] = {
 
 static const char * HotStr[HOTNESSES] = {
   "cold",
-  "normal",
+  "regular",
   "hot"
 };
 
@@ -258,7 +258,7 @@ Expensiveness RiskEvaluator::calcInstExp(Instruction * I)
     unsigned cost = cost_model->getInstructionCost(I); 
     errind(2);
     eval_debug("cost: %u\n", cost);
-    if (cost == 0)
+    if (cost == 0 || cost == (unsigned) -1)
       exp = Minor;
     else
       if (cost > INSTEXP)
@@ -333,9 +333,9 @@ bool RiskEvaluator::runOnFunction(Function &F)
   return false;
 }
 
-inline void RiskEvaluator::statPrint(unsigned stat[RISKLEVELS+1])
+inline void RiskEvaluator::statPrint(unsigned stat[RISKLEVELS])
 {
-  for (int i = NoRisk; i <= HighRisk; i++) {
+  for (int i = 0; i < RISKLEVELS; i++) {
     printf("%s:\t%u\n", toRiskStr((RiskLevel) i), stat[i]);
   }
 }
