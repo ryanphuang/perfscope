@@ -4,8 +4,8 @@ dnl **************************************************************************
 AC_INIT([slicing],[0.11],[ryanhuang@cs.ucsd.edu])
 
 dnl Identify where LLVM source tree is
-LLVM_SRC_ROOT="/home/ryan/software/llvm/src/3.0"
-LLVM_OBJ_ROOT="/home/ryan/software/llvm/src/3.0"
+LLVM_SRC_ROOT=
+LLVM_OBJ_ROOT=
 
 dnl Find absolute paths to LLVM source and object trees
 LLVM_ABS_SRC_ROOT="`cd $srcdir ; cd $LLVM_SRC_ROOT ; pwd`"

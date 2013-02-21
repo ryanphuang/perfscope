@@ -3,6 +3,25 @@ die () {
 	echo "$@" 1>&2
 	exit 1
 }
+
+askforpath() {
+  while true ; do
+    echo "LLVM source root not found." 
+    read -p "Enter full path to LLVM source:" REPLY
+    if test -d "$REPLY/autoconf/m4" ; then
+      llvm_src_root="$REPLY"
+      llvm_m4="$REPLY/autoconf/m4"
+      read -p "Enter full path to LLVM objects (empty for same as source):" REPLY
+      if test -d "$REPLY" ; then
+        llvm_obj_root="$REPLY"
+      else
+        llvm_obj_root="$llvm_src_root"
+      fi
+      break
+    fi
+  done
+}
+
 test -d autoconf && test -f autoconf/configure.ac && cd autoconf
 test -f configure.ac || die "Can't find 'autoconf' dir; please cd into it first"
 autoconf --version | egrep '2\.[56][0-9]' > /dev/null
@@ -24,34 +43,24 @@ elif test -d ../../llvm/autoconf/m4 ; then
   cd $cwd
 else
   src_tmp=$(grep "^LLVM_SRC_ROOT" configure.ac | awk -F"=" '{print $2}')
-  src_tmp="${src_tmp//\"}"
   obj_tmp=$(grep "^LLVM_OBJ_ROOT" configure.ac | awk -F"=" '{print $2}')
-  obj_tmp="${obj_tmp//\"}"
-  if [ ! -z "$src_tmp" ] && [ ! -z "$obj_tmp" ] && [ -d $src_tmp ] && [ -d $obj_tmp ]; then
-    echo "Found LLVM source root at: $src_tmp" 
-    cd $src_tmp
-    llvm_src_root=`pwd`
-    llvm_m4="$llvm_src_root/autoconf/m4"
-    cd $cwd
-    cd $obj_tmp
-    llvm_obj_root=`pwd`
-    cd $cwd
+  if [ ! -z "$src_tmp" ] && [ ! -z "$obj_tmp" ]; then
+    src_tmp="${src_tmp//\"}"
+    obj_tmp="${obj_tmp//\"}"
+    if [ -d $src_tmp ] && [ -d $obj_tmp ]; then
+      echo "Found LLVM source root at: $src_tmp" 
+      cd $src_tmp
+      llvm_src_root=`pwd`
+      llvm_m4="$llvm_src_root/autoconf/m4"
+      cd $cwd
+      cd $obj_tmp
+      llvm_obj_root=`pwd`
+      cd $cwd
+    else
+      askforpath
+    fi
   else
-    while true ; do
-      echo "LLVM source root not found." 
-      read -p "Enter full path to LLVM source:" REPLY
-      if test -d "$REPLY/autoconf/m4" ; then
-        llvm_src_root="$REPLY"
-        llvm_m4="$REPLY/autoconf/m4"
-        read -p "Enter full path to LLVM objects (empty for same as source):" REPLY
-        if test -d "$REPLY" ; then
-          llvm_obj_root="$REPLY"
-        else
-          llvm_obj_root="$llvm_src_root"
-        fi
-        break
-      fi
-    done
+    askforpath
   fi
 fi
 # Patch the LLVM_ROOT in configure.ac, if it needs it
