@@ -31,12 +31,8 @@
 #include <algorithm>
 #include <iostream>
 #include <queue>
+#include <string>
 
-#include "llvm/Function.h"
-
-#include "llvm/ADT/SmallPtrSet.h"
-
-#include "llvm/Instruction.h"
 #include "llvm/IntrinsicInst.h"
 
 #include "llvm/Support/CallSite.h"
@@ -135,7 +131,7 @@ RiskLevel RiskEvaluator::assess(Instruction *I,
   errind(2);
   eval_debug("%s\n", toExpStr(exp)); 
   Hotness hot = Regular;
-  if (!LI->empty()) {
+  if (!LocalLI->empty()) {
     errind();
     eval_debug("hotness:\n");
     if (FuncHotness <= Hot)
@@ -178,17 +174,20 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
   bfsQueue.push(std::make_pair(func, 1));
   eval_debug("Callers:\n");
   unsigned callers = 0;
-  for (; !bfsQueue.empty(); bfsQueue.pop()) {
+  while(!bfsQueue.empty()) {
     callers++;
     FuncDep & item = bfsQueue.front();
     // in case siblings with duplicates
-    if (visited.count(item.first))
+    if (visited.count(item.first)) {
+      bfsQueue.pop();
       continue;
+    }
     visited.insert(item.first);
     errind(2);
-    const char *name = item.first->getName().data();
-    eval_debug("Depth #%d: %s ", item.second, cpp_demangle(name));
-    Hotness hot = calcFuncHotness(name);
+    //const char *name = item.first->getName().data();
+    std::string funcname(cpp_demangle(item.first->getName().data()));
+    eval_debug("Depth #%d: %s ", item.second, funcname.c_str());
+    Hotness hot = calcFuncHotness(funcname.c_str());
     eval_debug("%s", toHotStr(hot));
     if (hot == Hot) {
       eval_debug("\n");
@@ -197,20 +196,37 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
     // Don't trace upward too much
     if (item.second >= level) {
       eval_debug("\n");
+      bfsQueue.pop();
       continue;
     }
     CallSiteFinder csf(item.first);
     CallSiteFinder::cs_iterator ci = csf.begin(), ce = csf.end();
     if(ci == ce) { 
+      bfsQueue.pop();
       eval_debug(", no caller\n"); 
       continue;
     }
     // Push to the queue and increment the depth
     for (; ci != ce; ++ci) {
-      if (visited.count(ci->first))
+      Function *caller = ci->first;
+      if (visited.count(caller))
         continue;
       //TODO test if CallInst is in loop
-      bfsQueue.push(std::make_pair(ci->first, item.second + 1));
+      if (func_manager) {
+        if (!caller->isDeclaration() && ci->second) {
+          func_manager->run(*caller);
+          const BasicBlock * BB = ci->second->getParent();
+          Loop * loop = GlobalLI->getLoopFor(BB);
+          if (loop) {
+            eval_debug("%s has a callsite in a loop in %s!\n", funcname.c_str(), 
+              cpp_demangle(caller->getName().data()));
+          }
+          else
+            eval_debug("%s has no loop callsite in %s.\n", funcname.c_str(), 
+              cpp_demangle(caller->getName().data()));
+        }
+      }
+      bfsQueue.push(std::make_pair(caller, item.second + 1));
     }
     bfsQueue.pop();
     eval_debug("\n");
@@ -277,9 +293,9 @@ Expensiveness RiskEvaluator::calcInstExp(Instruction * I)
 
 Hotness RiskEvaluator::calcInstHotness(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap)
 {
-  assert(LI && SE && "Require Loop information and ScalarEvolution");
+  assert(LocalLI && SE && "Require Loop information and ScalarEvolution");
   const BasicBlock * BB = I->getParent();
-  Loop * loop = LI->getLoopFor(BB);
+  Loop * loop = LocalLI->getLoopFor(BB);
   unsigned depth = 0;
   Hotness hot = Cold;
   while (loop) {
@@ -305,7 +321,7 @@ bool RiskEvaluator::runOnFunction(Function &F)
     return false;
   }
   memset(FuncRiskStat, 0, sizeof(FuncRiskStat));
-  LI = &getAnalysis<LoopInfo>(); 
+  LocalLI = &getAnalysis<LoopInfo>(); 
   SE = &getAnalysis<ScalarEvolution>(); 
   INDENT = 4;
   InstVecTy &inst_vec = m_inst_map[&F];

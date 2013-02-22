@@ -31,8 +31,12 @@
 #define __EVALUATOR_H_
 
 #include "llvm/Pass.h"
+#include "llvm/Function.h"
+#include "llvm/Module.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Instruction.h"
 #include "llvm/Instructions.h"
+#include "llvm/PassManager.h"
 
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/DominanceFrontier.h"
@@ -99,7 +103,11 @@ class RiskEvaluator: public FunctionPass {
     InstMapTy m_inst_map;
     CostModel * cost_model;
     Profile * profile;
-    LoopInfo * LI;
+    FunctionPassManager * func_manager;
+    Module * module;
+    SmallPtrSet<Function *, 4> loop_analyzed;
+    LoopInfo * LocalLI;
+    LoopInfo * GlobalLI;
     ScalarEvolution *SE;
     unsigned AllRiskStat[RISKLEVELS];
     unsigned FuncRiskStat[RISKLEVELS];
@@ -111,12 +119,28 @@ class RiskEvaluator: public FunctionPass {
     static const char * PassName; 
 
     RiskEvaluator(InstMapTy & inst_map, CostModel * model = NULL, 
-        Profile * profile = NULL, unsigned level = 1, unsigned depth = 2) : FunctionPass(ID), 
-        m_inst_map(inst_map), cost_model(model), profile(profile), LI(NULL), SE(NULL), 
-        level(level), depth(depth)
+        Profile * profile = NULL, Module * module = NULL, unsigned level = 1, 
+        unsigned depth = 2) : FunctionPass(ID), m_inst_map(inst_map), 
+        cost_model(model), profile(profile), func_manager(NULL), 
+        module(module), LocalLI(NULL), SE(NULL), level(level), depth(depth)
     {
       memset(AllRiskStat, 0, sizeof(AllRiskStat));
       memset(FuncRiskStat, 0, sizeof(FuncRiskStat));
+      if (module)
+        func_manager = new FunctionPassManager(module);
+        GlobalLI = new LoopInfo();
+        func_manager->add(GlobalLI);
+        func_manager->doInitialization();
+    }
+
+    ~RiskEvaluator()
+    {
+      if (func_manager) {
+        func_manager->doFinalization();
+        delete func_manager;
+        if (GlobalLI)
+          delete GlobalLI;
+      }
     }
 
     virtual const char *getPassName() const { return PassName;}
