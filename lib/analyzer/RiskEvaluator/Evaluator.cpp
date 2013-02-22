@@ -32,6 +32,7 @@
 #include <iostream>
 #include <queue>
 #include <string>
+#include <ctype>
 
 #include "llvm/IntrinsicInst.h"
 
@@ -62,6 +63,22 @@ inline void errind(int addition = 0)
 }
 #else
 inline void errind(int addition = 0)
+{
+}
+#endif
+
+#ifdef EVALUATOR_DEBUG
+static void eval_debug(llvm::Instruction * I)
+{
+  std::string str;
+  llvm::raw_string_ostream OS(str);
+  OS << *I;
+  const char * p = str.c_str();
+  while (*p && isspace(*p)) ++p;
+  printf("%s", p);
+}
+#else
+static void eval_debug(Instruction * I)
 {
 }
 #endif
@@ -138,9 +155,8 @@ bool DummyLoopInfo::runOnFunction(Function &F)
 RiskLevel RiskEvaluator::assess(Instruction *I, 
       std::map<Loop *, unsigned> & LoopDepthMap, Hotness FuncHotness)
 {
-  #ifdef EVALUATOR_DEBUG
-  errs() << *I << "\n";
-  #endif
+  eval_debug(I);
+  eval_debug("\n");
   errind();
   if (isa<IntrinsicInst>(I)) {
     eval_debug("intrinsic\n");
@@ -239,14 +255,10 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
             loop_analyzed.insert(caller);
           }
         }
-        #ifdef EVALUATOR_DEBUG
-        std::string inststr;
-        raw_string_ostream OS(inststr);
-        OS << *ci->second; 
-        #endif
         errind(4);
-        eval_debug("called from %s {%s }, ", cpp_demangle(caller->getName().data()), 
-            inststr.c_str());
+        eval_debug("called from %s [", cpp_demangle(caller->getName().data()));
+        eval_debug(ci->second);
+        eval_debug("], ");
         BasicBlock * BB = ci->second->getParent();
         if (GlobalLI->inLoop(caller, BB)) {
           eval_debug("in loop\n");
