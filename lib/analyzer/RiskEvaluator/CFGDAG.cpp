@@ -31,7 +31,7 @@
 
 #include "analyzer/CFGDAG.h"
 
-#define CFGDAG_DEBUG
+//#define CFGDAG_DEBUG
 
 using namespace llvm;
 

@@ -42,7 +42,7 @@
 #include "analyzer/CostModel.h"
 #include "analyzer/CFGDAG.h"
 
-#define COSTMODEL_DEBUG
+//#define COSTMODEL_DEBUG
 
 using namespace llvm;
 
@@ -267,7 +267,7 @@ unsigned CostModel::getInstructionCost(const Instruction *I) const
       return TCC_Basic * (CI->getNumArgOperands() + 1);
     }
     default:
-      errs() << "Warning: unknown cost for instruction " << I->getOpcode() << "\n";
+      // errs() << "Warning: unknown cost for instruction " << I->getOpcode() << "\n";
       return -1;
   }
 }

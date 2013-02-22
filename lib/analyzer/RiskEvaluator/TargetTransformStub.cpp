@@ -106,7 +106,7 @@ std::pair<unsigned, MVT>
 VectorTargetTransformStub::getTypeLegalizationCost(Type *Ty) const {
 
   LLVMContext &C = Ty->getContext();
-  EVT MTy = TLI->getValueType(Ty);
+  EVT MTy = TLI->getValueType(Ty, true);
 
   unsigned Cost = 1;
   // We keep legalizing the type until we find a legal kind. We assume that

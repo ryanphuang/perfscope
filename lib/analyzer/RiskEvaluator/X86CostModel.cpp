@@ -53,9 +53,12 @@
 
 using namespace llvm;
 
-
-#define WARN_DEFAULT_COST(type)  \
-  errs() << "Warning: " <<  #type << " falling to default cost\n"
+#ifdef X86COSTMODEL_DEBUG
+  #define WARN_DEFAULT_COST(type)  \
+    errs() << "Warning: " <<  #type << " falling to default cost\n"
+#else
+  #define WARN_DEFAULT_COST(type) 
+#endif
 
 //#define X86COSTMODEL_DEBUG
 
@@ -161,7 +164,8 @@ unsigned X86CostModel::getShuffleCost(ShuffleKind Kind, Type *Tp,
 
   std::pair<unsigned, MVT> LT = VTT->getTypeLegalizationCost(Tp);
   unsigned Cost = 1;
-  if (LT.second.getSizeInBits() > 128)
+  //TODO
+  if (LT.second != MVT::Other && LT.second.getSizeInBits() > 128)
     Cost = 3; // Extract + insert + copy.
 
   // Multiple by the number of parts.
@@ -309,8 +313,8 @@ unsigned X86CostModel::getMemoryOpCost(unsigned Opcode, Type *Src,
 
   // On Sandybridge 256bit load/stores are double pumped
   // (but not on Haswell).
-  // if (LT.second.getSizeInBits() > 128 && !ST->hasAVX2())
-  if (LT.second.getSizeInBits() > 128)
+  if (LT.second != MVT::Other && LT.second.getSizeInBits() > 128)
+  //if (LT.second.getSizeInBits() > 128 && !ST->hasAVX2())
     Cost*=2;
 
   return Cost;
