@@ -178,14 +178,12 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
   bfsQueue.push(std::make_pair(func, 1));
   eval_debug("Callers:\n");
   unsigned callers = 0;
-  while (!bfsQueue.empty()) {
+  for (; !bfsQueue.empty(); bfsQueue.pop()) {
     callers++;
     FuncDep & item = bfsQueue.front();
     // in case siblings with duplicates
-    if (visited.count(item.first)) {
-      bfsQueue.pop();
+    if (visited.count(item.first))
       continue;
-    }
     visited.insert(item.first);
     errind(2);
     const char *name = item.first->getName().data();
@@ -199,21 +197,20 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
     // Don't trace upward too much
     if (item.second >= level) {
       eval_debug("\n");
-      bfsQueue.pop();
       continue;
     }
     CallSiteFinder csf(item.first);
-    CallSiteFinder::cs_iterator i = csf.begin(), e = csf.end();
-    if(i == e) {
+    CallSiteFinder::cs_iterator ci = csf.begin(), ce = csf.end();
+    if(ci == ce) { 
       eval_debug(", no caller\n"); 
-      bfsQueue.pop();
       continue;
     }
     // Push to the queue and increment the depth
-    for (; i != e; i++) {
-      if (visited.count(*i))
+    for (; ci != ce; ++ci) {
+      if (visited.count(ci->first))
         continue;
-      bfsQueue.push(std::make_pair(*i, item.second + 1));
+      //TODO test if CallInst is in loop
+      bfsQueue.push(std::make_pair(ci->first, item.second + 1));
     }
     bfsQueue.pop();
     eval_debug("\n");

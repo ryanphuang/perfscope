@@ -249,8 +249,8 @@ void test_CallGraph(Module *module, const char * fname)
       return;
     }
     CallSiteFinder csf(func);
-    CallSiteFinder::cs_iterator i = csf.begin(), e = csf.end();
-    if(i == e) {
+    CallSiteFinder::cs_iterator ci = csf.begin(), ce = csf.end();
+    if(ci == ce) {
       cout << "No function";
     }
     else {
@@ -258,8 +258,8 @@ void test_CallGraph(Module *module, const char * fname)
     }
     const char *name = func->getName().data();
     cout << " called " << cpp_demangle(name) << endl;
-    for (; i != e; i++) {
-      name = (*i)->getName().data();
+    for (; ci != ce; ++ci) {
+      name = (ci->first)->getName().data();
       cout << cpp_demangle(name) << endl;
     }
   }
