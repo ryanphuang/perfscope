@@ -1,4 +1,110 @@
 ====
+EXPCALL
+====
+MD5Transform
+open_binary_frm(THD*, st_table_share*, unsigned char*, int)
+mysql_update(THD*, st_table_list*, List<Item>&, List<Item>&, Item*, unsigned int, st_order*, unsigned long, enum_duplicates, bool)
+JOIN::optimize()
+mi_open
+mysql_alter_table(THD*, char*, char*, st_ha_create_information*, st_table_list*, List<create_field>&, List<Key>&, unsigned int, st_order*, enum_duplicates, bool, st_alter_info*, bool)
+mysql_real_connect
+JOIN::exec()
+mi_state_info_write
+__cxx_global_var_init381
+mi_state_info_read
+create_tmp_table(THD*, TMP_TABLE_PARAM*, List<Item>&, st_order*, bool, bool, unsigned long, unsigned long, char*)
+mi_create
+make_join_select(JOIN*, SQL_SELECT*, Item*)
+mi_repair_parallel
+mysql_insert(THD*, st_table_list*, List<Item>&, List<List<Item> >&, List<Item>&, List<Item>&, enum_duplicates, bool)
+get_schema_column_record(THD*, st_table_list*, st_table*, bool, char const*, char const*)
+show_master_info(THD*, st_master_info*)
+mysql_delete(THD*, st_table_list*, Item*, st_sql_list*, unsigned long, unsigned long, bool)
+mysql_show_grants(THD*, st_lex_user*)
+mi_repair_by_sort
+get_schema_tables_record(THD*, st_table_list*, st_table*, bool, char const*, char const*)
+qsort2
+mi_repair
+mysql_prepare_table(THD*, st_ha_create_information*, List<create_field>*, List<Key>*, bool, unsigned int*, handler*, st_key**, unsigned int*, int)
+mysql_load(THD*, sql_exchange*, st_table_list*, List<Item>&, List<Item>&, List<Item>&, enum_duplicates, bool, bool)
+qsort
+underflow
+select_describe(JOIN*, bool, bool, bool, char const*)
+my_n_base_info_read
+replace_user_table(THD*, st_table*, st_lex_user const&, unsigned long, bool, bool, bool)
+do_div_mod
+mysql_make_view(THD*, File_parser*, st_table_list*)
+mysql_create_frm(THD*, char const*, char const*, char const*, st_ha_create_information*, List<create_field>&, unsigned int, st_key*, handler*)
+_mi_calc_var_pack_key_length
+Field_decimal::store(char const*, unsigned int, charset_info_st*)
+mi_base_info_write
+mysql_admin_table(THD*, st_table_list*, st_ha_check_opt*, char const*, thr_lock_type, bool, bool, unsigned int, int (*)(THD*, st_table_list*, st_ha_check_opt*), int (handler::*)(THD*, st_ha_check_opt*), int (*)(THD*, st_table_list*))
+check_connection(THD*)
+store_schema_proc(THD*, st_table*, st_table*, char const*, bool, char const*)
+str_to_datetime
+chk_data_link
+store_create_info(THD*, st_table_list*, String*)
+str_to_time
+chk_key
+find_best(JOIN*, unsigned long, unsigned int, double, double)
+sort_get_next_record
+acl_load(THD*, st_table_list*)
+do_sub
+_mi_prefix_search
+====
+FREQCALL
+====
+Item::operator new(unsigned long)
+my_error
+String::length() const
+pthread_mutex_unlock
+String::ptr() const
+strlen
+pthread_mutex_lock
+String::append(char const*, unsigned int)
+Item::operator delete(void*, unsigned long)
+my_no_flags_free
+String::~String()
+stpcpy
+Sql_alloc::operator new(unsigned long)
+__cxa_atexit
+sql_print_error(char const*, ...)
+List<Item>::push_back(Item*)
+my_message
+String::charset() const
+Sql_alloc::operator delete(void*, unsigned long)
+String::length(unsigned int)
+llstr
+my_malloc
+my_decimal::my_decimal()
+base_list::empty()
+__errno_location
+String::String()
+_current_thd()
+strmake
+strcmp
+String::String(char*, unsigned int, charset_info_st*)
+sprintf
+alloc_root
+my_close
+mi_check_print_error
+Field::set_warning(MYSQL_ERROR::enum_warning_level, unsigned int, int)
+memcmp
+int10_to_str
+printf
+operator delete(void*)
+Geometry::no_data(char const*, unsigned int) const
+Field::operator new(unsigned long)
+List<Item>::List()
+fprintf
+List_iterator_fast<Item>::operator++(int)
+fn_format
+Item_empty_string::Item_empty_string(char const*, unsigned int, charset_info_st*)
+Sql_alloc::Sql_alloc()
+List_iterator_fast<Item>::List_iterator_fast(List<Item>&)
+List<Item>::~List()
+strxmov
+====
 SYSCALL
 ====
 io_setup
@@ -410,105 +516,413 @@ pthread_setspecific
 pthread_getcpuclockid
 pthread_atfork
 ====
-FREQCALL
+SYSCALL
 ====
-_checkchunk
-_sanity
-my_hash_sort_simple
-code_state
-_db_enter_
-_db_return_
-my_lengthsp_8bit
-my_strnxfrm_simple
-DoTrace
-_db_pargs_
-_db_keyword_
-_db_doprnt_
-_my_thread_var
-ptr_compare_0
-my_strnncollsp_simple
-Field_string::pack(unsigned char*, unsigned char const*, unsigned int, bool)
-make_char_array(unsigned char**, unsigned int, unsigned int, int)
-Dbug_violation_helper::Dbug_violation_helper()
-Dbug_violation_helper::leave()
-safe_mutex_lock
-ha_key_cmp
-Item_func_between::val_int()
-JOIN::optimize()
-evaluate_join_record(JOIN*, st_join_table*, int)
-Dbug_violation_helper::~Dbug_violation_helper()
-hp_rec_hashnr
-bmove512
-mi_rnext
-alloc_root
-select_send::send_data(List<Item>&)
-make_join_statistics(JOIN*, TABLE_LIST*, Item*, st_dynamic_array*)
-safe_mutex_unlock
-base_list_iterator::next_fast()
-_mi_dpos
-_mymalloc
-Diagnostics_area::is_error() const
-my_qsort2
-bitmap_is_set
-hp_write_key
-_db_strict_keyword_
-key_cmp(st_key_part_info*, unsigned char const*, unsigned int)
-_mi_search_next
-_mi_bin_search
-QUICK_RANGE_SELECT::get_next()
-_myfree
-Field_long::val_int()
-rr_quick(READ_RECORD*)
-end_send(JOIN*, st_join_table*, bool)
-base_list_iterator::init(base_list&)
-JOIN::prepare(Item***, TABLE_LIST*, unsigned int, Item*, unsigned int, st_order*, st_order*, Item*, st_order*, st_select_lex*, st_select_lex_unit*)
-String::free()
-my_pread
-net_write_buff(st_net*, unsigned char const*, unsigned long)
-find_key_block
-Field::is_null(long long)
-open_table(THD*, TABLE_LIST*, st_mem_root*, bool*, unsigned int)
-unlink_block
-handler::read_multi_range_next(st_key_multi_range**)
-mysql_execute_command(THD*)
-my_real_read(st_net*, unsigned long*)
-Item_param::val_int()
-get_hash_link
-JOIN::exec()
-base_list_iterator::next()
-link_block
-my_strcasecmp_utf8
-sub_select(JOIN*, st_join_table*, bool)
-dispatch_command(enum_server_command, THD*, char*, unsigned int)
-THD::is_error() const
-update_ref_and_keys(THD*, st_dynamic_array*, st_join_table*, unsigned int, Item*, COND_EQUAL*, unsigned long long, st_select_lex*, st_sargable_param**)
-my_net_write
-set_thd_proc_info
-Item_field::val_int()
-do_add
-handler::ha_statistic_increment(unsigned long system_status_var::*) const
-_current_thd()
-Protocol::net_store_data(unsigned char const*, unsigned long)
-free_root
-open_tables(THD*, TABLE_LIST**, unsigned int*, unsigned int)
-key_cache_read
-reinit_stmt_before_use(THD*, st_lex*)
-Protocol::send_fields(List<Item>*, unsigned int)
-Field_string::val_str(String*, String*)
-my_wc_mb_latin1
-find_all_keys(st_sort_param*, SQL_SELECT*, unsigned char**, st_io_cache*, st_io_cache*, st_io_cache*)
-Field_long::cmp(unsigned char const*, unsigned char const*)
-_mi_search
-Item_func::fix_fields(THD*, Item**)
-insert_params_with_log(Prepared_statement*, unsigned char*, unsigned char*, unsigned char*, String*)
-unreg_request
-_mi_pack_key
-Item_field::fix_fields(THD*, Item**)
-Prepared_statement::execute(String*, bool)
-String::ptr() const
-String::length() const
-copy_and_convert(char*, unsigned int, charset_info_st*, char const*, unsigned int, charset_info_st*, unsigned int*)
-MYSQLparse(void*)
-Item::Item()
-Item_field::used_tables() const
-Field::send_binary(Protocol*)
+io_setup
+io_destroy
+io_submit
+io_cancel
+io_getevents
+setxattr
+lsetxattr
+fsetxattr
+getxattr
+lgetxattr
+fgetxattr
+listxattr
+llistxattr
+flistxattr
+removexattr
+lremovexattr
+fremovexattr
+getcwd
+lookup_dcookie
+eventfd2
+epoll_create1
+epoll_ctl
+epoll_pwait
+dup
+dup3
+inotify_init1
+inotify_add_watch
+inotify_rm_watch
+ioctl
+ioprio_set
+ioprio_get
+flock
+mknodat
+mkdirat
+unlinkat
+symlinkat
+linkat
+renameat
+umount
+mount
+pivot_root
+nfsservctl
+fallocate
+faccessat
+chdir
+fchdir
+chroot
+fchmod
+fchmodat
+fchownat
+fchown
+openat
+close
+vhangup
+pipe2
+quotactl
+getdents64
+read
+write
+readv
+writev
+pread64
+pwrite64
+preadv
+pwritev
+pselect6
+ppoll
+signalfd4
+vmsplice
+splice
+tee
+readlinkat
+sync
+fsync
+fdatasync
+sync_file_range2
+sync_file_range
+timerfd_create
+timerfd_settime
+timerfd_gettime
+utimensat
+acct
+capget
+capset
+personality
+exit
+exit_group
+waitid
+set_tid_address
+unshare
+futex
+set_robust_list
+get_robust_list
+nanosleep
+getitimer
+setitimer
+kexec_load
+init_module
+delete_module
+timer_create
+timer_gettime
+timer_getoverrun
+timer_settime
+timer_delete
+clock_settime
+clock_gettime
+clock_getres
+clock_nanosleep
+syslog
+ptrace
+sched_setparam
+sched_setscheduler
+sched_getscheduler
+sched_getparam
+sched_setaffinity
+sched_getaffinity
+sched_yield
+sched_get_priority_max
+sched_get_priority_min
+sched_rr_get_interval
+restart_syscall
+kill
+tkill
+tgkill
+sigaltstack
+rt_sigsuspend
+rt_sigaction
+rt_sigprocmask
+rt_sigpending
+rt_sigtimedwait
+rt_sigqueueinfo
+rt_sigreturn
+setpriority
+getpriority
+reboot
+setregid
+setgid
+setreuid
+setuid
+setresuid
+getresuid
+setresgid
+getresgid
+setfsuid
+setfsgid
+times
+setpgid
+getpgid
+getsid
+setsid
+getgroups
+setgroups
+newuname
+sethostname
+setdomainname
+getrlimit
+setrlimit
+getrusage
+umask
+prctl
+getcpu
+gettimeofday
+settimeofday
+adjtimex
+getpid
+getppid
+getuid
+geteuid
+getgid
+getegid
+gettid
+sysinfo
+mq_open
+mq_unlink
+mq_timedsend
+mq_timedreceive
+mq_notify
+mq_getsetattr
+msgget
+msgctl
+msgrcv
+msgsnd
+semget
+semctl
+semtimedop
+semop
+shmget
+shmctl
+shmat
+shmdt
+socket
+socketpair
+bind
+listen
+accept
+connect
+getsockname
+getpeername
+sendto
+recvfrom
+setsockopt
+getsockopt
+shutdown
+sendmsg
+recvmsg
+readahead
+brk
+munmap
+mremap
+add_key
+request_key
+keyctl
+clone
+execve
+fadvise64_64
+swapon
+swapoff
+mprotect
+msync
+mlock
+munlock
+mlockall
+munlockall
+mincore
+madvise
+remap_file_pages
+mbind
+get_mempolicy
+set_mempolicy
+migrate_pages
+move_pages
+rt_tgsigqueueinfo
+perf_event_open
+accept4
+recvmmsg
+wait4
+prlimit64
+fanotify_init
+fanotify_mark
+open
+link
+unlink
+mknod
+chmod
+chown
+mkdir
+rmdir
+lchown
+access
+rename
+readlink
+symlink
+utimes
+pipe
+dup2
+epoll_create
+inotify_init
+eventfd
+signalfd
+sendfile
+ftruncate
+truncate
+newstat
+newlstat
+newfstat
+fcntl
+fadvise64
+newfstatat
+fstatfs
+statfs
+lseek
+mmap
+alarm
+getpgrp
+pause
+time
+utime
+creat
+getdents
+futimesat
+select
+poll
+epoll_wait
+ustat
+vfork
+wait4
+recv
+send
+bdflush
+oldumount
+uselib
+sysctl
+fork
+ni_syscall
+====
+LOCKCALL
+====
+pthread_create
+pthread_join
+pthread_tryjoin_np
+pthread_timedjoin_np
+pthread_detach
+pthread_equal
+pthread_attr_init
+pthread_attr_destroy
+pthread_attr_getdetachstate
+pthread_attr_setdetachstate
+pthread_attr_getguardsize
+pthread_attr_setguardsize
+pthread_attr_getschedparam
+pthread_attr_setschedparam
+pthread_attr_getschedpolicy
+pthread_attr_setschedpolicy
+pthread_attr_getinheritsched
+pthread_attr_setinheritsched
+pthread_attr_getscope
+pthread_attr_setscope
+pthread_attr_getstackaddr
+pthread_attr_setstackaddr
+pthread_attr_getstacksize
+pthread_attr_setstacksize
+pthread_attr_getstack
+pthread_attr_setstack
+pthread_attr_setaffinity_np
+pthread_attr_getaffinity_np
+pthread_getattr_np
+pthread_setschedparam
+pthread_getschedparam
+pthread_setschedprio
+pthread_getname_np
+pthread_setname_np
+pthread_getconcurrency
+pthread_setconcurrency
+pthread_yield
+pthread_setaffinity_np
+pthread_getaffinity_np
+pthread_once
+pthread_setcancelstate
+pthread_setcanceltype
+pthread_cancel
+pthread_mutex_init
+pthread_mutex_destroy
+pthread_mutex_trylock
+pthread_mutex_lock
+pthread_mutex_timedlock
+pthread_mutex_unlock
+pthread_mutex_getprioceiling
+pthread_mutex_setprioceiling
+pthread_mutex_consistent
+pthread_mutex_consistent_np
+pthread_mutexattr_init
+pthread_mutexattr_destroy
+pthread_mutexattr_getpshared
+pthread_mutexattr_setpshared
+pthread_mutexattr_gettype
+pthread_mutexattr_settype
+pthread_mutexattr_getprotocol
+pthread_mutexattr_setprotocol
+pthread_mutexattr_getprioceiling
+pthread_mutexattr_setprioceiling
+pthread_mutexattr_getrobust
+pthread_mutexattr_getrobust_np
+pthread_mutexattr_setrobust
+pthread_mutexattr_setrobust_np
+pthread_rwlock_init
+pthread_rwlock_destroy
+pthread_rwlock_rdlock
+pthread_rwlock_tryrdlock
+pthread_rwlock_timedrdlock
+pthread_rwlock_wrlock
+pthread_rwlock_trywrlock
+pthread_rwlock_timedwrlock
+pthread_rwlock_unlock
+pthread_rwlockattr_init
+pthread_rwlockattr_destroy
+pthread_rwlockattr_getpshared
+pthread_rwlockattr_setpshared
+pthread_rwlockattr_getkind_np
+pthread_rwlockattr_setkind_np
+pthread_cond_init
+pthread_cond_destroy
+pthread_cond_signal
+pthread_cond_broadcast
+pthread_cond_wait
+pthread_cond_timedwait
+pthread_condattr_init
+pthread_condattr_destroy
+pthread_condattr_getpshared
+pthread_condattr_setpshared
+pthread_condattr_getclock
+pthread_condattr_setclock
+pthread_spin_init
+pthread_spin_destroy
+pthread_spin_lock
+pthread_spin_trylock
+pthread_spin_unlock
+pthread_barrier_init
+pthread_barrier_destroy
+pthread_barrier_wait
+pthread_barrierattr_init
+pthread_barrierattr_destroy
+pthread_barrierattr_getpshared
+pthread_barrierattr_setpshared
+pthread_key_create
+pthread_key_delete
+pthread_setspecific
+pthread_getcpuclockid
+pthread_atfork

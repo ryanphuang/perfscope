@@ -56,6 +56,9 @@ static int topk_hot = TOPKHOTFUNCS;
 
 FILE * fout = stdout;
 
+bool detail = false;
+bool printall = false;
+
 
 #define PROFILE_DEBUG
 
@@ -128,23 +131,28 @@ void static_profile(Module * module, CostModel * model)
     func_hot[i] = FuncHot(name, finder.size());
   } 
   // Print cost
-  printf("====\n");
-  printf("EXPCALL\n");
-  printf("====\n");
+  fprintf(fout, "====\n");
+  fprintf(fout, "EXPCALL\n");
+  fprintf(fout, "====\n");
   qsort(func_cost, size, sizeof(FuncCost), compareFuncCost);
-  size_t k = (topk_cost > 0) ? topk_cost : size;
+  size_t k = (!printall && topk_cost > 0) ? topk_cost : size;
   for (i = 0; i < k ; i++) {
-    printf("%s\n", func_cost[i].name.c_str());
+    fprintf(fout, "%s", func_cost[i].name.c_str());
+    if (detail)
+      fprintf(fout, ": %u", func_cost[i].cost);
+    fprintf(fout, "\n");
   }
   // Print hot
   fprintf(fout, "====\n");
   fprintf(fout, "FREQCALL\n");
   fprintf(fout, "====\n");
   qsort(func_hot, size, sizeof(FuncHot), compareFuncHot);
-  k = (topk_hot > 0) ? topk_hot: size;
+  k = (!printall && topk_hot > 0) ? topk_hot: size;
   for (i = 0; i < k; i++) {
-    fprintf(fout, "%s\n", func_hot[i].name.c_str());
-    //fprintf(fout, "%s: %u\n", func_hot[i].name.c_str(), func_hot[i].hotness);
+    fprintf(fout, "%s", func_hot[i].name.c_str());
+    if (detail)
+      fprintf(fout, ": %u", func_hot[i].hotness);
+    fprintf(fout, "\n");
   }
   delete [] func_cost;
   delete [] func_hot;
@@ -152,8 +160,10 @@ void static_profile(Module * module, CostModel * model)
 
 static char const * option_help[] = {
   " -o FILE\n\tOutput the generated profile to FILE file.",
-  " -n NUM\n\tThe top NUM expensive functions to be printed.\n\tNegative NUM means print all.",
-  " -m NUM\n\tThe top NUM hot functions to be printed.\n\tNegative NUM means print all.",
+  " -a\n\tPrint all cost/hotness functions. Equivalent to `-m -1 -n -1`",
+  " -d\n\tInclude the cost/hotness detail along with the function name",
+  " -n NUM\n\tThe top NUM expensive functions to be printed.\n\tDefault 50. Negative NUM means print all.",
+  " -m NUM\n\tThe top NUM hot functions to be printed.\n\tDefault 50. Negative NUM means print all.",
   " -h\n\tPrint this message.",
   0
 };
@@ -179,8 +189,14 @@ int main(int argc, char *argv[])
   }
   int opt;
   char *endptr;
-  while((opt = getopt(argc, argv, "n:m:o:h")) != -1) {
+  while((opt = getopt(argc, argv, "adn:m:o:h")) != -1) {
     switch(opt) {
+      case 'd':
+        detail = true;
+        break;
+      case 'a':
+        printall = true;
+        break;
       case 'n':
         topk_cost = strtol(optarg, &endptr, 10);
         if (endptr == optarg) {
@@ -212,11 +228,16 @@ int main(int argc, char *argv[])
     }
   }
 
+  if (optind != argc-1) {
+    usage();
+    exit(1);
+  }
+
   LLVMContext & Context = getGlobalContext();
 
-  Module * module = ReadModule(Context, argv[1]);
+  Module * module = ReadModule(Context, argv[optind]);
   if (module == NULL)  {
-    cout << "cannot load module " << argv[1] << endl;
+    cout << "cannot load module " << argv[optind] << endl;
     return false;
   }
 
