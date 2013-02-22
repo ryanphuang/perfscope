@@ -349,6 +349,7 @@ int main(int argc, char *argv[])
       case 'e':
       {
         if (!parseProfile(optarg, profile)) {
+          fprintf(stderr, "Ill-formated profile.\n");
           exit(1);
         }
         break;

@@ -222,7 +222,7 @@ Hotness RiskEvaluator::calcFuncHotness(const char * funcName)
         it != ie; ++it) {
       if (std::binary_search(it->second.begin(), it->second.end(), funcName)) {
         errind(2);
-        eval_debug("*%s*\n",toHotStr(it->first)); 
+        eval_debug("*%s*\n",toHotFuncStr(it->first)); 
         return Hot;
       }
     }

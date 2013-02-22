@@ -76,14 +76,14 @@ static const char * HotTypeStr[HOTTYPES] = {
   "frequent call"
 };
 
-const char * toHotStr(const HotFuncType type)
+const char * toHotFuncStr(const HotFuncType type)
 {
   if (type < 0 || type >= HOTTYPES)
     return "UNKNOWN";
   return HotTypeStr[type];
 }
 
-const char * toHotName(const HotFuncType type)
+const char * toHotFuncName(const HotFuncType type)
 {
   if (type < 0 || type >= HOTTYPES)
     return "UNKNOWN";
@@ -96,7 +96,7 @@ HotFuncType fromHotTypeName(const char * name)
   HotFuncType type;
   for (i = SYSCALL; i <= FREQCALL; i++) {
     type = (HotFuncType) i;
-    if (strcmp(name, toHotName(type)) == 0)
+    if (strcmp(name, toHotFuncName(type)) == 0)
       break;
   }
   if (i > FREQCALL)
@@ -223,13 +223,15 @@ bool parseProfile(const char *fname, Profile &profile)
   }
   char buf[256];
   bool preamble = false;
-  HotFuncType type = SYSCALL; 
+  HotFuncType type = INVALIDTYPE; 
   unsigned line = 0;
   while (fgetline(fp, buf, 256) != NULL) {
     line++;
+    if (strcmp(buf, "") == 0) // skip empty line
+      continue;
     if (strcmp(buf, PROFILE_SEGMENT_BEGIN) == 0) {
       if (preamble) {
-        fprintf(stderr, "Warning: empty profile segment %s\n", toHotStr(type));
+        fprintf(stderr, "Warning: empty profile segment %s\n", toHotFuncStr(type));
       }
       // Preamble detected. Expect next line to be 
       // segment type
@@ -257,6 +259,10 @@ bool parseProfile(const char *fname, Profile &profile)
         return false;
       }
       else {
+        if (type == INVALIDTYPE) {
+          syntaxerr("no profile segment type specified", line);
+          return false;
+        }
         preamble = false;
         if (strlen(buf))
           profile[type].push_back(buf);
