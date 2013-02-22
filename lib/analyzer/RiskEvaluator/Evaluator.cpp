@@ -115,6 +115,26 @@ const char * toExpStr(Expensiveness exp)
   return ExpStr[exp];
 }
 
+bool DummyLoopInfo::runOnFunction(Function &F)
+{
+  LoopInfo *LI = &getAnalysis<LoopInfo>(); 
+  for (Function::iterator FI = F.begin() , FE = F.end(); FI != FE; ++FI) {
+    BasicBlock * BB = FI;
+    // Only inserted the BBs in the Loop.
+    // This is to mimic the LoopInfo.getLoopFor
+    if (LI->getLoopFor(BB) != NULL)
+      LoopMap[&F].insert(BB); 
+  }
+  /*
+  errs() << "Getting loop for " << F.getName() << "\n";
+  for (LoopInfo::iterator I = LI->begin(), E = LI->end(); 
+    I != E; ++I) {
+    errs() << "Loop: " << (*I)->getLoopDepth() << "\n";
+  }
+  */
+  return false;
+}
+
 RiskLevel RiskEvaluator::assess(Instruction *I, 
       std::map<Loop *, unsigned> & LoopDepthMap, Hotness FuncHotness)
 {
@@ -188,22 +208,21 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
     std::string funcname(cpp_demangle(item.first->getName().data()));
     eval_debug("Depth #%d: %s ", item.second, funcname.c_str());
     Hotness hot = calcFuncHotness(funcname.c_str());
-    eval_debug("%s", toHotStr(hot));
+    eval_debug("%s\n", toHotStr(hot));
     if (hot == Hot) {
-      eval_debug("\n");
       return Hot;
     }
     // Don't trace upward too much
     if (item.second >= level) {
-      eval_debug("\n");
       bfsQueue.pop();
       continue;
     }
     CallSiteFinder csf(item.first);
     CallSiteFinder::cs_iterator ci = csf.begin(), ce = csf.end();
     if(ci == ce) { 
+      errind(4);
+      eval_debug("no caller\n"); 
       bfsQueue.pop();
-      eval_debug(", no caller\n"); 
       continue;
     }
     // Push to the queue and increment the depth
@@ -214,16 +233,19 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
       //TODO test if CallInst is in loop
       if (func_manager) {
         if (!caller->isDeclaration() && ci->second) {
+          #ifdef EVALUATOR_DEBUG
+          std::string inststr;
+          raw_string_ostream OS(inststr);
+          OS << *ci->second; 
+          #endif
+          errind(4);
+          eval_debug("called from %s {%s }, ", cpp_demangle(caller->getName().data()), 
+              inststr.c_str());
           func_manager->run(*caller);
-          const BasicBlock * BB = ci->second->getParent();
-          Loop * loop = GlobalLI->getLoopFor(BB);
-          if (loop) {
-            eval_debug("%s has a callsite in a loop in %s!\n", funcname.c_str(), 
-              cpp_demangle(caller->getName().data()));
-          }
-          else
-            eval_debug("%s has no loop callsite in %s.\n", funcname.c_str(), 
-              cpp_demangle(caller->getName().data()));
+          BasicBlock * BB = ci->second->getParent();
+          if (!GlobalLI->inLoop(caller, BB))
+            eval_debug("not ");
+          eval_debug("in loop"); 
         }
       }
       bfsQueue.push(std::make_pair(caller, item.second + 1));
@@ -376,6 +398,8 @@ void RiskEvaluator::statAllRisk()
 
 
 char RiskEvaluator::ID = 0;
+char DummyLoopInfo::ID = 0;
 const char * RiskEvaluator::PassName = "Risk evaluator pass";
+const char * DummyLoopInfo::PassName = "Dummy Loop Info";
 } // End of llvm namespace
 

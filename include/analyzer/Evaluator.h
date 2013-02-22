@@ -93,6 +93,44 @@ const char * toExpStr(Expensiveness exp);
 
 #define CALLERHOT 10 // threshold of how many callers is a function defined hot
 
+// Nasty class to retain the LoopInfo that would otherwise be
+// destroyed after runOnFunction.
+//
+// It only retain certain information of the loop. Currently
+// the User of it is to query whether a Basic Block is in a Given 
+// Function's loop.
+struct DummyLoopInfo : public FunctionPass {
+  private:
+    typedef SmallPtrSet<BasicBlock *, 4> LoopBBTy;
+    typedef std::map<Function *, LoopBBTy> LoopMapTy;
+    typedef LoopMapTy::iterator iterator;
+    typedef LoopMapTy::const_iterator const_iterator;
+    LoopMapTy LoopMap;
+
+  public:
+
+  static char ID;
+  static const char * PassName; 
+  
+  DummyLoopInfo() : FunctionPass(ID) {
+  }
+
+  bool inLoop(Function * F, BasicBlock * BB)
+  {
+    iterator I = LoopMap.find(F);
+    if (I == LoopMap.end())
+      return false;
+    return I->second.count(BB); 
+  }
+
+  virtual bool runOnFunction(Function &F);
+  virtual const char * getPassName() const { return PassName; }
+  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    AU.setPreservesAll();
+    AU.addRequired<LoopInfo>();
+  }
+};
+
 class RiskEvaluator: public FunctionPass {
   public:
     typedef SmallVector<Instruction *, 8> InstVecTy;
@@ -107,7 +145,8 @@ class RiskEvaluator: public FunctionPass {
     Module * module;
     SmallPtrSet<Function *, 4> loop_analyzed;
     LoopInfo * LocalLI;
-    LoopInfo * GlobalLI;
+    //LoopInfo * GlobalLI;
+    DummyLoopInfo * GlobalLI;
     ScalarEvolution *SE;
     unsigned AllRiskStat[RISKLEVELS];
     unsigned FuncRiskStat[RISKLEVELS];
@@ -126,11 +165,12 @@ class RiskEvaluator: public FunctionPass {
     {
       memset(AllRiskStat, 0, sizeof(AllRiskStat));
       memset(FuncRiskStat, 0, sizeof(FuncRiskStat));
-      if (module)
+      if (module) {
         func_manager = new FunctionPassManager(module);
-        GlobalLI = new LoopInfo();
+        GlobalLI = new DummyLoopInfo();
         func_manager->add(GlobalLI);
         func_manager->doInitialization();
+      }
     }
 
     ~RiskEvaluator()
@@ -138,8 +178,6 @@ class RiskEvaluator: public FunctionPass {
       if (func_manager) {
         func_manager->doFinalization();
         delete func_manager;
-        if (GlobalLI)
-          delete GlobalLI;
       }
     }
 

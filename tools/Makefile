@@ -8,6 +8,6 @@ LEVEL=..
 #
 # List all of the subdirectories that we will compile.
 #
-DIRS=PerfDiff PerfScope StaticProfiler
+DIRS=PerfDiff PerfScope StaticProfiler ListFiles
 
 include $(LEVEL)/Makefile.common
