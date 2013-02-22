@@ -12,7 +12,7 @@ LEVEL=../..
 TOOLNAME=staticprofiler
 
 # USEDLIBS=parser.a mappercore.a riskeval.a diffengine.a slicer.a dependence.a commons.a 
-USEDLIBS=riskeval.a commons.a 
+USEDLIBS=riskeval.a costmodel.a commons.a 
 
 LINK_COMPONENTS = all
 

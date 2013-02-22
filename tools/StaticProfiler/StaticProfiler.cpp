@@ -134,7 +134,7 @@ void static_profile(Module * module, CostModel * model)
   qsort(func_cost, size, sizeof(FuncCost), compareFuncCost);
   size_t k = (topk_cost > 0) ? topk_cost : size;
   for (i = 0; i < k ; i++) {
-    printf("%s: %u\n", func_cost[i].name.c_str(), func_cost[i].cost);
+    printf("%s\n", func_cost[i].name.c_str());
   }
   // Print hot
   fprintf(fout, "====\n");
@@ -143,7 +143,8 @@ void static_profile(Module * module, CostModel * model)
   qsort(func_hot, size, sizeof(FuncHot), compareFuncHot);
   k = (topk_hot > 0) ? topk_hot: size;
   for (i = 0; i < k; i++) {
-    fprintf(fout, "%s: %u\n", func_hot[i].name.c_str(), func_hot[i].hotness);
+    fprintf(fout, "%s\n", func_hot[i].name.c_str());
+    //fprintf(fout, "%s: %u\n", func_hot[i].name.c_str(), func_hot[i].hotness);
   }
   delete [] func_cost;
   delete [] func_hot;

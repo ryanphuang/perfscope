@@ -11,9 +11,10 @@ LEVEL=../..
 
 TOOLNAME=perfscope
 
-USEDLIBS=parser.a mappercore.a riskeval.a diffengine.a slicer.a dependence.a commons.a 
+USEDLIBS=parser.a mappercore.a riskeval.a costmodel.a diffengine.a slicer.a dependence.a commons.a 
 
-#LLVMLIBS=LLVMSupport.a LLVMCore.a LLVMSupport.a LLVMCore.a LLVMBitReader.a LLVMAsmParser.a LLVMAnalysis.a LLVMTransformUtils.a LLVMScalarOpts.a LLVMTarget.a
+# LLVMLIBS=LLVMSupport.a LLVMCore.a LLVMSupport.a LLVMCore.a LLVMBitReader.a LLVMAsmParser.a \
+				LLVMAnalysis.a LLVMTransformUtils.a LLVMScalarOpts.a LLVMTarget.a
 
 LINK_COMPONENTS = all
 

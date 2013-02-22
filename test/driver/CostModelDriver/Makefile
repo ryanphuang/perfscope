@@ -13,7 +13,7 @@ TOOLNAME=costdriver
 #
 # LIBRARYNAME = LLVMCostDriver
 # LOADABLE_MODULE = 1
-USEDLIBS = riskeval.a
+USEDLIBS = costmodel.a
 
 # LLVMLIBS = LLVMSupport.a
 LINK_COMPONENTS = all
