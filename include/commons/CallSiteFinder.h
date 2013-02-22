@@ -27,6 +27,7 @@ class CallSiteFinder {
         inline const_cs_iterator begin() const { return callsites.begin(); }
         inline cs_iterator end() { return callsites.end(); }
         inline const_cs_iterator end() const { return callsites.end(); }
+        inline size_t size() { return callsites.size(); }
 };
 
 #endif

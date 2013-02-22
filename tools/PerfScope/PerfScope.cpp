@@ -337,6 +337,7 @@ int main(int argc, char *argv[])
 
   int opt;
   int plen;
+  char *endptr;
   while((opt = getopt(argc, argv, "a:b:e:hl:s:p:m:L:")) != -1) {
     switch(opt) {
       case 'a':
@@ -354,7 +355,11 @@ int main(int argc, char *argv[])
       }
       case 'p':
       {
-        plen = atoi(optarg);
+        plen = strtol(optarg, &endptr, 10);
+        if (endptr == optarg) {
+          fprintf(stderr, "Option %s is not a valid number\n", optarg);
+          exit(1);
+        }
         if (plen <= 0) {
           fprintf(stderr, "Strip len must be positive integer\n");
           exit(1);
@@ -364,7 +369,11 @@ int main(int argc, char *argv[])
       }
       case 'm':
       {
-        plen = atoi(optarg);
+        plen = strtol(optarg, &endptr, 10);
+        if (endptr == optarg) {
+          fprintf(stderr, "Option %s is not a valid number\n", optarg);
+          exit(1);
+        }
         if (plen <= 0) {
           fprintf(stderr, "Strip len must be positive integer\n");
           exit(1);
