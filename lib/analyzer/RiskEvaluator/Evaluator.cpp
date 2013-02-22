@@ -150,14 +150,15 @@ RiskLevel RiskEvaluator::assess(Instruction *I,
   Expensiveness exp = calcInstExp(I);
   errind(2);
   eval_debug("%s\n", toExpStr(exp)); 
+  // Every modification that lies in
+  // a hot function is considered hot
+  if (FuncHotness == Hot)
+    return RiskMatrix[Hot][exp];
   Hotness hot = Regular;
   if (!LocalLI->empty()) {
     errind();
     eval_debug("hotness:\n");
-    if (FuncHotness <= Hot)
-      hot = calcInstHotness(I, LoopDepthMap); 
-    else
-      hot = Hot;
+    hot = calcInstHotness(I, LoopDepthMap); 
     errind(2);
     eval_debug("%s\n", toHotStr(hot));
   }
@@ -231,22 +232,27 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
       if (visited.count(caller))
         continue;
       //TODO test if CallInst is in loop
-      if (func_manager) {
-        if (!caller->isDeclaration() && ci->second) {
-          #ifdef EVALUATOR_DEBUG
-          std::string inststr;
-          raw_string_ostream OS(inststr);
-          OS << *ci->second; 
-          #endif
-          errind(4);
-          eval_debug("called from %s {%s }, ", cpp_demangle(caller->getName().data()), 
-              inststr.c_str());
-          func_manager->run(*caller);
-          BasicBlock * BB = ci->second->getParent();
-          if (!GlobalLI->inLoop(caller, BB))
-            eval_debug("not ");
-          eval_debug("in loop"); 
+      if (!caller->isDeclaration() && ci->second) {
+        if (!loop_analyzed.count(caller)) {
+          if (func_manager) {
+            func_manager->run(*caller);
+            loop_analyzed.insert(caller);
+          }
         }
+        #ifdef EVALUATOR_DEBUG
+        std::string inststr;
+        raw_string_ostream OS(inststr);
+        OS << *ci->second; 
+        #endif
+        errind(4);
+        eval_debug("called from %s {%s }, ", cpp_demangle(caller->getName().data()), 
+            inststr.c_str());
+        BasicBlock * BB = ci->second->getParent();
+        if (GlobalLI->inLoop(caller, BB)) {
+          eval_debug("in loop\n");
+          return Hot;
+        }
+        eval_debug("not in loop"); 
       }
       bfsQueue.push(std::make_pair(caller, item.second + 1));
     }
