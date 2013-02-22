@@ -181,6 +181,12 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
   while (!bfsQueue.empty()) {
     callers++;
     FuncDep & item = bfsQueue.front();
+    // in case siblings with duplicates
+    if (visited.count(item.first)) {
+      bfsQueue.pop();
+      continue;
+    }
+    visited.insert(item.first);
     errind(2);
     const char *name = item.first->getName().data();
     eval_debug("Depth #%d: %s ", item.second, cpp_demangle(name));
@@ -204,8 +210,11 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
       continue;
     }
     // Push to the queue and increment the depth
-    for (; i != e; i++)
+    for (; i != e; i++) {
+      if (visited.count(*i))
+        continue;
       bfsQueue.push(std::make_pair(*i, item.second + 1));
+    }
     bfsQueue.pop();
     eval_debug("\n");
   }
