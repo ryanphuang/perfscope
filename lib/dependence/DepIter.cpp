@@ -59,8 +59,7 @@ DepIterator::DepIterator(DepGraph * graph, Instruction * inst, DepType request, 
 bool DepIterator::setSSADepIter()
 {
   m_depinst = NULL;
-  if (!(m_request & SSADep) || (m_state & SSADone) || 
-      !m_inst->mayReadOrWriteMemory()) { // ignore all non-memory instructions
+  if (!(m_request & SSADep) || (m_state & SSADone)) {
     m_state |= SSADone; // mark SSADone so the test of done() can succeed
     return false;
   }
@@ -85,7 +84,7 @@ bool DepIterator::setMemDepIter()
 {
   m_depinst = NULL; // invalidate depinst
   if (!(m_request & MemDep) || (m_state & MemDone) ||
-        !m_inst->mayReadOrWriteMemory()) {
+        !m_inst->mayReadOrWriteMemory()) { // ignore all non-memory instructions
     m_state |= MemDone; // mark MemDone so the test of done() can succeed
     return false;
   }
