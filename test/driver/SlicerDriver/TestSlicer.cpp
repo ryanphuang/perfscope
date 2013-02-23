@@ -47,9 +47,9 @@
 using namespace llvm;
 
 namespace {
-  struct DepTestPass: public FunctionPass {
+  struct SlicerTestPass: public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
-    DepTestPass() : FunctionPass(ID) {
+    SlicerTestPass() : FunctionPass(ID) {
     }
 
     virtual bool runOnFunction(Function &F) {
@@ -59,6 +59,7 @@ namespace {
       for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; I++) {
         Instruction * inst = &*I;
         if (inst) {
+          errs() << " --------------------------------\n";
           errs() << "|" << *inst << "\n";
           for (User::op_iterator OI = inst->op_begin(), OE = inst->op_end(); OI != OE; OI++) {
             Instruction * def = dyn_cast<Instruction>(*OI);
@@ -72,28 +73,12 @@ namespace {
           }
           errs() << " ========\n";
           errs() << " Slicing:\n";
-          //if (inst->mayReadOrWriteMemory()) {
-            Slicer * slicer = new Slicer(graph, Criterion(0, inst, true, SSADep));
-            slicer->print(errs());
-          //
+          Slicer * slicer = new Slicer(graph, Criterion(0, inst, true, AllDep));
+          slicer->print(errs());
           errs() << " =======\n\n";
+          errs() << " --------------------------------\n";
         }
       }
-
-      /* 
-      for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; I++) {
-        Instruction * inst = &*I;
-        if (isa<AllocaInst>(inst))
-          continue;
-        //inst->print(errs());
-        errs() << "|" << *inst << "\n";
-        for (Value::use_iterator UI = inst->use_begin(), UE = inst->use_end(); UI != UE; UI++) {
-          Instruction * use = cast<Instruction>(*UI);
-          errs() << " " << *use << "\n";
-          //errs() << " " << cast<Instruction>(*UI) << "\n";
-        }
-      }
-      */
       return false;
     }
     
@@ -107,6 +92,6 @@ namespace {
   };
 }
 
-char DepTestPass::ID = 0;
-static RegisterPass<DepTestPass> X("deptest", "Dependence Graph Test Pass");
+char SlicerTestPass::ID = 0;
+static RegisterPass<SlicerTestPass> X("tslicer", "Slicer Test Pass");
 // Register this pass...

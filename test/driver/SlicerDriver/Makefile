@@ -9,7 +9,7 @@ LEVEL=../../..
 # List all of the subdirectories that we will compile.
 #
 
-LIBRARYNAME = LLVMDepPass
+LIBRARYNAME = LLVMSlicer
 LOADABLE_MODULE = 1
 
 USEDLIBS = graph.a slicer.a dependence.a 
