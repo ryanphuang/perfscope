@@ -34,6 +34,7 @@
 #include <string>
 #include <ctype.h>
 
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/IntrinsicInst.h"
 
 #include "llvm/Support/CallSite.h"
@@ -361,32 +362,48 @@ bool RiskEvaluator::runOnFunction(Function &F)
   InstVecTy &inst_vec = m_inst_map[&F];
   std::map<Loop *, unsigned> LoopDepthMap;
   DepGraph * graph = NULL;
+  OwningPtr<FunctionPassManager> FPasses;
+  DepGraphBuilder * builder = NULL; // don't use OwnigPtr;
   Hotness funcHot = calcCallerHotness(&F, depth);
   if (level > 1) {
     // TODO add DepGraphBuilder on the fly
-    DepGraphBuilder & builder = getAnalysis<DepGraphBuilder>();
-    graph = builder.getDepGraph();
+    FPasses.reset(new FunctionPassManager(module));
+    builder = new DepGraphBuilder();
+    FPasses->add(builder);
+    FPasses->doInitialization();
+    FPasses->run(F);
+    //DepGraphBuilder & builder = getAnalysis<DepGraphBuilder>();
+    graph = builder->getDepGraph();
   }
   for (InstVecIter I = inst_vec.begin(), E = inst_vec.end(); I != E; I++) {
     Instruction* inst = *I;
-    RiskLevel risk = assess(inst, LoopDepthMap, funcHot);
+    RiskLevel max = assess(inst, LoopDepthMap, funcHot);
     errind();
-    eval_debug("%s\n", toRiskStr(risk));
+    eval_debug("%s\n", toRiskStr(max));
     if (graph != NULL) {
       Slicer slicer(graph, Criterion(0, inst, true, AllDep));
       Instruction * propagate;
       eval_debug("Evaluating slice...\n");
       while ((propagate = slicer.next()) != NULL) {
         RiskLevel r = assess(propagate, LoopDepthMap, funcHot);
+        //We could break once we reach ExtremeRisk
+        //But we just iterate all over it for now
+        if (r > max)
+          max = r;
         errind();
         eval_debug("%s\n", toRiskStr(r));
       }
       eval_debug("Slice evaluation done.\n");
     }
-    FuncRiskStat[risk]++;
-    AllRiskStat[risk]++;
+    //We only count slice once, otherwise the output doesn't make
+    //much sense.
+    FuncRiskStat[max]++;
+    AllRiskStat[max]++;
   }
   statFuncRisk(cpp_demangle(F.getName().data()));
+  if (level > 1) {
+    FPasses->doFinalization();
+  }
   return false;
 }
 

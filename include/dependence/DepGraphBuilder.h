@@ -32,17 +32,18 @@
 
 #include "llvm/Pass.h"
 #include "llvm/Function.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/InstIterator.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/Instruction.h"
 
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/InstIterator.h"
 
 #include "dependence/Dependence.h"
 #include "dependence/DependenceGraph.h"
+
 
 namespace llvm {
 
@@ -64,8 +65,10 @@ class DepGraphBuilder : public FunctionPass {
     }
     ~DepGraphBuilder ()  
     {
-      if (m_graph != NULL) 
+      if (m_graph != NULL) {
         delete m_graph;
+        m_graph = NULL;
+      }
     }
 
     bool buildDepGraph();

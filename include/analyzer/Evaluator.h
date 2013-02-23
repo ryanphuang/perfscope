@@ -207,8 +207,7 @@ class RiskEvaluator: public FunctionPass {
       AU.setPreservesAll();
       AU.addRequired<LoopInfo>();
       AU.addRequired<ScalarEvolution>(); 
-      AU.addRequired<DepGraphBuilder>();
-      AU.addRequired<MemoryDependenceAnalysis>();
+      //AU.addRequired<DepGraphBuilder>();
     }
   
   private:
