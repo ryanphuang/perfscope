@@ -67,11 +67,6 @@ typedef Pair<DISubprogram, int> DISPExt;
 
 class DISPCopy {
   public:
-    /*
-       StringRef directory;
-       StringRef filename;
-       StringRef name;
-       */
     std::string directory;
     std::string filename;
     std::string name;
@@ -83,8 +78,15 @@ class DISPCopy {
   public:
     DISPCopy(DISubprogram & DISP)
     {
-      directory = DISP.getDirectory();
       filename = DISP.getFilename();
+      //TODO
+      // Only copy directory if filename doesn't contain
+      // path information.
+      // If source code is compiled in another directory,
+      // filename in DU will look like:
+      // /path/to/src/file
+      // if (!(filename.size() > 0 && filename.at(0) == '/'))
+      directory = DISP.getDirectory();
       name = DISP.getName();
       linenumber = DISP.getLineNumber();
       lastline = 0;
@@ -99,12 +101,6 @@ bool skipFunction(Function *);
 
 
 class ScopeInfoFinder {
-  protected:
-    //DebugInfoFinder Finder;
-    //std::vector<DISubprogram> MySPs;
-    //std::vector<DISPExt> MySPs;
-  public:
-
   public:
     static unsigned getInstLine(const Instruction *);
     static unsigned getLastLine(Function *);

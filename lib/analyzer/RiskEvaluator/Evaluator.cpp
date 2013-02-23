@@ -31,12 +31,9 @@
 #include <algorithm>
 #include <iostream>
 #include <queue>
+#include <string>
+#include <ctype>
 
-#include "llvm/Function.h"
-
-#include "llvm/ADT/SmallPtrSet.h"
-
-#include "llvm/Instruction.h"
 #include "llvm/IntrinsicInst.h"
 
 #include "llvm/Support/CallSite.h"
@@ -66,6 +63,22 @@ inline void errind(int addition = 0)
 }
 #else
 inline void errind(int addition = 0)
+{
+}
+#endif
+
+#ifdef EVALUATOR_DEBUG
+static void eval_debug(llvm::Instruction * I)
+{
+  std::string str;
+  llvm::raw_string_ostream OS(str);
+  OS << *I;
+  const char * p = str.c_str();
+  while (*p && isspace(*p)) ++p;
+  printf("%s", p);
+}
+#else
+static void eval_debug(Instruction * I)
 {
 }
 #endif
@@ -119,12 +132,31 @@ const char * toExpStr(Expensiveness exp)
   return ExpStr[exp];
 }
 
+bool DummyLoopInfo::runOnFunction(Function &F)
+{
+  LoopInfo *LI = &getAnalysis<LoopInfo>(); 
+  for (Function::iterator FI = F.begin() , FE = F.end(); FI != FE; ++FI) {
+    BasicBlock * BB = FI;
+    // Only inserted the BBs in the Loop.
+    // This is to mimic the LoopInfo.getLoopFor
+    if (LI->getLoopFor(BB) != NULL)
+      LoopMap[&F].insert(BB); 
+  }
+  /*
+  errs() << "Getting loop for " << F.getName() << "\n";
+  for (LoopInfo::iterator I = LI->begin(), E = LI->end(); 
+    I != E; ++I) {
+    errs() << "Loop: " << (*I)->getLoopDepth() << "\n";
+  }
+  */
+  return false;
+}
+
 RiskLevel RiskEvaluator::assess(Instruction *I, 
       std::map<Loop *, unsigned> & LoopDepthMap, Hotness FuncHotness)
 {
-  #ifdef EVALUATOR_DEBUG
-  errs() << *I << "\n";
-  #endif
+  eval_debug(I);
+  eval_debug("\n");
   errind();
   if (isa<IntrinsicInst>(I)) {
     eval_debug("intrinsic\n");
@@ -134,14 +166,15 @@ RiskLevel RiskEvaluator::assess(Instruction *I,
   Expensiveness exp = calcInstExp(I);
   errind(2);
   eval_debug("%s\n", toExpStr(exp)); 
+  // Every modification that lies in
+  // a hot function is considered hot
+  if (FuncHotness == Hot)
+    return RiskMatrix[Hot][exp];
   Hotness hot = Regular;
-  if (!LI->empty()) {
+  if (!LocalLI->empty()) {
     errind();
     eval_debug("hotness:\n");
-    if (FuncHotness <= Hot)
-      hot = calcInstHotness(I, LoopDepthMap); 
-    else
-      hot = Hot;
+    hot = calcInstHotness(I, LoopDepthMap); 
     errind(2);
     eval_debug("%s\n", toHotStr(hot));
   }
@@ -178,42 +211,64 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
   bfsQueue.push(std::make_pair(func, 1));
   eval_debug("Callers:\n");
   unsigned callers = 0;
-  for (; !bfsQueue.empty(); bfsQueue.pop()) {
+  while(!bfsQueue.empty()) {
     callers++;
     FuncDep & item = bfsQueue.front();
     // in case siblings with duplicates
-    if (visited.count(item.first))
+    if (visited.count(item.first)) {
+      bfsQueue.pop();
       continue;
+    }
     visited.insert(item.first);
     errind(2);
-    const char *name = item.first->getName().data();
-    eval_debug("Depth #%d: %s ", item.second, cpp_demangle(name));
-    Hotness hot = calcFuncHotness(name);
-    eval_debug("%s", toHotStr(hot));
+    //const char *name = item.first->getName().data();
+    std::string funcname(cpp_demangle(item.first->getName().data()));
+    eval_debug("Depth #%d: %s ", item.second, funcname.c_str());
+    Hotness hot = calcFuncHotness(funcname.c_str());
+    eval_debug("%s\n", toHotStr(hot));
     if (hot == Hot) {
-      eval_debug("\n");
       return Hot;
     }
     // Don't trace upward too much
     if (item.second >= level) {
-      eval_debug("\n");
+      bfsQueue.pop();
       continue;
     }
     CallSiteFinder csf(item.first);
     CallSiteFinder::cs_iterator ci = csf.begin(), ce = csf.end();
     if(ci == ce) { 
-      eval_debug(", no caller\n"); 
+      errind(4);
+      eval_debug("no caller\n"); 
+      bfsQueue.pop();
       continue;
     }
     // Push to the queue and increment the depth
     for (; ci != ce; ++ci) {
-      if (visited.count(ci->first))
+      Function *caller = ci->first;
+      if (visited.count(caller))
         continue;
       //TODO test if CallInst is in loop
-      bfsQueue.push(std::make_pair(ci->first, item.second + 1));
+      if (!caller->isDeclaration() && ci->second) {
+        if (!loop_analyzed.count(caller)) {
+          if (func_manager) {
+            func_manager->run(*caller);
+            loop_analyzed.insert(caller);
+          }
+        }
+        errind(4);
+        eval_debug("called from %s [", cpp_demangle(caller->getName().data()));
+        eval_debug(ci->second);
+        eval_debug("], ");
+        BasicBlock * BB = ci->second->getParent();
+        if (GlobalLI->inLoop(caller, BB)) {
+          eval_debug("in loop\n");
+          return Hot;
+        }
+        eval_debug("not in loop\n"); 
+      }
+      bfsQueue.push(std::make_pair(caller, item.second + 1));
     }
     bfsQueue.pop();
-    eval_debug("\n");
   }
   if (callers > CALLERHOT)
     return Hot;
@@ -277,9 +332,9 @@ Expensiveness RiskEvaluator::calcInstExp(Instruction * I)
 
 Hotness RiskEvaluator::calcInstHotness(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap)
 {
-  assert(LI && SE && "Require Loop information and ScalarEvolution");
+  assert(LocalLI && SE && "Require Loop information and ScalarEvolution");
   const BasicBlock * BB = I->getParent();
-  Loop * loop = LI->getLoopFor(BB);
+  Loop * loop = LocalLI->getLoopFor(BB);
   unsigned depth = 0;
   Hotness hot = Cold;
   while (loop) {
@@ -305,7 +360,7 @@ bool RiskEvaluator::runOnFunction(Function &F)
     return false;
   }
   memset(FuncRiskStat, 0, sizeof(FuncRiskStat));
-  LI = &getAnalysis<LoopInfo>(); 
+  LocalLI = &getAnalysis<LoopInfo>(); 
   SE = &getAnalysis<ScalarEvolution>(); 
   INDENT = 4;
   InstVecTy &inst_vec = m_inst_map[&F];
@@ -335,7 +390,7 @@ bool RiskEvaluator::runOnFunction(Function &F)
     FuncRiskStat[risk]++;
     AllRiskStat[risk]++;
   }
-  statFuncRisk(F.getName().data());
+  statFuncRisk(cpp_demangle(F.getName().data()));
   return false;
 }
 
@@ -360,6 +415,8 @@ void RiskEvaluator::statAllRisk()
 
 
 char RiskEvaluator::ID = 0;
+char DummyLoopInfo::ID = 0;
 const char * RiskEvaluator::PassName = "Risk evaluator pass";
+const char * DummyLoopInfo::PassName = "Dummy Loop Info";
 } // End of llvm namespace
 

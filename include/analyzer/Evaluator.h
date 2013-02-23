@@ -31,8 +31,12 @@
 #define __EVALUATOR_H_
 
 #include "llvm/Pass.h"
+#include "llvm/Function.h"
+#include "llvm/Module.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Instruction.h"
 #include "llvm/Instructions.h"
+#include "llvm/PassManager.h"
 
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/DominanceFrontier.h"
@@ -89,6 +93,44 @@ const char * toExpStr(Expensiveness exp);
 
 #define CALLERHOT 10 // threshold of how many callers is a function defined hot
 
+// Nasty class to retain the LoopInfo that would otherwise be
+// destroyed after runOnFunction.
+//
+// It only retain certain information of the loop. Currently
+// the User of it is to query whether a Basic Block is in a Given 
+// Function's loop.
+struct DummyLoopInfo : public FunctionPass {
+  private:
+    typedef SmallPtrSet<BasicBlock *, 4> LoopBBTy;
+    typedef std::map<Function *, LoopBBTy> LoopMapTy;
+    typedef LoopMapTy::iterator iterator;
+    typedef LoopMapTy::const_iterator const_iterator;
+    LoopMapTy LoopMap;
+
+  public:
+
+  static char ID;
+  static const char * PassName; 
+  
+  DummyLoopInfo() : FunctionPass(ID) {
+  }
+
+  bool inLoop(Function * F, BasicBlock * BB)
+  {
+    iterator I = LoopMap.find(F);
+    if (I == LoopMap.end())
+      return false;
+    return I->second.count(BB); 
+  }
+
+  virtual bool runOnFunction(Function &F);
+  virtual const char * getPassName() const { return PassName; }
+  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    AU.setPreservesAll();
+    AU.addRequired<LoopInfo>();
+  }
+};
+
 class RiskEvaluator: public FunctionPass {
   public:
     typedef SmallVector<Instruction *, 8> InstVecTy;
@@ -99,7 +141,12 @@ class RiskEvaluator: public FunctionPass {
     InstMapTy m_inst_map;
     CostModel * cost_model;
     Profile * profile;
-    LoopInfo * LI;
+    FunctionPassManager * func_manager;
+    Module * module;
+    SmallPtrSet<Function *, 4> loop_analyzed;
+    LoopInfo * LocalLI;
+    //LoopInfo * GlobalLI;
+    DummyLoopInfo * GlobalLI;
     ScalarEvolution *SE;
     unsigned AllRiskStat[RISKLEVELS];
     unsigned FuncRiskStat[RISKLEVELS];
@@ -111,12 +158,29 @@ class RiskEvaluator: public FunctionPass {
     static const char * PassName; 
 
     RiskEvaluator(InstMapTy & inst_map, CostModel * model = NULL, 
-        Profile * profile = NULL, unsigned level = 1, unsigned depth = 2) : FunctionPass(ID), 
-        m_inst_map(inst_map), cost_model(model), profile(profile), LI(NULL), SE(NULL), 
-        level(level), depth(depth)
+        Profile * profile = NULL, Module * module = NULL, unsigned level = 1, 
+        unsigned depth = 2) : FunctionPass(ID), m_inst_map(inst_map), 
+        cost_model(model), profile(profile), func_manager(NULL), 
+        module(module), LocalLI(NULL), SE(NULL), level(level), depth(depth)
     {
       memset(AllRiskStat, 0, sizeof(AllRiskStat));
       memset(FuncRiskStat, 0, sizeof(FuncRiskStat));
+      if (module) {
+        func_manager = new FunctionPassManager(module);
+        GlobalLI = new DummyLoopInfo();
+        func_manager->add(GlobalLI);
+        func_manager->doInitialization();
+      }
+    }
+
+    ~RiskEvaluator()
+    {
+      //TODO don't put it here
+      statAllRisk();
+      if (func_manager) {
+        func_manager->doFinalization();
+        delete func_manager;
+      }
     }
 
     virtual const char *getPassName() const { return PassName;}

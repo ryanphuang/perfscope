@@ -96,7 +96,7 @@ void runevaluator(Module * module, CostModel * model, InstMapTy & instmap)
 {
   if (instmap.size()) {
     OwningPtr<FunctionPassManager> FPasses(new FunctionPassManager(module));
-    FPasses->add(new RiskEvaluator(instmap, model, &profile, analysis_level));
+    FPasses->add(new RiskEvaluator(instmap, model, &profile, module, analysis_level));
     FPasses->doInitialization();
     for (InstMapTy::iterator map_it = instmap.begin(), map_ie = instmap.end();
         map_it != map_ie; ++map_it) {
