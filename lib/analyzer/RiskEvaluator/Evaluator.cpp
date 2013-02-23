@@ -32,7 +32,7 @@
 #include <iostream>
 #include <queue>
 #include <string>
-#include <ctype>
+#include <ctype.h>
 
 #include "llvm/IntrinsicInst.h"
 
@@ -281,10 +281,12 @@ Hotness RiskEvaluator::calcFuncHotness(const char * funcName)
   if (profile) {
     for (Profile::iterator it = profile->begin(), ie = profile->end(); 
         it != ie; ++it) {
-      if (std::binary_search(it->second.begin(), it->second.end(), funcName)) {
-        errind(2);
-        eval_debug("*%s*\n",toHotFuncStr(it->first)); 
-        return Hot;
+      if (it->first == SYSCALL || it->first == LOCKCALL || it->first == FREQCALL) {
+        if (std::binary_search(it->second.begin(), it->second.end(), funcName)) {
+          errind(2);
+          eval_debug("*%s*\n",toHotFuncStr(it->first)); 
+          return Hot;
+        }
       }
     }
   }
