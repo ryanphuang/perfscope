@@ -215,7 +215,6 @@ void Matcher::processSubprograms(DICompileUnit &DICU)
         continue;
       Copy.lastline = ScopeInfoFinder::getLastLine(Copy.function);
       MySPs.push_back(Copy);
-      //MySPs.push_back(DIS);
     }
   }
 }
@@ -235,18 +234,8 @@ void Matcher::processSubprograms(Module &M)
   //////////////Off-the-shelf SP finder Begin//////////////////////
   ////////////////////////////////////////////////////////////////
 
-
   //place the following call before invoking this method
   //processModule(M);
-
-  /*
-     for (DebugInfoFinder::iterator I = sp_begin(), E = sp_end(); I != E; I++) {
-     DISubprogram DIS(*I);
-     errs() << "@" << DIS.getDirectory() << "/" << DIS.getFilename() << 
-     ":" << DIS.getLineNumber() << "# " << DIS.getLinkageName() << 
-     "(" << DIS.getName() << ") \n";
-     }
-     */
 
   ////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////
@@ -314,7 +303,12 @@ Matcher::cu_iterator Matcher::matchCompileUnit(StringRef fullname)
   cu_iterator I = cu_begin(), E = cu_end();
 
   while(I != E) {
-    std::string debugname = I->getDirectory().str() + "/" + I->getFilename().str();
+    std::string debugname;
+    // Filename may already contains the path information
+    if (I->getFilename().size() > 0 && I->getFilename()[0] == '/')
+      debugname = I->getFilename();
+    else
+      debugname = I->getDirectory().str() + "/" + I->getFilename().str();
     if (pathneq(debugname.c_str(), patchname, debugstrips))
       break;
     I++;
@@ -388,7 +382,11 @@ Matcher::sp_iterator Matcher::slideSPToTarget(StringRef fname)
   sp_iterator I = sp_begin(), E = sp_end();
 
   while(I != E) {
-    std::string debugname = I->directory + "/" + I->filename;
+    std::string debugname;
+    if (I->filename.size() > 0 && I->filename[0] == '/')
+      debugname = I->filename;
+    else
+      debugname = I->directory + "/" + I->filename;
     if (pathneq(debugname.c_str(), patchname, debugstrips)) {
       break;
     }
@@ -498,6 +496,10 @@ Function * Matcher::matchFunction(sp_iterator & I, Scope &scope, bool & multiple
   while (I != E) {
     if (strlen(patchname) != 0) {
       std::string debugname = I->directory + "/" + I->filename;
+      if (I->filename.size() > 0 && I->filename[0] == '/')
+        debugname = I->filename;
+      else
+        debugname = I->directory + "/" + I->filename;
       if (!pathneq(debugname.c_str(), patchname,  debugstrips)) {
         errs() << "Warning: Reaching the end of " << patchname << " in current CU\n";
         return NULL;

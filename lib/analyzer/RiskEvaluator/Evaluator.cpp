@@ -264,12 +264,11 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
           eval_debug("in loop\n");
           return Hot;
         }
-        eval_debug("not in loop"); 
+        eval_debug("not in loop\n"); 
       }
       bfsQueue.push(std::make_pair(caller, item.second + 1));
     }
     bfsQueue.pop();
-    eval_debug("\n");
   }
   if (callers > CALLERHOT)
     return Hot;
@@ -391,7 +390,7 @@ bool RiskEvaluator::runOnFunction(Function &F)
     FuncRiskStat[risk]++;
     AllRiskStat[risk]++;
   }
-  statFuncRisk(F.getName().data());
+  statFuncRisk(cpp_demangle(F.getName().data()));
   return false;
 }
 

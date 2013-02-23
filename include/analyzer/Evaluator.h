@@ -175,6 +175,8 @@ class RiskEvaluator: public FunctionPass {
 
     ~RiskEvaluator()
     {
+      //TODO don't put it here
+      statAllRisk();
       if (func_manager) {
         func_manager->doFinalization();
         delete func_manager;
