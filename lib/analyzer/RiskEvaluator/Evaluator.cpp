@@ -142,13 +142,6 @@ bool DummyLoopInfo::runOnFunction(Function &F)
     if (LI->getLoopFor(BB) != NULL)
       LoopMap[&F].insert(BB); 
   }
-  /*
-  errs() << "Getting loop for " << F.getName() << "\n";
-  for (LoopInfo::iterator I = LI->begin(), E = LI->end(); 
-    I != E; ++I) {
-    errs() << "Loop: " << (*I)->getLoopDepth() << "\n";
-  }
-  */
   return false;
 }
 
@@ -370,6 +363,7 @@ bool RiskEvaluator::runOnFunction(Function &F)
   DepGraph * graph = NULL;
   Hotness funcHot = calcCallerHotness(&F, depth);
   if (level > 1) {
+    // TODO add DepGraphBuilder on the fly
     DepGraphBuilder & builder = getAnalysis<DepGraphBuilder>();
     graph = builder.getDepGraph();
   }
@@ -411,7 +405,7 @@ void RiskEvaluator::statFuncRisk(const char * funcname)
 
 void RiskEvaluator::statAllRisk()
 {
-  eval_debug("====Overall risk summary====\n");
+  printf("====Overall risk summary====\n");
   statPrint(AllRiskStat);
 }
 

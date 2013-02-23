@@ -35,7 +35,9 @@ using namespace llvm;
 
 bool DepGraphBuilder::buildMemDepGraph()
 {
-  errs().write_escaped(F->getName()) << "\n";
+  #ifdef DEPBUILDER_DEBUG
+  errs() << "building mem dep graph for " << F->getName() << "\n";
+  #endif
   MemoryDependenceAnalysis & MDA = getAnalysis<MemoryDependenceAnalysis>();
   AliasAnalysis &AA = getAnalysis<AliasAnalysis>();
   for (inst_iterator I = inst_begin(*F), E = inst_end(*F); I != E; I++) {
