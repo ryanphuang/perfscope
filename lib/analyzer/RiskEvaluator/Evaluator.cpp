@@ -46,7 +46,7 @@
 
 static int INDENT = 0;
 
-#define EVALUATOR_DEBUG
+//#define EVALUATOR_DEBUG
 
 gen_dbg(eval)
 
@@ -78,7 +78,7 @@ static void eval_debug(llvm::Instruction * I)
   printf("%s", p);
 }
 #else
-static void eval_debug(Instruction * I)
+static void eval_debug(llvm::Instruction * I)
 {
 }
 #endif
