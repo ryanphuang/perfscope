@@ -28,7 +28,7 @@
 #endif
 
 #ifndef MANGLE_LEN
-#define MANGLE_LEN 256
+#define MANGLE_LEN 512
 #endif
 
 # ifndef ISSLASH

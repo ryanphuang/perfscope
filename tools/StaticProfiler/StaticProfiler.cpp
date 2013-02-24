@@ -76,14 +76,14 @@ typedef struct FuncCost {
   string name;
   unsigned cost;
   FuncCost() : cost(0) {}
-  FuncCost(const char *name, unsigned cost) : name(name), cost(cost) {}
+  FuncCost(const char *n, unsigned cost) : name(n), cost(cost) {}
 } FuncCost;
 
 typedef struct FuncHot {
   string name;
   unsigned hotness;
   FuncHot() : hotness(0) {}
-  FuncHot(const char *name, unsigned hot) : name(name), hotness(hot) {}
+  FuncHot(const char *n, unsigned hot) : name(n), hotness(hot) {}
 } FuncHot;
 
 int compareFuncCost(const void *a, const void *b)
@@ -124,11 +124,13 @@ void static_profile(Module * module, CostModel * model)
     unsigned cost = model->getFunctionCost(F);
     if (cost == (unsigned) -1)
       cost = 0;
-    func_cost[i] = FuncCost(name, cost);
+    func_cost[i].cost = cost;
+    func_cost[i].name.assign(name);
 
     // Calculate hot
     CallSiteFinder finder(F);
-    func_hot[i] = FuncHot(name, finder.size());
+    func_hot[i].hotness = finder.size();
+    func_hot[i].name.assign(name);
   } 
   // Print cost
   fprintf(fout, "====\n");
@@ -235,7 +237,7 @@ int main(int argc, char *argv[])
 
   LLVMContext & Context = getGlobalContext();
 
-  Module * module = ReadModule(Context, argv[optind]);
+  Module * module(ReadModule(Context, argv[optind]));
   if (module == NULL)  {
     cout << "cannot load module " << argv[optind] << endl;
     return false;
@@ -247,5 +249,7 @@ int main(int argc, char *argv[])
 
   X86CostModel * XCM = new X86CostModel(getTargetMachine());
   static_profile(module, XCM);
+  if (XCM == NULL)
+    delete XCM;
   return 0;
 }

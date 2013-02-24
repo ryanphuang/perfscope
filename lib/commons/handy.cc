@@ -50,7 +50,7 @@ void diegrace(const char * format, ...)
 void * xmalloc(size_t size)
 {
     if (size <= 0) {
-        diegrace("Invalid malloc size %d", size);
+        diegrace("Invalid malloc size %zu", size);
     }
     void *p = malloc(size);
     if (p == NULL) {
@@ -414,13 +414,20 @@ bool isempty(const char * str)
 const char * cpp_demangle(const char *name)
 {
     if (MBUF == NULL) {
-        MBUF = (char *) xmalloc(MANGLE_LEN);
+        MBUF = (char *) malloc(MANGLE_LEN);
         MBUF_LEN = MANGLE_LEN;
     }
     int status;
     char * ret = abi::__cxa_demangle(name, MBUF, &MBUF_LEN, &status);
     if (ret == NULL) // normal C names will be demangled to NULL
         return name;
+    if (ret != MBUF) {
+      if (MBUF_LEN == 0) {
+        diegrace("Hit libstdc++ bug 42230 when demangling `%s'\n"
+                 "Workaround: increase maximum buffer size\n", name);
+      }
+      MBUF = ret;
+    }
     return ret;
 }
 

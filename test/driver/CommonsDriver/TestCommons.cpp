@@ -29,6 +29,7 @@
 
 #include <iostream>
 #include <map>
+#include <string>
 
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
@@ -61,7 +62,7 @@ inline static void one_test(int & total, int & failed, bool fail, string expect 
   failed += fail;
 }
 
-inline static void end_test(const char *name, int & total, int & failed)
+inline static void end_test(const char *name, int total, int failed)
 {
   cout << "Testing " << name << " finished: total " << total << ", " << failed << " failed." <<  endl;
 }
@@ -265,9 +266,27 @@ void test_CallGraph(Module *module, const char * fname)
   }
 }
 
+void test_cppdemangle()
+{
+  begin_test("cppdemangle");
+  const char * name = "_ZL13store_triggerP3THDP8st_tableP19st_mysql_"
+        "lex_stringS4_S4_14trg_event_type20trg_action_time_typeS4_mS4_S4_S4_S4_";
+  // test if gcc bug 42230 would be hit
+  int failed = 0;
+  if (strcmp(cpp_demangle(name), "store_trigger(THD*, st_table*, st_mysql_lex_string*"
+        ", st_mysql_lex_string*, st_mysql_lex_string*, trg_event_type, trg_action_time"
+        "_type, st_mysql_lex_string*, unsigned long, st_mysql_lex_string*, st_mysql_lex"
+        "_string*, st_mysql_lex_string*, st_mysql_lex_string*)") != 0)
+    failed++;
+  name = "_ZN4llvm12MapGraphBaseIPNS_11InstructionEED1Ev";
+  if (strcmp(cpp_demangle(name), "llvm::MapGraphBase<llvm::Instruction*>::~MapGraphBase()") != 0)
+    failed++;
+  end_test("cppdemangle", 2, 0);
+}
 
 int main()
 {
+  test_cppdemangle();
   test_src2obj();
   test_canonpath();
   test_pendswith();

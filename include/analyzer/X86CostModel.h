@@ -49,8 +49,8 @@ class X86CostModel : public CostModel {
     const TargetLowering * TLI;
 
   public:
-    //X86CostModel(const std::string TripleStr = "x86_64-unknown-linux-gnu", const std::string FeatureStr = "");
     X86CostModel(TargetMachine * TM);
+    ~X86CostModel();
 
     virtual unsigned getNumberOfRegisters(bool Vector) const;
     virtual unsigned getRegisterBitWidth(bool Vector) const;

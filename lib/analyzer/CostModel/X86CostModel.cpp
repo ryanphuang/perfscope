@@ -88,6 +88,14 @@ X86CostModel::X86CostModel(TargetMachine *TM)
   #endif
 }
 
+X86CostModel::~X86CostModel()
+{
+  if (VTT == NULL)
+    delete VTT;
+  if (ST == NULL)
+    delete ST;
+}
+
 unsigned X86CostModel::getNumberOfRegisters(bool Vector) const
 {
   if (Vector && !ST->hasSSE1())
