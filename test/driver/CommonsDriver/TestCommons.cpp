@@ -90,18 +90,20 @@ static const char * stripname_expect [] = {
 };
 
 static const char * canonpath_test[] = {
-  "a/./b//c",
+  "/a/./b//c",
   "/a/./b//c/./d/",
-  "home/ryan/./Documents//../Projects/",
-  "home/../root",
+  "/home/ryan/./Documents//../Projects/",
+  "/home/../root",
+  "../gcc-trunk/gcc/gcc.c",
   0
 };
 
 static const char * canonpath_expect[] = {
-  "a/b/c",
+  "/a/b/c",
   "/a/b/c/d",
-  "home/ryan/Projects",
-  "root",
+  "/home/ryan/Projects",
+  "/root",
+  "",
   0
 };
 
@@ -153,11 +155,17 @@ void test_canonpath()
   while (*t && *e) {
     result = canonpath(*t, NULL);
     expect = *e;
-    if((fail = (strcmp(result, expect) != 0))) {
-      one_test(total, failed, fail, expect, result);
+    if (result != NULL) {
+      if((fail = (strcmp(result, expect) != 0))) {
+        one_test(total, failed, fail, expect, result);
+      }
+      else
+        one_test(total, failed, fail);
     }
-    else
-      one_test(total, failed, fail);
+    else {
+      fail = true;
+      one_test(total, failed, fail, expect, "NULL");
+    }
     t++;
     e++;
   }

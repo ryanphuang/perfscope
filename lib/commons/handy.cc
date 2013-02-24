@@ -188,102 +188,112 @@ char * canonpath (const char *name, char *resolved)
 
     if (name == NULL)
     {
-        /* As per Single Unix Specification V2 we must return an error if
-           either parameter is a null pointer.  We extend this to allow
-           the RESOLVED parameter to be NULL in case the we are expected to
-           allocate the room for the return value.  */
-        __set_errno (EINVAL);
-        return NULL;
+      /* As per Single Unix Specification V2 we must return an error if
+         either parameter is a null pointer.  We extend this to allow
+         the RESOLVED parameter to be NULL in case the we are expected to
+         allocate the room for the return value.  */
+      __set_errno (EINVAL);
+      return NULL;
     }
 
     if (name[0] == '\0')
     {
-        /* As per Single Unix Specification V2 we must return an error if
-           the name argument points to an empty string.  */
-        __set_errno (ENOENT);
-        return NULL;
+      /* As per Single Unix Specification V2 we must return an error if
+         the name argument points to an empty string.  */
+      __set_errno (ENOENT);
+      return NULL;
     }
 
     path_max = MAX_PATH;
 
     if (resolved == NULL)
     {
-        rpath = (char *) malloc (path_max);
-        if (rpath == NULL)
-            return NULL;
+      rpath = (char *) xmalloc (path_max);
     }
     else
         rpath = resolved;
     rpath_limit = rpath + path_max;
 
     if (name[0] == '/') {
-        rpath[0] = '/';
-        dest = rpath + 1;
+      rpath[0] = '/';
+      dest = rpath + 1;
     }
-    else
-        dest = rpath;
+    else {
+      // here the `correct' implementation should be the 
+      // following commented one
+      // but we especially are interested when name is not
+      // rooted at `/'
+      // This is dangerous if name is illegal such as '../gcc/xxx'
+      // For now we just check the simple error. 
+      // TODO
+      /*
+      if (!getcwd(rpath, path_max)) {
+        rpath[0] = '\0';
+        goto error;
+      }
+      dest = strchr(rpath, '\0');
+      */
+      if (name[0] == '.' && name[1] == '.')
+        goto error;
+      dest = rpath;
+    }
 
     for (start = end = name; *start; start = end)
     {
-        /* Skip sequence of multiple path-separators.  */
-        while (*start == '/')
-            ++start;
-
-        /* Find end of path component.  */
-        for (end = start; *end && *end != '/'; ++end)
-            /* Nothing.  */;
-
-        if (end - start == 0)
-            break;
-        else if (end - start == 1 && start[0] == '.')
-            /* nothing */;
-        else if (end - start == 2 && start[0] == '.' && start[1] == '.')
+      /* Skip sequence of multiple path-separators.  */
+      while (*start == '/')
+        ++start;
+      /* Find end of path component.  */
+      for (end = start; *end && *end != '/'; ++end)
+        /* Nothing.  */;
+      if (end - start == 0)
+        break;
+      else if (end - start == 1 && start[0] == '.')
+        /* nothing */;
+      else if (end - start == 2 && start[0] == '.' && start[1] == '.')
+      {
+        /* Back up to previous component, ignore if at root already.  */
+        while ((dest > rpath + 1) && (--dest)[-1] != '/');
+        if (dest[-1] != '/')
+          --dest; //move to the beginning
+      }
+      else
+      {
+        size_t new_size;
+        if (dest > rpath && dest[-1] != '/')
+          *dest++ = '/';
+        if (dest + (end - start) >= rpath_limit)
         {
-            /* Back up to previous component, ignore if at root already.  */
-            while ((dest > rpath + 1) && (--dest)[-1] != '/');
-            if (dest[-1] != '/')
-                --dest; //move to the beginning
-        }
-        else
-        {
-            size_t new_size;
-
-            if (dest > rpath && dest[-1] != '/')
-                *dest++ = '/';
-
-            if (dest + (end - start) >= rpath_limit)
-            {
-                off_t dest_offset = dest - rpath;
-                char *new_rpath;
-
-                if (resolved)
-                {
-                    __set_errno (ENAMETOOLONG);
-                    if (dest > rpath + 1)
-                        dest--;
-                    *dest = '\0';
-                    goto error;
-                }
-                new_size = rpath_limit - rpath;
-                if (end - start + 1 > path_max)
-                    new_size += end - start + 1;
-                else
-                    new_size += path_max;
-                new_rpath = (char *) realloc (rpath, new_size);
-                if (new_rpath == NULL)
-                    goto error;
-                rpath = new_rpath;
-                rpath_limit = rpath + new_size;
-                dest = rpath + dest_offset;
-            }
-
-            mempcpy (dest, start, end - start);
-            dest += (end - start);
+          off_t dest_offset = dest - rpath;
+          char *new_rpath;
+          if (resolved)
+          {
+            __set_errno (ENAMETOOLONG);
+            if (dest > rpath + 1)
+              dest--;
             *dest = '\0';
+            goto error;
+          }
+          new_size = rpath_limit - rpath;
+          if (end - start + 1 > path_max)
+            new_size += end - start + 1;
+          else
+            new_size += path_max;
+          new_rpath = (char *) realloc (rpath, new_size);
+          if (new_rpath == NULL)
+            goto error;
+          rpath = new_rpath;
+          rpath_limit = rpath + new_size;
+          dest = rpath + dest_offset;
         }
+
+        mempcpy (dest, start, end - start);
+        dest += (end - start);
+        *dest = '\0';
+      }
     }
     if (dest > rpath + 1 && dest[-1] == '/')
-        --dest;
+      --dest;
     *dest = '\0';
 
     assert (resolved == NULL || resolved == rpath);
@@ -292,7 +302,8 @@ char * canonpath (const char *name, char *resolved)
 error:
     assert (resolved == NULL || resolved == rpath);
     if (resolved == NULL)
-        free (rpath);
+      free (rpath);
+    fprintf(stderr, "fatal: %s\n", name);
     return NULL;
 }
 

@@ -141,7 +141,7 @@ size_t count_strips(Module * M)
       cnt -= 2;
     else if (endswith(buf, "src/")) // hack for postgresql/src/
       cnt -= 1;
-
+    free(buf);
     return  cnt;
   }
   return 0;

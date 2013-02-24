@@ -284,6 +284,7 @@ void analyze(char *input)
       if (!found) 
         chap->skip_rest_of_hunks();
     }
+    delete patch;
   }
   if (insignificant)
     printf("trivial\n");

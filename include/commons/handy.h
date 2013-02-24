@@ -24,7 +24,7 @@
 # endif
 
 #ifndef MAX_PATH
-#define MAX_PATH 256
+#define MAX_PATH 512
 #endif
 
 #ifndef MANGLE_LEN

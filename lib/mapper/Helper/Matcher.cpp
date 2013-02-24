@@ -326,6 +326,7 @@ bool Matcher::initName(StringRef fname)
     return false;
   }
   filename.assign(canon);
+  free(canon);
   patchname = stripname(filename.c_str(), patchstrips);
   if (strlen(patchname) == 0) {
     errs() << "Warning: patchname is empty after strip\n";
