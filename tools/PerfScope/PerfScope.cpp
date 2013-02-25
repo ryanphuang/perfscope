@@ -125,7 +125,7 @@ bool load(LLVMContext & context, ModuleArg & mod)
   int s = module_strip_len;
   if (s < 0) {
     s =  count_strips(mod.module);
-    perf_debug("Calculated bstrips: %d for %s\n", s, mod.name.c_str());
+    perf_debug("Calculated strips: %d for %s\n", s, mod.name.c_str());
   }
   mod.strips = s;
   return true;
@@ -216,7 +216,12 @@ void analyze(char *input)
               // Modification cross function boundary, this
               // happens when the function lies in gaps.
               // But by definition, there's no gab between Mods.
-              assert((*HI)->rep_scope.begin <= I->lastline);
+              if (((*HI)->rep_scope.begin > I->lastline)) {
+                fprintf(stderr, "Bad things happened in %s(%u-%u): [#%lu, #%lu]\n", 
+                    I->name.c_str(),  I->linenumber, I->lastline, 
+                    (*HI)->rep_scope.begin, (*HI)->rep_scope.end);
+              }
+              // assert((*HI)->rep_scope.begin <= I->lastline);
 
               s++;
               const char *dname = cpp_demangle(I->name.c_str());

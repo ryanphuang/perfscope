@@ -238,14 +238,14 @@ bool Hunk::reduce()
         // when encounter last char which is not SAMC or next char is SAMC, do merge
         if (ctrlseq[i] != SAMC && (i == seqlen - 1 || ctrlseq[i + 1] == SAMC)) {
             assert(buf_len > 0);
-            if (i == seqlen - 1)
-                fprintf(stderr, "last chunk");
             if (DEBUG) {
-                if (!printed) {
-                    printed = true;
-                    printf("*****Translation result*******\n");
-                }
-                dumpBuf(buf_len);
+              if (i == seqlen - 1)
+                printf("last chunk");
+              if (!printed) {
+                printed = true;
+                printf("*****Translation result*******\n");
+              }
+              dumpBuf(buf_len);
             }
             merge(line, repline, buf_len);
         }

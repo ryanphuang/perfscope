@@ -510,8 +510,22 @@ Function * Matcher::matchFunction(sp_iterator & I, Scope &scope, bool & multiple
       if (I + 1 == E)
         return I->function; // It's tricky to return I here. Maybe NULL is better
       // Line number is guaranteed to be positive, no need to check overflow here.
-      I->lastline = (I + 1)->linenumber - 1;             
-      assert(I->lastline >= I->linenumber); // Unless the two are modifying the same line.
+      if (I->linenumber == (I + 1)->linenumber) {
+        errs() << "Warning two functions overlap: ";
+        if (I->function && (I + 1)->function) {
+          errs() << I->function->getName() << ", ";
+          errs() << (I + 1)->function->getName();
+        }
+        errs() << "\n";
+        I->lastline = (I + 1)->linenumber;
+      }
+      else
+        I->lastline = (I + 1)->linenumber - 1;             
+      if (I->lastline < I->linenumber) {
+        errs() << "Bad things happened in " << patchname << ":" << scope << ", " <<
+           I->lastline << "," << I->linenumber << "\n";
+        assert(false); // Unless the two are modifying the same line.
+      }
     }
     // For boundary case, we only break if that function is one line function.
     if (I->lastline > scope.begin || (I->lastline == scope.begin && I->lastline == I->linenumber))
