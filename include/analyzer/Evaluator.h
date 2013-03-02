@@ -192,7 +192,6 @@ class RiskEvaluator: public FunctionPass {
     unsigned getLoopDepth(Loop *L, std::map<Loop *, unsigned> & LoopDepthMap);
 
     Hotness calcInstHotness(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap);
-
     Hotness calcFuncHotness(Function * func);
     Hotness calcFuncHotness(const char * funcName);
     Hotness calcCallerHotness(Function * func, int level = 3);
@@ -200,6 +199,8 @@ class RiskEvaluator: public FunctionPass {
     Expensiveness calcInstExp(Instruction *I);
     Expensiveness calcFuncExp(Function * func);
     Expensiveness calcFuncExp(const char * funcName);
+
+    bool isPerfSensitive(BranchInst *I);
 
     void clearFuncStat();
     void statFuncRisk(const char * funcname);

@@ -159,6 +159,17 @@ RiskLevel RiskEvaluator::assess(Instruction *I,
   eval_debug("expensiveness:\n");
   Expensiveness exp = calcInstExp(I);
   errind(2);
+  if (exp != Expensive) {
+    if (isa<BranchInst>(I)) {
+      BranchInst *BI = dyn_cast<BranchInst>(I);
+      if (isPerfSensitive(BI)) {
+        exp = Expensive;
+        eval_debug("sensitive branch instruction\n");
+      }
+      else
+        eval_debug("insensitive branch instruction\n");
+    }
+  }
   eval_debug("%s\n", toExpStr(exp)); 
   // Every modification that lies in
   // a hot function is considered hot
@@ -370,6 +381,23 @@ Expensiveness RiskEvaluator::calcFuncExp(Function * func)
   if (func)
     return calcFuncExp(cpp_demangle(func->getName().data()));
   return Minor;
+}
+
+bool RiskEvaluator::isPerfSensitive(BranchInst *I)
+{
+  // Unconditional branch is not performance sensitive
+  if (I->isUnconditional())
+    return false;
+  unsigned exps = 0;
+  unsigned succs = I->getNumSuccessors();
+  for (unsigned i = 0; i < succs; ++i) {
+    BasicBlock * BB = I->getSuccessor(i);
+    for (BasicBlock::iterator BI = BB->begin(), BE = BB->end(); BI != BE; BI++) {
+      if (calcInstExp(BI) == Expensive)
+        exps++;
+    }
+  }
+  return exps != 0 && exps != succs;
 }
 
 
