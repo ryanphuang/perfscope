@@ -198,6 +198,8 @@ class RiskEvaluator: public FunctionPass {
     Hotness calcCallerHotness(Function * func, int level = 3);
 
     Expensiveness calcInstExp(Instruction *I);
+    Expensiveness calcFuncExp(Function * func);
+    Expensiveness calcFuncExp(const char * funcName);
 
     void clearFuncStat();
     void statFuncRisk(const char * funcname);

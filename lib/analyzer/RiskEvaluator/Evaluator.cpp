@@ -195,6 +195,53 @@ unsigned RiskEvaluator::getLoopDepth(Loop *L, std::map<Loop *, unsigned> & LoopD
   return count;
 }
 
+Hotness RiskEvaluator::calcInstHotness(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap)
+{
+  assert(LocalLI && SE && "Require Loop information and ScalarEvolution");
+  const BasicBlock * BB = I->getParent();
+  Loop * loop = LocalLI->getLoopFor(BB);
+  unsigned depth = 0;
+  Hotness hot = Cold;
+  while (loop) {
+    depth++;
+    errind(2);
+    unsigned cnt = getLoopDepth(loop, LoopDepthMap);
+    eval_debug("L%u trip count:%u\n", depth, cnt);
+    // loop count cannot be determined, so it's potentially
+    // very tight!
+    if (cnt == 0 || cnt > LOOPCOUNTTIGHT) 
+      hot = Hot;
+    else
+      hot = Regular;
+    loop = loop->getParentLoop();
+  }
+  return hot;
+}
+
+Hotness RiskEvaluator::calcFuncHotness(const char * funcName)
+{
+  if (profile) {
+    for (Profile::iterator it = profile->begin(), ie = profile->end(); 
+        it != ie; ++it) {
+      if (it->first == FREQCALL) {
+        if (std::binary_search(it->second.begin(), it->second.end(), funcName)) {
+          errind(2);
+          eval_debug("*%s*\n",toSpeFuncStr(it->first)); 
+          return Hot;
+        }
+      }
+    }
+  }
+  return Regular;
+}
+
+Hotness RiskEvaluator::calcFuncHotness(Function * func)
+{
+  if (func)
+    return calcFuncHotness(cpp_demangle(func->getName().data()));
+  return Cold;
+}
+
 Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
 {
   if (func == NULL || level <= 0)
@@ -270,30 +317,6 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
   return Regular;
 }
 
-Hotness RiskEvaluator::calcFuncHotness(const char * funcName)
-{
-  if (profile) {
-    for (Profile::iterator it = profile->begin(), ie = profile->end(); 
-        it != ie; ++it) {
-      if (it->first == SYSCALL || it->first == LOCKCALL || it->first == FREQCALL) {
-        if (std::binary_search(it->second.begin(), it->second.end(), funcName)) {
-          errind(2);
-          eval_debug("*%s*\n",toHotFuncStr(it->first)); 
-          return Hot;
-        }
-      }
-    }
-  }
-  return Regular;
-}
-
-Hotness RiskEvaluator::calcFuncHotness(Function * func)
-{
-  if (func)
-    return calcFuncHotness(cpp_demangle(func->getName().data()));
-  return Cold;
-}
-
 Expensiveness RiskEvaluator::calcInstExp(Instruction * I)
 {
   Expensiveness exp = Minor;
@@ -308,8 +331,7 @@ Expensiveness RiskEvaluator::calcInstExp(Instruction * I)
       return exp;
     }
     //TODO better way
-    if (calcFuncHotness(func) == Hot)
-      return Expensive;
+    return calcFuncExp(func);
   }
   if(cost_model) {
     unsigned cost = cost_model->getInstructionCost(I); 
@@ -326,28 +348,30 @@ Expensiveness RiskEvaluator::calcInstExp(Instruction * I)
   return exp;
 }
 
-Hotness RiskEvaluator::calcInstHotness(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap)
+Expensiveness RiskEvaluator::calcFuncExp(const char * funcName)
 {
-  assert(LocalLI && SE && "Require Loop information and ScalarEvolution");
-  const BasicBlock * BB = I->getParent();
-  Loop * loop = LocalLI->getLoopFor(BB);
-  unsigned depth = 0;
-  Hotness hot = Cold;
-  while (loop) {
-    depth++;
-    errind(2);
-    unsigned cnt = getLoopDepth(loop, LoopDepthMap);
-    eval_debug("L%u trip count:%u\n", depth, cnt);
-    // loop count cannot be determined, so it's potentially
-    // very tight!
-    if (cnt == 0 || cnt > LOOPCOUNTTIGHT) 
-      hot = Hot;
-    else
-      hot = Regular;
-    loop = loop->getParentLoop();
+  if (profile) {
+    for (Profile::iterator it = profile->begin(), ie = profile->end(); 
+        it != ie; ++it) {
+      if (it->first == SYSCALL || it->first == LOCKCALL || it->first == EXPCALL) {
+        if (std::binary_search(it->second.begin(), it->second.end(), funcName)) {
+          errind(2);
+          eval_debug("*%s*\n",toSpeFuncStr(it->first)); 
+          return Expensive;
+        }
+      }
+    }
   }
-  return hot;
+  return Normal;
 }
+
+Expensiveness RiskEvaluator::calcFuncExp(Function * func)
+{
+  if (func)
+    return calcFuncExp(cpp_demangle(func->getName().data()));
+  return Minor;
+}
+
 
 bool RiskEvaluator::runOnFunction(Function &F)
 {

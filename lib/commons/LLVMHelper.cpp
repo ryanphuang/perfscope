@@ -60,7 +60,7 @@ gen_dbg_nop(helper)
 
 namespace llvm {
 
-static const char * HotTypeName[HOTTYPES] = {
+static const char * SpeTypeName[HOTTYPES] = {
   "INVALIDTYPE",
   "SYSCALL",
   "LOCKCALL",
@@ -68,7 +68,7 @@ static const char * HotTypeName[HOTTYPES] = {
   "FREQCALL"
 };
 
-static const char * HotTypeStr[HOTTYPES] = {
+static const char * SpeTypeStr[HOTTYPES] = {
   "invalid type",
   "system call",
   "lock call",
@@ -76,27 +76,27 @@ static const char * HotTypeStr[HOTTYPES] = {
   "frequent call"
 };
 
-const char * toHotFuncStr(const HotFuncType type)
+const char * toSpeFuncStr(const SpeFuncType type)
 {
   if (type < 0 || type >= HOTTYPES)
     return "UNKNOWN";
-  return HotTypeStr[type];
+  return SpeTypeStr[type];
 }
 
-const char * toHotFuncName(const HotFuncType type)
+const char * toSpeFuncName(const SpeFuncType type)
 {
   if (type < 0 || type >= HOTTYPES)
     return "UNKNOWN";
-  return HotTypeName[type];
+  return SpeTypeName[type];
 }
 
-HotFuncType fromHotTypeName(const char * name)
+SpeFuncType fromSpeTypeName(const char * name)
 {
   int i;
-  HotFuncType type;
+  SpeFuncType type;
   for (i = SYSCALL; i <= FREQCALL; i++) {
-    type = (HotFuncType) i;
-    if (strcmp(name, toHotFuncName(type)) == 0)
+    type = (SpeFuncType) i;
+    if (strcmp(name, toSpeFuncName(type)) == 0)
       break;
   }
   if (i > FREQCALL)
@@ -223,7 +223,7 @@ bool parseProfile(const char *fname, Profile &profile)
   }
   char buf[256];
   bool preamble = false;
-  HotFuncType type = INVALIDTYPE; 
+  SpeFuncType type = INVALIDTYPE; 
   unsigned line = 0;
   while (fgetline(fp, buf, 256) != NULL) {
     line++;
@@ -231,7 +231,7 @@ bool parseProfile(const char *fname, Profile &profile)
       continue;
     if (strcmp(buf, PROFILE_SEGMENT_BEGIN) == 0) {
       if (preamble) {
-        fprintf(stderr, "Warning: empty profile segment %s\n", toHotFuncStr(type));
+        fprintf(stderr, "Warning: empty profile segment %s\n", toSpeFuncStr(type));
       }
       // Preamble detected. Expect next line to be 
       // segment type
@@ -240,7 +240,7 @@ bool parseProfile(const char *fname, Profile &profile)
         return false;
       }
       line++;
-      type = fromHotTypeName(buf);
+      type = fromSpeTypeName(buf);
       if (type == INVALIDTYPE) {
         syntaxerr("unknown profile segment type", line);
         return false;

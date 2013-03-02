@@ -52,14 +52,14 @@ struct ModuleArg {
 
 #define HOTTYPES 5
 
-enum HotFuncType {INVALIDTYPE, SYSCALL, LOCKCALL, EXPCALL, FREQCALL};
+enum SpeFuncType {INVALIDTYPE, SYSCALL, LOCKCALL, EXPCALL, FREQCALL};
 
-HotFuncType fromHotTypeName(const char * name);
+SpeFuncType fromSpeTypeName(const char * name);
 
-const char * toHotFuncStr(const HotFuncType type);
-const char * toHotFuncName(const HotFuncType type);
+const char * toSpeFuncStr(const SpeFuncType type);
+const char * toSpeFuncName(const SpeFuncType type);
 
-typedef std::map<HotFuncType, std::vector<std::string> > Profile;
+typedef std::map<SpeFuncType, std::vector<std::string> > Profile;
 
 /// Infer the level of strips in the module.
 /// The algorithm is to use the length of longest 
