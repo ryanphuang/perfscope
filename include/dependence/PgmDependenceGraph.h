@@ -39,9 +39,9 @@
 #ifndef LLVM_ANALYSIS_PGMDEPENDENCEGRAPH_H
 #define LLVM_ANALYSIS_PGMDEPENDENCEGRAPH_H
 
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/IPModRef.h"
-#include "mapper/DependenceGraph.h"
+#include <iterator>
+#include <stack>
+#include <vector>
 
 /* #include "llvm/Analysis/PostDominators.h" -- see below */
 //#include "MemoryDepAnalysis.h"
@@ -51,9 +51,10 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Instruction.h"
 #include "llvm/Pass.h"
-#include <iterator>
-#include <stack>
-#include <vector>
+
+#include "mapper/dsa/DataStructure.h"
+#include "mapper/dsa/IPModRef.h"
+#include "DependenceGraph.h"
 
 template<class Ty, class PtrDiffTy>
 struct forward_iterator

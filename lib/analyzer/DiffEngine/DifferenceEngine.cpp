@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "mapper/DifferenceEngine.h"
+#include <utility>
 
 #include "llvm/Constants.h"
 #include "llvm/Function.h"
@@ -29,7 +29,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/type_traits.h"
 
-#include <utility>
+#include "analyzer/DifferenceEngine.h"
 
 using namespace llvm;
 

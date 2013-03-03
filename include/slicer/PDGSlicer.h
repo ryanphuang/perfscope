@@ -1,4 +1,4 @@
-//===- Slicer.h - Simple Slicing Tool ----*- C++ -*-===//
+//===- PDGSlicer.h - Simple Slicing Tool for Program Dependence Graph----*- C++ -*-===//
 // 
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,19 +12,25 @@
 #ifndef PERF_SCOPE_SLCIER__H
 #define PERF_SCOPE_SLCIER__H
 
-#include "DependenceGraph.h"
-#include "PgmDependenceGraph.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Instruction.h"
 #include <iterator>
 #include <stack>
 #include <vector>
 
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Instruction.h"
+
+#include "dependence/DependenceGraph.h"
+#include "dependence/PgmDependenceGraph.h"
+
 namespace llvm {
 
-class Slicer {
+// Slicer for program dependence graph
+//
+// @deprecated
+//
+class PDGSlicer {
     private:
       std::stack<Instruction *> sliceStack;
       SmallSet<Instruction *, 32> visitedInstr;
@@ -35,7 +41,7 @@ class Slicer {
 
 
     public:
-      Slicer(DependenceGraph *graph) : funcDepGraph(graph), sliceInited(false) 
+      PDGSlicer(DependenceGraph *graph) : funcDepGraph(graph), sliceInited(false) 
       { assert(graph != NULL); }
 
       bool sliceInit(Instruction &I, PDGIteratorFlags whichDeps = AllDeps); 

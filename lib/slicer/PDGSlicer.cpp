@@ -10,10 +10,10 @@
 // This file implements a simple slicer based on DependenceGraph 
 //===----------------------------------------------------------------------===//
 
-#include "mapper/Slicer.h"
+#include "slicer/PDGSlicer.h"
 
 namespace llvm {
-void Slicer::addToSliceStack(DepGraphNode *dgNode)
+void PDGSlicer::addToSliceStack(DepGraphNode *dgNode)
 {
   DepGraphNode::iterator DI = dgNode->outDepBegin();
   DepGraphNode::iterator DE = dgNode->outDepEnd();
@@ -28,7 +28,7 @@ void Slicer::addToSliceStack(DepGraphNode *dgNode)
   }
 }
 
-bool Slicer::sliceInit(Instruction &I, PDGIteratorFlags whichDeps)
+bool PDGSlicer::sliceInit(Instruction &I, PDGIteratorFlags whichDeps)
 {
   DepGraphNode* dgNode = funcDepGraph->getNode(I, false);
   if (dgNode == NULL) {
@@ -42,7 +42,7 @@ bool Slicer::sliceInit(Instruction &I, PDGIteratorFlags whichDeps)
   return true;
 }
 
-Instruction * Slicer::sliceNext()
+Instruction * PDGSlicer::sliceNext()
 {
   if (!sliceInited) {
     errs() << "Must call sliceInit first!\n";

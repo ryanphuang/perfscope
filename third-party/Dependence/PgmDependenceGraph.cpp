@@ -25,6 +25,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <map>
+#include <iostream>
+
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/InstVisitor.h"
@@ -32,12 +35,9 @@
 #include "llvm/Function.h"
 #include "llvm/IntrinsicInst.h"
 
+#include "slicer/PDGSlicer.h"
+#include "dependence/PgmDependenceGraph.h"
 #include "mapper/dsa/DSGraph.h"
-#include "mapper/PgmDependenceGraph.h"
-#include "mapper/Slicer.h"
-
-#include <map>
-#include <iostream>
 
 namespace llvm {
 
@@ -692,7 +692,7 @@ void PgmDependenceGraph::printOutgoingSSADeps(Instruction& I,
 
 void PgmDependenceGraph::testSlicing(Function &F)
 {
-  Slicer slicer(funcDepGraph);
+  PDGSlicer slicer(funcDepGraph);
   for (Function::iterator BB=F.begin(), FE=F.end(); BB != FE; ++BB)
     for (BasicBlock::iterator II=BB->begin(), IE=BB->end(); II !=IE; ++II)
     {

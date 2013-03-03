@@ -37,7 +37,7 @@
 
 #include "graph/DFSIter.h"
 #include "dependence/Dependence.h"
-#include "dependence/DependenceGraph.h"
+#include "dependence/DepGraph.h"
 
 namespace llvm {
 

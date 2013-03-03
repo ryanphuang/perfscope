@@ -39,7 +39,6 @@
 #include "commons/handy.h"
 #include "commons/LLVMHelper.h"
 #include "parser/PatchDecoder.h"
-#include "mapper/DifferenceEngine.h"
 #include "mapper/Matcher.h"
 #include "analyzer/Evaluator.h"
 #include "analyzer/X86CostModel.h"

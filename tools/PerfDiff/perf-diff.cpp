@@ -28,8 +28,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SourceMgr.h"
 
-#include "mapper/DiffLog.h"
-#include "mapper/DifferenceEngine.h"
+#include "analyzer/DiffLog.h"
+#include "analyzer/DifferenceEngine.h"
 
 using namespace llvm;
 

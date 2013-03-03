@@ -42,7 +42,7 @@
 #include "llvm/Instruction.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include "dependence/DependenceGraph.h"
+#include "dependence/DepGraph.h"
 #include "dependence/DepIter.h"
 
 namespace llvm {

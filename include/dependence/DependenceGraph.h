@@ -1,261 +1,271 @@
-/**
- *  @file          include/Dependence/DependenceGraph.h
- *
- *  @version       1.0
- *  @created       01/24/2013 01:20:59 PM
- *  @revision      $Id$
- *
- *  @author        Ryan Huang <ryanhuang@cs.ucsd.edu>
- *  @organization  University of California, San Diego
- *  
- *  Copyright (c) 2013, Ryan Huang
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *  
- *  http://www.apache.org/licenses/LICENSE-2.0
- *     
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
- *  @section       DESCRIPTION
- *  
- *  Dependence graph definition.
- *
- *  The dependence only contains memory dependency, but not SSA dependency, which 
- *  is already provided from Instruction *.
- *
- *
- */
+//===- DependenceGraph.h - Dependence graph for a function ------*- C++ -*-===//
+// 
+//                     The LLVM Compiler Infrastructure
+//
+// This file was developed by the LLVM research group and is distributed under
+// the University of Illinois Open Source License. See LICENSE.TXT for details.
+// 
+//===----------------------------------------------------------------------===//
+//
+// This file provides an explicit representation for the dependence graph
+// of a function, with one node per instruction and one edge per dependence.
+// Dependences include both data and control dependences.
+// 
+// Each dep. graph node (class DepGraphNode) keeps lists of incoming and
+// outgoing dependence edges.
+// 
+// Each dep. graph edge (class Dependence) keeps a pointer to one end-point
+// of the dependence.  This saves space and is important because dep. graphs
+// can grow quickly.  It works just fine because the standard idiom is to
+// start with a known node and enumerate the dependences to or from that node.
+//
+//===----------------------------------------------------------------------===//
 
-#ifndef __DEPENDENCEGRAPH_H_
-#define __DEPENDENCEGRAPH_H_
+#ifndef LLVM_ANALYSIS_DEPENDENCEGRAPH_H
+#define LLVM_ANALYSIS_DEPENDENCEGRAPH_H
 
-#include "llvm/Instruction.h"
+#include <cassert>
+#include <iosfwd>
+#include <utility>
+#include <vector>
+#include <map>
+#include <set>
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Casting.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/Instruction.h"
 
-#include "graph/Graph.h"
-#include "graph/Container.h"
-#include "graph/DFSIter.h"
-#include "dependence/Dependence.h"
 
 namespace llvm {
 
-/// Dependence graph node, essentially Instruction, with MemDepType as edge type
-typedef GraphNode<Instruction *, MemDepType> DepNode;
-typedef Graph<Instruction *, MemDepType> DependenceGraph;
-typedef DFSIterator<Instruction *, MemDepType> DepDFSIter;
+unsigned getInstLine(const Instruction &I);
+class Instruction;
+class Function;
+class Dependence;
+class DepGraphNode;
+class DependenceGraph;
 
-typedef Node<Instruction *> InstNode;
-
-typedef MapGraphBase<Instruction *> MemDepGraph;
-
-
-template<>
-struct NodeConcept<InstNode> {
-  typedef Instruction * NodeValTy;
-  inline static NodeValTy getNodeVal(InstNode * node)
-  {
-    return node->getNodeVal();
-  }
-
+//----------------------------------------------------------------------------
+/// enum DependenceType - The standard data dependence types
+///
+enum DependenceType {
+  NoDependence       = 0x0,
+  TrueDependence     = 0x1,
+  AntiDependence     = 0x2,
+  OutputDependence   = 0x4,
+  ControlDependence  = 0x8,         // from a terminator to some other instr.
+  IncomingFlag       = 0x10         // is this an incoming or outgoing dep?
 };
 
-template<>
-struct GraphConcept<MemDepGraph>
-{
-  typedef MemDepGraph::NodeType NodeType;
-  typedef MemDepGraph::node_iterator node_iterator;
-  typedef MemDepGraph::in_iterator in_iterator;
-  typedef MemDepGraph::out_iterator out_iterator;
+//----------------------------------------------------------------------------
+/// Dependence Class - A representation of a simple (non-loop-related)
+/// dependence.
+///
+class Dependence {
+  DepGraphNode*   toOrFromNode;
+  unsigned char  depType;
 
-  static node_iterator node_begin(MemDepGraph *graph)
-  {
-    return graph->begin();
+public:
+  Dependence(DepGraphNode* toOrFromN, DependenceType type, bool isIncoming)
+    : toOrFromNode(toOrFromN),
+      depType(type | (isIncoming? IncomingFlag : 0x0)) { }
+
+  Dependence(const Dependence& D) : toOrFromNode(D.toOrFromNode),
+      depType(D.depType) { }
+
+  bool operator==(const Dependence& D) const {
+    return toOrFromNode == D.toOrFromNode && depType == D.depType;
   }
-  static node_iterator node_end(MemDepGraph *graph)
-  {
-    return graph->end();
+
+  bool operator<(const Dependence& D) const; 
+
+  /// Get information about the type of dependence.
+  /// 
+  unsigned getDepType() const {
+    return depType;
   }
-  static in_iterator in_begin(MemDepGraph *graph, NodeType *node) 
-  {
-    return node->in_begin();
+
+  /// Get source or sink depending on what type of node this is!
+  /// 
+  DepGraphNode* getSrc() {
+    assert(depType & IncomingFlag); return toOrFromNode;
   }
-  static in_iterator in_end(MemDepGraph *graph, NodeType *node)
-  {
-    return node->in_end();
+  const DepGraphNode* getSrc() const {
+    assert(depType & IncomingFlag); return toOrFromNode;
   }
-  static out_iterator out_begin(MemDepGraph *graph, NodeType *node)
-  {
-    return node->out_begin();
+
+  DepGraphNode* getSink() {
+    assert(! (depType & IncomingFlag)); return toOrFromNode;
   }
-  static out_iterator out_end(MemDepGraph *grap, NodeType *node)
-  {
-    return node->out_end();
+  const DepGraphNode* getSink() const {
+    assert(! (depType & IncomingFlag)); return toOrFromNode;
   }
+
+  /// Debugging support methods
+  /// 
+  void print(raw_ostream &O) const;
+
+  // Default constructor: Do not use directly except for graph builder code
+  // 
+  Dependence() : toOrFromNode(NULL), depType(NoDependence) { }
 };
 
-template<>
-struct NodeConcept<Instruction> {
-  typedef Instruction NodeType;
-  typedef Instruction * NodeValTy;
-  // this is weird, but we simply return node ptr as value here
-  inline static NodeValTy getNodeVal(NodeType * node) 
-  {
-    return node; 
-  }
-  inline static void print(raw_ostream &OS, NodeType * node)
-  {
-    if (node == NULL)
-      return;
-    OS << *node << "\n";
-  }
+#ifdef SUPPORTING_LOOP_DEPENDENCES
+struct LoopDependence: public Dependence {
+  DependenceDirection dir;
+  int                 distance;
+  short               level;
+  LoopInfo*           enclosingLoop;
+};
+#endif
 
-  static void print_full(raw_ostream &OS, NodeType * node)
-  {
-    if (node == NULL)
-      return;
-    OS << "|";
-    print(OS, node);
-    Instruction * inst;
-    OS << "In:\n";
-    Instruction::op_iterator OI = node->op_begin();
-    Instruction::op_iterator OE = node->op_end();
-    while(OI != OE) {
-      if ((inst = dyn_cast<Instruction>(*OI)) != NULL) {
-        OS << " <";
-        print(OS, inst);
-      }
-      ++OI;
-    }
-    OS << "Out:\n";
-    Instruction::use_iterator UI = node->use_begin();
-    Instruction::use_iterator UE = node->use_end();
-    while(UI != UE) {
-      OS << " >";
-      if ((inst = dyn_cast<Instruction>(*UI)) != NULL)
-        print(OS, inst);
-      ++UI;
-    }
-  }
+
+//----------------------------------------------------------------------------
+/// DepGraphNode Class - A representation of a single node in a dependence
+/// graph, corresponding to a single instruction.
+///
+class DepGraphNode {
+  Instruction*  instr;
+  std::vector<Dependence>  inDeps;
+  std::vector<Dependence>  outDeps;
+  // std::set<Dependence> inDeps;
+  // std::set<Dependence> outDeps;
+  friend class DependenceGraph;
+  
+public:
+  typedef std::vector<Dependence>::iterator  iterator;
+  typedef std::vector<Dependence>::const_iterator  const_iterator;
+  // typedef std::set<Dependence>::iterator iterator;
+  // typedef std::set<Dependence>::const_iterator const_iterator;
+
+        iterator inDepBegin()        { return inDeps.begin(); }
+  const_iterator inDepBegin()  const { return inDeps.begin(); }
+        iterator inDepEnd()          { return inDeps.end();   }
+  const_iterator inDepEnd()    const { return inDeps.end();   }
+  
+        iterator outDepBegin()       { return outDeps.begin(); }
+  const_iterator outDepBegin() const { return outDeps.begin(); }
+        iterator outDepEnd()         { return outDeps.end();   }
+  const_iterator outDepEnd()   const { return outDeps.end();   }
+
+  DepGraphNode(Instruction& I) : instr(&I) { }
+
+        Instruction& getInstr()       { return *instr; }
+  const Instruction& getInstr() const { return *instr; }
+
+  /// Debugging support methods
+  /// 
+  void print(raw_ostream &O) const;
 };
 
-// We don't really need a graph to store SSA dependence
-class SSADepGraph 
-{
-  public:
-    class in_iterator: public iterator_adapter<Instruction::op_iterator>  {
-      typedef iterator_adapter<Instruction::op_iterator> super;
-      public:
-        in_iterator() : super() {}
-        in_iterator(const Instruction::op_iterator & oi) : super(oi) {}
-        Instruction *operator*() const
-        {
-          return dyn_cast<Instruction>(*this->_current);
-        }
-    };
-    class out_iterator: public iterator_adapter<Instruction::use_iterator>  {
-      typedef iterator_adapter<Instruction::use_iterator> super;
-      public:
-        out_iterator() : super() {}
-        out_iterator(const Instruction::use_iterator & ui) : super(ui) {}
-        Instruction *operator*() const
-        {
-          return dyn_cast<Instruction>(*this->_current);
-        }
-    };
 
-    // Since SSADepGraph is a dummy graph with no nodes
-    // We rely on other concrete instruction graph to pass 
-    // the nodes for it to print
-    template<typename InstGraph>
-    void print(raw_ostream & OS, InstGraph * graph, bool full = true)
-    {
-      // no need to do print by ourselves if it's not full print
-      if (!full) {
-        graph->print(OS, full);
-        return;
-      }
-      typedef typename GraphConcept<InstGraph>::node_iterator node_iterator;
-      node_iterator I = GraphConcept<InstGraph>::node_begin(graph);
-      node_iterator E = GraphConcept<InstGraph>::node_end(graph);
-      while (I != E) {
-        Instruction * inst= NodeConcept<InstNode>::getNodeVal(*I);
-        NodeConcept<Instruction>::print_full(OS, inst);
-        ++I;
-      }
-    }
+//----------------------------------------------------------------------------
+/// DependenceGraph Class - A representation of a dependence graph for a
+/// procedure. The primary query operation here is to look up a DepGraphNode for
+/// a particular instruction, and then use the in/out dependence iterators
+/// for the node.
+///
+class DependenceGraph {
+  DependenceGraph(const DependenceGraph&); // DO NOT IMPLEMENT
+  void operator=(const DependenceGraph&);  // DO NOT IMPLEMENT
+
+  typedef std::map<Instruction*, DepGraphNode*> DepNodeMapType;
+  typedef DepNodeMapType::iterator       map_iterator;
+  typedef DepNodeMapType::const_iterator const_map_iterator;
+
+  DepNodeMapType depNodeMap;
+
+  inline DepGraphNode* getNodeInternal(Instruction& inst,
+                                       bool createIfMissing = false) {
+    map_iterator I = depNodeMap.find(&inst);
+    if (I == depNodeMap.end())
+      return (!createIfMissing)? NULL :
+        depNodeMap.insert(
+            std::make_pair(&inst, new DepGraphNode(inst))).first->second;
+    else
+      return I->second;
+  }
+
+public:
+  typedef std::vector<Dependence>::iterator iterator;
+  typedef std::vector<Dependence>::const_iterator const_iterator;
+  // typedef std::set<Dependence>::iterator iterator;
+  // typedef std::set<Dependence>::const_iterator const_iterator;
+
+public:
+  DependenceGraph() { }
+  ~DependenceGraph();
+
+  /// Get the graph node for an instruction.  There will be one if and
+  /// only if there are any dependences incident on this instruction.
+  /// If there is none, these methods will return NULL.
+  /// 
+  DepGraphNode* getNode(Instruction& inst, bool createIfMissing = false) {
+    return getNodeInternal(inst, createIfMissing);
+  }
+  const DepGraphNode* getNode(const Instruction& inst) const {
+    return const_cast<DependenceGraph*>(this)
+      ->getNodeInternal(const_cast<Instruction&>(inst));
+  }
+
+  iterator inDepBegin(DepGraphNode& T) {
+    return T.inDeps.begin();
+  }
+  const_iterator inDepBegin (const DepGraphNode& T) const {
+    return T.inDeps.begin();
+  }
+
+  iterator inDepEnd(DepGraphNode& T) {
+    return T.inDeps.end();
+  }
+  const_iterator inDepEnd(const DepGraphNode& T) const {
+    return T.inDeps.end();
+  }
+
+  iterator outDepBegin(DepGraphNode& F) {
+    return F.outDeps.begin();
+  }
+  const_iterator outDepBegin(const DepGraphNode& F) const {
+    return F.outDeps.begin();
+  }
+
+  iterator outDepEnd(DepGraphNode& F) {
+    return F.outDeps.end();
+  }
+  const_iterator outDepEnd(const DepGraphNode& F) const {
+    return F.outDeps.end();
+  }
+
+  /// Debugging support methods
+  /// 
+  void print(const Function& func, raw_ostream &O) const;
+
+public:
+  /// AddSimpleDependence - adding and modifying the dependence graph.
+  /// These should to be used only by dependence analysis implementations.
+  ///
+  void AddSimpleDependence(Instruction& fromI, Instruction& toI,
+                           DependenceType depType) {
+    DepGraphNode* fromNode = getNodeInternal(fromI, /*create*/ true);
+    DepGraphNode* toNode   = getNodeInternal(toI,   /*create*/ true);
+    fromNode->outDeps.push_back(Dependence(toNode, depType, false));
+    toNode->inDeps. push_back(Dependence(fromNode, depType, true));
+    // fromNode->outDeps.insert(Dependence(toNode, depType, false));
+    // toNode->inDeps.insert(Dependence(fromNode, depType, true));
+  }
+
+#ifdef SUPPORTING_LOOP_DEPENDENCES
+  // This interface is a placeholder to show what information is needed.
+  // It will probably change when it starts being used.
+  void AddLoopDependence(Instruction&  fromI,
+                         Instruction&  toI,
+                         DependenceType      depType,
+                         DependenceDirection dir,
+                         int                 distance,
+                         short               level,
+                         LoopInfo*           enclosingLoop);
+#endif // SUPPORTING_LOOP_DEPENDENCES
 };
 
-template<>
-struct GraphConcept<SSADepGraph>
-{
-  typedef Instruction NodeType;
-  typedef SSADepGraph::in_iterator in_iterator;
-  typedef SSADepGraph::out_iterator out_iterator;
+} // End llvm namespace
 
-  // DON'T SUPPORT THE FOLLOWING
-  //
-  // static node_iterator node_begin(SSADepGraph *graph);
-  // static node_iterator node_end(SSADepGraph *graph);
-
-  static in_iterator in_begin(SSADepGraph *graph, NodeType *node) 
-  {
-    return in_iterator(node->op_begin());
-  }
-  static in_iterator in_end(SSADepGraph *graph, NodeType *node)
-  {
-    return in_iterator(node->op_end());
-  }
-  static out_iterator out_begin(SSADepGraph *graph, NodeType *node)
-  {
-    return out_iterator(node->use_begin());
-  }
-  static out_iterator out_end(SSADepGraph *grap, NodeType *node)
-  {
-    return out_iterator(node->use_end());
-  }
-};
-
-class DepGraph {
-  public:
-    MemDepGraph * mem_graph;
-    SSADepGraph * ssa_graph;
-    DepGraph(MemDepGraph * mem_graph = NULL, SSADepGraph * ssa_graph = NULL)
-      : mem_graph(mem_graph), ssa_graph(ssa_graph) {}
-    ~DepGraph()
-    {
-      if (mem_graph != NULL)
-        delete mem_graph;
-      if (ssa_graph != NULL)
-        delete ssa_graph;
-    }
-    
-    void print(raw_ostream &OS)
-    {
-      if (mem_graph != NULL) {
-        OS << "===========\n";
-        OS << "Memory Dependence Graph\n";
-        OS << "===========\n";
-        mem_graph->print(OS);
-        OS << "\n\n";
-        // Only print SSA graph when there's memory dependence graph
-        if (ssa_graph != NULL) { 
-          OS << "===========\n";
-          OS << "SSA Dependence Graph\n";
-          OS << "===========\n";
-          ssa_graph->print(OS, mem_graph);
-          OS << "===========\n";
-        }
-      }
-    }
-};
-
-} //End of llvm namespace
-
-
-#endif /* __DEPENDENCEGRAPH_H_ */
+#endif

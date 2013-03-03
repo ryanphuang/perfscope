@@ -1,13 +1,9 @@
-##===- projects/sample/lib/Makefile ------------------------*- Makefile -*-===##
+##===- lib/mapper/Makefile -----------------------*- Makefile -*-===##
 
-#
-# Relative path to the top of the source tree.
-#
-LEVEL=../..
+LEVEL = ../..
+LIBRARYNAME = mappercore
 
-#
-# List all of the subdirectories that we will compile.
-#
-DIRS=Helper Analysis
+USEDLIBS = commons.a
 
 include $(LEVEL)/Makefile.common
+

@@ -15,12 +15,13 @@
 #ifndef _LLVM_DIFFERENCE_ENGINE_H_
 #define _LLVM_DIFFERENCE_ENGINE_H_
 
+#include <utility>
+
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
-#include "mapper/DiffLog.h"
-#include "mapper/DiffConsumer.h"
 
-#include <utility>
+#include "analyzer/DiffLog.h"
+#include "analyzer/DiffConsumer.h"
 
 namespace llvm {
   class Function;

@@ -24,7 +24,7 @@
 #include "llvm/Function.h"
 #include "llvm/Analysis/DebugInfo.h"
 
-#include "mapper/DependenceGraph.h"
+#include "dependence/DependenceGraph.h"
 
 namespace llvm {
 

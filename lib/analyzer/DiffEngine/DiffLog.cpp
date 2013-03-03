@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "mapper/DiffLog.h"
-#include "mapper/DiffConsumer.h"
-
 #include "llvm/Instructions.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+
+#include "analyzer/DiffLog.h"
+#include "analyzer/DiffConsumer.h"
 
 using namespace llvm;
 

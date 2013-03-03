@@ -7,7 +7,7 @@
 # 
 ##===----------------------------------------------------------------------===##
 
-LEVEL = ../../../..
+LEVEL = ../..
 LIBRARYNAME = datastructure
 
 #Bah. Confirmed on llvm-dev, there's no good way for us to do this.

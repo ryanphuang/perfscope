@@ -40,7 +40,7 @@
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 
 #include "dependence/DepIter.h"
-#include "dependence/DependenceGraph.h"
+#include "dependence/DepGraph.h"
 #include "dependence/DepGraphBuilder.h"
 #include "slicer/Slicer.h"
 

@@ -11,11 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "mapper/DiffConsumer.h"
-
 #include "llvm/Module.h"
 #include "llvm/Instructions.h"
 #include "llvm/Support/ErrorHandling.h"
+
+#include "analyzer/DiffConsumer.h"
 
 using namespace llvm;
 
