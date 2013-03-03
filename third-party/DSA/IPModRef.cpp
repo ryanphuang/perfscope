@@ -19,9 +19,9 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 
-#include "mapper/dsa/IPModRef.h"
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/DSGraph.h"
+#include "dsa/IPModRef.h"
+#include "dsa/DataStructure.h"
+#include "dsa/DSGraph.h"
 
 namespace llvm {
 Function *gFunc = NULL;

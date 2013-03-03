@@ -14,18 +14,19 @@
 #ifndef LLVM_ANALYSIS_DSNODE_H
 #define LLVM_ANALYSIS_DSNODE_H
 
+#include <map>
+#include <set>
+
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/ilist_node.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "mapper/dsa/svset.h"
-#include "mapper/dsa/super_set.h"
-#include "mapper/dsa/keyiterator.h"
-#include "mapper/dsa/DSGraph.h"
-#include "mapper/dsa/DSSupport.h"
 
-#include <map>
-#include <set>
+#include "dsa/svset.h"
+#include "dsa/super_set.h"
+#include "dsa/keyiterator.h"
+#include "dsa/DSGraph.h"
+#include "dsa/DSSupport.h"
 
 namespace llvm {
 

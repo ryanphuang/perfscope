@@ -8,7 +8,7 @@
 #ifndef _SUPER_SET_H
 #define	_SUPER_SET_H
 
-#include "mapper/dsa/svset.h"
+#include "dsa/svset.h"
 #include <set>
 
 // Contains stable references to a set

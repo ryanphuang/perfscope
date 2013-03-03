@@ -14,11 +14,11 @@
 #ifndef LLVM_ANALYSIS_DATA_STRUCTURE_H
 #define LLVM_ANALYSIS_DATA_STRUCTURE_H
 
-#include "mapper/dsa/DSCallGraph.h"
-#include "mapper/dsa/svset.h"
-#include "mapper/dsa/super_set.h"
-#include "mapper/dsa/AddressTakenAnalysis.h"
-#include "mapper/dsa/AllocatorIdentification.h"
+#include "dsa/DSCallGraph.h"
+#include "dsa/svset.h"
+#include "dsa/super_set.h"
+#include "dsa/AddressTakenAnalysis.h"
+#include "dsa/AllocatorIdentification.h"
 
 #include "llvm/Pass.h"
 #include "llvm/Target/TargetData.h"

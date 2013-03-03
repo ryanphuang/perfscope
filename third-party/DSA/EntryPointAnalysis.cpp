@@ -24,7 +24,7 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/Debug.h"
 
-#include "mapper/dsa/EntryPointAnalysis.h"
+#include "dsa/EntryPointAnalysis.h"
 
 using namespace llvm;
 

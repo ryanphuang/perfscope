@@ -27,7 +27,7 @@
 #include <vector>
 #include <string>
 
-#include "mapper/dsa/AllocatorIdentification.h"
+#include "dsa/AllocatorIdentification.h"
 
 using namespace llvm;
 

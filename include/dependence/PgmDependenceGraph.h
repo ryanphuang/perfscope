@@ -52,8 +52,8 @@
 #include "llvm/Instruction.h"
 #include "llvm/Pass.h"
 
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/IPModRef.h"
+#include "dsa/DataStructure.h"
+#include "dsa/IPModRef.h"
 #include "DependenceGraph.h"
 
 template<class Ty, class PtrDiffTy>

@@ -16,12 +16,12 @@
 #ifndef DSA_TYPESAFETY_H
 #define DSA_TYPESAFETY_H
 
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/DSGraph.h"
+#include <set>
 
 #include "llvm/Pass.h"
 
-#include <set>
+#include "dsa/DataStructure.h"
+#include "dsa/DSGraph.h"
 
 using namespace llvm;
 

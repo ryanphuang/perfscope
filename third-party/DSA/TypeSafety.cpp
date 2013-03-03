@@ -22,7 +22,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/ADT/Statistic.h"
 
-#include "mapper/dsa/TypeSafety.h"
+#include "dsa/TypeSafety.h"
 
 static RegisterPass<dsa::TypeSafety<EQTDDataStructures> >
 X ("typesafety-eqtd", "Find type-safe pointers");

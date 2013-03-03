@@ -16,11 +16,12 @@
 #ifndef LLVM_ANALYSIS_DSGRAPHTRAITS_H
 #define LLVM_ANALYSIS_DSGRAPHTRAITS_H
 
-#include "mapper/dsa/DSGraph.h"
+#include <iterator>
+
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/STLExtras.h"
 
-#include <iterator>
+#include "dsa/DSGraph.h"
 
 namespace llvm {
 

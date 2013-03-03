@@ -18,15 +18,17 @@
 //===----------------------------------------------------------------------===//
 
 #include <ostream>
+
 #include "llvm/Module.h"
 #include "llvm/Instructions.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Constants.h"
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/DSGraph.h"
-#include "mapper/dsa/CallTargets.h"
+
+#include "dsa/DataStructure.h"
+#include "dsa/DSGraph.h"
+#include "dsa/CallTargets.h"
 using namespace llvm;
 
 RegisterPass<dsa::CallTargetFinder<EQTDDataStructures> > X("calltarget-eqtd","Find Call Targets (uses DSA-EQTD)");

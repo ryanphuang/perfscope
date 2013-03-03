@@ -28,7 +28,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CallSite.h"
 
-#include "mapper/dsa/AddressTakenAnalysis.h"
+#include "dsa/AddressTakenAnalysis.h"
 
 using namespace llvm;
 

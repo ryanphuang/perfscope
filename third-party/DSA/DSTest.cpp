@@ -43,10 +43,11 @@
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/Assembly/Writer.h"
 
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/DSGraph.h"
-#include "mapper/dsa/DSNode.h"
-#include "mapper/dsa/DSCallGraph.h"
+#include "dsa/DataStructure.h"
+#include "dsa/DSGraph.h"
+#include "dsa/DSNode.h"
+#include "dsa/DSCallGraph.h"
+
 using namespace llvm;
 
 namespace {

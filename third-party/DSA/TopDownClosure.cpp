@@ -22,8 +22,8 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/ADT/Statistic.h"
 
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/DSGraph.h"
+#include "dsa/DataStructure.h"
+#include "dsa/DSGraph.h"
 using namespace llvm;
 
 #define TIME_REGION(VARNAME, DESC)

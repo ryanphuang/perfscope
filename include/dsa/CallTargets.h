@@ -15,13 +15,13 @@
 #ifndef LLVM_ANALYSIS_CALLTARGETS_H
 #define LLVM_ANALYSIS_CALLTARGETS_H
 
-#include "llvm/Pass.h"
-#include "llvm/Support/CallSite.h"
-#include "mapper/dsa/DataStructure.h"
-
 #include <set>
 #include <list>
 #include <map>
+
+#include "llvm/Pass.h"
+#include "llvm/Support/CallSite.h"
+#include "dsa/DataStructure.h"
 
 using namespace llvm;
 namespace dsa{

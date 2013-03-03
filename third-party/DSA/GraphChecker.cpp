@@ -29,8 +29,8 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Value.h"
 
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/DSGraph.h"
+#include "dsa/DataStructure.h"
+#include "dsa/DSGraph.h"
 using namespace llvm;
 
 namespace {

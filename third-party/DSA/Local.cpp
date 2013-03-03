@@ -33,8 +33,8 @@
 #include "llvm/ADT/Triple.h"
 #include "llvm/Module.h"
 
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/DSGraph.h"
+#include "dsa/DataStructure.h"
+#include "dsa/DSGraph.h"
 
 // FIXME: This should eventually be a FunctionPass that is automatically
 // aggregated into a Pass.

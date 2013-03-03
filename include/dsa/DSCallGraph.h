@@ -14,15 +14,15 @@
 #ifndef LLVM_DSCALLGRAPH_H
 #define	LLVM_DSCALLGRAPH_H
 
-#include "mapper/dsa/svset.h"
-#include "mapper/dsa/keyiterator.h"
-
 #include <cstddef>
+#include <cassert>
+#include <map>
+
 #include "llvm/ADT/EquivalenceClasses.h"
 #include "llvm/Support/CallSite.h"
 
-#include <cassert>
-#include <map>
+#include "dsa/svset.h"
+#include "dsa/keyiterator.h"
 
 class DSCallGraph {
 public:

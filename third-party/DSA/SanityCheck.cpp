@@ -16,8 +16,8 @@
 #include "llvm/Instructions.h"
 #include "llvm/Module.h"
 
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/DSGraph.h"
+#include "dsa/DataStructure.h"
+#include "dsa/DSGraph.h"
 
 using namespace llvm;
 

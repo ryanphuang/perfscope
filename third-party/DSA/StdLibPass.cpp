@@ -25,9 +25,9 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/Module.h"
 
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/AllocatorIdentification.h"
-#include "mapper/dsa/DSGraph.h"
+#include "dsa/DataStructure.h"
+#include "dsa/AllocatorIdentification.h"
+#include "dsa/DSGraph.h"
 
 using namespace llvm;
 

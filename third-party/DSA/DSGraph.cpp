@@ -32,12 +32,12 @@
 #include "llvm/Type.h"
 #include "llvm/GlobalAlias.h"
 
-#include "mapper/dsa/DSGraphTraits.h"
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/DSGraph.h"
-#include "mapper/dsa/DSSupport.h"
-#include "mapper/dsa/DSNode.h"
-#include "mapper/dsa/stl_util.h"
+#include "dsa/DSGraphTraits.h"
+#include "dsa/DataStructure.h"
+#include "dsa/DSGraph.h"
+#include "dsa/DSSupport.h"
+#include "dsa/DSNode.h"
+#include "dsa/stl_util.h"
 using namespace llvm;
 
 #define COLLAPSE_ARRAYS_AGGRESSIVELY 0

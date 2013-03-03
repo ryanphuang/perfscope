@@ -15,14 +15,15 @@
 #ifndef LLVM_ANALYSIS_DSGRAPH_H
 #define LLVM_ANALYSIS_DSGRAPH_H
 
-#include "mapper/dsa/DSNode.h"
-#include "mapper/dsa/DSCallGraph.h"
-#include "llvm/ADT/EquivalenceClasses.h"
-#include "llvm/Function.h"
-
 #include <list>
 #include <map>
 #include <set>
+
+#include "llvm/ADT/EquivalenceClasses.h"
+#include "llvm/Function.h"
+
+#include "dsa/DSNode.h"
+#include "dsa/DSCallGraph.h"
 
 namespace llvm {
 

@@ -24,9 +24,9 @@
 #include "llvm/Config/config.h"
 #include "llvm/Support/FormattedStream.h"
 
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/DSGraph.h"
-#include "mapper/dsa/DSGraphTraits.h"
+#include "dsa/DataStructure.h"
+#include "dsa/DSGraph.h"
+#include "dsa/DSGraphTraits.h"
 using namespace llvm;
 
 // OnlyPrintMain - The DataStructure printer exposes this option to allow

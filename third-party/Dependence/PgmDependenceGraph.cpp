@@ -37,7 +37,7 @@
 
 #include "slicer/PDGSlicer.h"
 #include "dependence/PgmDependenceGraph.h"
-#include "mapper/dsa/DSGraph.h"
+#include "dsa/DSGraph.h"
 
 namespace llvm {
 

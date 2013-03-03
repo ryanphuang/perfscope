@@ -46,12 +46,14 @@
 #ifndef LLVM_ANALYSIS_IPMODREF_H
 #define LLVM_ANALYSIS_IPMODREF_H
 
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/BitSetVector.h"
+#include <map>
+
 #include "llvm/Value.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Pass.h"
-#include <map>
+
+#include "dsa/DataStructure.h"
+#include "dsa/BitSetVector.h"
 
 namespace llvm {
 

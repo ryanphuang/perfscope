@@ -18,9 +18,9 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/CommandLine.h"
 
-#include "mapper/dsa/DSCallGraph.h"
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/DSGraph.h"
+#include "dsa/DSCallGraph.h"
+#include "dsa/DataStructure.h"
+#include "dsa/DSGraph.h"
 
 using namespace llvm;
 

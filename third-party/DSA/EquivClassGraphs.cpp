@@ -27,8 +27,8 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/FormattedStream.h"
 
-#include "mapper/dsa/DSGraph.h"
-#include "mapper/dsa/DataStructure.h"
+#include "dsa/DSGraph.h"
+#include "dsa/DataStructure.h"
 using namespace llvm;
 
 namespace {

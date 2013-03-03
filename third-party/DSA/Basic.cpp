@@ -12,9 +12,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "mapper/dsa/DataStructure.h"
-#include "mapper/dsa/DSGraph.h"
-
 #include "llvm/Module.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Constants.h"
@@ -24,6 +21,9 @@
 #include "llvm/Support/InstVisitor.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/TypeBuilder.h"
+
+#include "dsa/DataStructure.h"
+#include "dsa/DSGraph.h"
 
 using namespace llvm;
 
