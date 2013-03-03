@@ -1,5 +1,10 @@
 This mainly holds the profile data.
 Format of a profile file is:
+  SECTION1
+  SECTION2
+  SECTION3
+  ...
+where SECTION is:
   ====
   TYPE
   ====
@@ -9,3 +14,19 @@ Format of a profile file is:
   ....
 where TYPE can be: SYSCALL, LOCKCALL, EXPCALL, FREQCALL meaning system call, pthread 
 libraries, expensive functions, frequent (primitive) functions.
+
+See mysql.profile for example.
+
+To construct a profile for a software. A typical way is to run performance testing
+for the software and then use `OProfile' or `perf' to get the list of expensive
+function calls. However, these calls could be either indeed expensive or because
+of executed many times (i.e., frequent functions). It is recommended to put them
+under EXPCALL section.
+
+Another way is to use our static cost profiler in tools/StaticProfiler.
+Example of its usage:
+
+  Debug+Asserts/bin/staticprofiler -o mysql.profile -m 100 -n 100 mysqld.bc
+
+It will analyze bitcode file mysqld.bc (compiled from clang) and output 
+the top 100 expensive and top 100 frequent functions to mysql.profile.
