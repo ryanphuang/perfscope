@@ -45,7 +45,8 @@ static Module *ReadModule(LLVMContext &Context, StringRef Name) {
 
 int main(int argc, char **argv) {
     if (argc <= 2) {
-        fprintf(stderr, "Usage: %s module1 module2\n", argv[0]);
+        fprintf(stderr, "Compare two modules and check if there are _literally_ equivalent.\n\n");
+        fprintf(stderr, "Usage: %s module1 module2\n\n", argv[0]);
         exit(1);
     }
 

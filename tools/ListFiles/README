@@ -1,0 +1,2 @@
+A helper module to list the source files names and paths in a given module.
+Usage: opt -load Debug+Asserts/lib/LLVMListFiles.so -listfiles test.bc

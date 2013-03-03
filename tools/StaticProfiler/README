@@ -1,0 +1,11 @@
+A helper tool to generate a list of expensive function or
+frequent functions using static analysis instead of dynamic
+profiling.
+
+It estimates a functions' expensiveness based on a static 
+cost model. Frequency of a function is estimated based on
+its number of call sites.
+
+Example of usage:
+
+  Debug+Asserts/bin/staticprofiler -o mysql.profile -m 100 -n 100 mysqld.bc

@@ -1,0 +1,2 @@
+Tool to decide if two modules are similar. It reuses and simplifies
+the llvm-diff implementation.

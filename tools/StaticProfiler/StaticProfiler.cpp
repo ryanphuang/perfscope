@@ -161,22 +161,33 @@ void static_profile(Module * module, CostModel * model)
 }
 
 static char const * option_help[] = {
-  " -o FILE\n\tOutput the generated profile to FILE file.",
-  " -a\n\tPrint all cost/hotness functions. Equivalent to `-m -1 -n -1`",
-  " -d\n\tInclude the cost/hotness detail along with the function name",
-  " -n NUM\n\tThe top NUM expensive functions to be printed.\n\tDefault 50. Negative NUM means print all.",
-  " -m NUM\n\tThe top NUM hot functions to be printed.\n\tDefault 50. Negative NUM means print all.",
-  " -h\n\tPrint this message.",
+  "-o FILE\n\tOutput the generated profile to FILE file.",
+  "-a\n\tPrint all cost/hotness functions. Equivalent to `-m -1 -n -1`",
+  "-d\n\tInclude the cost/hotness detail along with the function name",
+  "-n NUM\n\tThe top NUM expensive functions to be printed.\n\tDefault 50. Negative NUM means print all.",
+  "-m NUM\n\tThe top NUM hot functions to be printed.\n\tDefault 50. Negative NUM means print all.",
+  "-h\n\tPrint this message.",
   0
+};
+
+static char const * option_example[] = {
+  "-o mysql.profile -m 100 -n 100 mysqld.bc",
+  "-o mysql.profile.all -a mysqld.bc",
 };
 
 void usage(FILE *fp = stderr)
 {
   const char **p = option_help;
-  fprintf(fp, "Usage: %s [OPTIONS] MODULE", program_name);
-  fprintf(fp, "\n");
+  fprintf(fp, "A static profiler to estimate a list of expensive and frequent functions\n\n");
+  fprintf(fp, "Usage: %s [OPTIONS] MODULE\n\n", program_name);
   while (*p) {
-    fprintf(fp, "%s\n\n", *p);
+    fprintf(fp, "  %s\n\n", *p);
+    p++;
+  }
+  p = option_example;
+  fprintf(fp, "Examples:\n\n");
+  while (*p) {
+    fprintf(fp, "  %s %s\n\n", program_name, *p);
     p++;
   }
 }

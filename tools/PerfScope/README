@@ -1,0 +1,6 @@
+The main tool which implements Performance Risk Analysis (PRA).
+Invokes Debug+Asserts/bin/perfscope -h for help in usage.
+
+Example of usage:
+  Debug+Asserts/bin/perfscope -a test/cases/loop.1.new.s -m7 test/cases/loop.1.diff.id
+  Debug+Asserts/bin/perfscope -a test/cases/ptest.new.s -m7 test/cases/ptest.diff.id

@@ -296,11 +296,11 @@ void analyze(char *input)
 
 static char const * option_help[] =
 {
-  " -b FILE1,FILE2,...\n\tA comma separated list of bc files from before-revision source code.",
-  " -a FILE1,FILE2,...\n\tA comma separated list of bc files from after-revision source code.",
-  " -p LEN\n\tLevel of components to be striped of the path inside the patch file.",
-  " -m LEN\n\tLevel of components to be striped of the path inside the module file.",
-  " -e FILE\n\tProfile file containing segments of different hot function calls.\n\t\t"
+  "-b FILE1,FILE2,...\n\tA comma separated list of bc files from before-revision source code.",
+  "-a FILE1,FILE2,...\n\tA comma separated list of bc files from after-revision source code.",
+  "-p LEN\n\tLevel of components to be striped of the path inside the patch file.",
+  "-m LEN\n\tLevel of components to be striped of the path inside the module file.",
+  "-e FILE\n\tProfile file containing segments of different hot function calls.\n\t\t"
              "Format of the profile is:\n\t\t"
              PROFILE_SEGMENT_BEGIN 
              "\n\t\t"
@@ -315,18 +315,32 @@ static char const * option_help[] =
              "\n\t\t"
              PROFILE_SEGMENT_END 
              "\n\t\tFUNCTION NAME\n\t\t...",
-  " -L LEVEL\n\tSpecify the level of analysis",
-  " -h\n\tPrint this message.",
+  "-L LEVEL\n\tSpecify the level of analysis",
+  "-h\n\tPrint this message.",
+  0
+};
+
+static char const * option_example[] =
+{
+  "-a test/cases/loop.1.new.s -m7 test/cases/loop.1.diff.id",
+  "-a test/cases/ptest.new.s -m7 test/cases/ptest.diff.id",
   0
 };
 
 void usage(FILE *fp = stderr)
 {
   const char **p = option_help;
-  fprintf(fp, "Usage: %s OPTIONS IDFILE", program_name);
-  fprintf(fp, "\n");
+  fprintf(fp, "A PRA(Performance Risk Analysis) tool that evaluates the performance\n");
+  fprintf(fp, "risk of a given code change in introducing performance regression.\n\n");
+  fprintf(fp, "Usage: %s OPTIONS IDFILE\n\n", program_name);
   while (*p) {
-    fprintf(fp, "%s\n\n", *p);
+    fprintf(fp, "  %s\n\n", *p);
+    p++;
+  }
+  p = option_example;
+  fprintf(fp, "Examples:\n\n");
+  while (*p) {
+    fprintf(fp, "  %s %s\n\n", program_name, *p);
     p++;
   }
 }
