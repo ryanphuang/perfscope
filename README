@@ -3,18 +3,16 @@ patch's performance impact to existing source repository.
 
 PerfScope is a research project from the [Opera Research Group](http://opera.ucs.edu) 
 in University of California, San Diego. It consists of several parts to operate:
-- Parser: parse the patch file for information like what's the file(s) that's modified,
+- Parser: parses the patch file for information like what's the file(s) that's modified,
     which location does it lie, etc.
-- Mapper: map the change location in source file to the corresponding programming constructs.
-- Resolver: resolve the dependencies among the modifications.
-- Analyzer: analyze the change(s)' performance impact
-- TestDB: a particular use case of PerfScope: prioritize performance testing based on the impact
-    analysis result. This module will also keep track of each performance testing execution
-    information to help do test selection.
-
-PerfScope borrows some code from GNU 'Patch' open source project and is free software: 
-you can redistribute it and/or modify it under the terms of the GNU General Public License 
-as published by the Free Software Foundation; either version 2, or (at your option)
-any later version.
+- Mapper: maps the change location in source file to the corresponding programming constructs.
+- Filter: prunes out insignificant changes such as stylish changes or renaming. The 
+    main tool is tools/PerfDiff which takes before-revision and after-revision programs 
+    and checks if the changes are trivial.
+- Profile Database: contains a list of frequent or expensive functions. White-list functions
+    can also be added to the profile.
+- Analyzer: performs Performance Risk Analysis (PRA) on given commit.
+- TestDB: tracks performance test cases  execution information to further recommend 
+    which test case may be useful to uncover the performance regression issues.
 
 For bug report or any other suggestion, please contact ryanhuang@cs.ucsd.edu.

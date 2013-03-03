@@ -4,3 +4,9 @@ other projects of good quality.
 
 This directory holds the external source code we used from
 1. GNU patch program
+2. DSA (data structure analysis) 
+3. Program Dependence Graph
+
+2. and 3. are based on LLVM poolalloc project https://llvm.org/viewvc/llvm-project/poolalloc
+with slight modifications. They were used in early stage of PerfScope to quickly try 
+slicing. Now we reimplement the dependence graph and these two are therefore deprecated.
