@@ -1,0 +1,11 @@
+This mainly holds the profile data.
+Format of a profile file is:
+  ====
+  TYPE
+  ====
+  func1
+  func2
+  func3
+  ....
+where TYPE can be: SYSCALL, LOCKCALL, EXPCALL, FREQCALL meaning system call, pthread 
+libraries, expensive functions, frequent (primitive) functions.
