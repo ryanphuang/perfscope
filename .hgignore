@@ -1,11 +1,8 @@
 Debug\+Asserts
 autom4te.cache
-autoconf/configure.ac
-autoconf/configure.bak
-^configure$
+configure.bak
 config.log
 config.status
 ^Makefile.common$
-^Makefile$
 .*\.swp$
 .git

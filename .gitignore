@@ -1,11 +1,8 @@
 Debug\+Asserts
 autom4te.cache
-autoconf/configure.ac
 autoconf/configure.bak
-/configure
 config.log
 config.status
-/Makefile.common
-/Makefile
+Makefile.common
 .*\.swp$
 .hg
