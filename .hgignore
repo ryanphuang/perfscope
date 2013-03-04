@@ -1,8 +1,9 @@
 Debug\+Asserts
 autom4te.cache
-configure
 config.log
 config.status
+configure.bak
 Makefile.common
+/Makefile
 .*\.swp$
 .git
