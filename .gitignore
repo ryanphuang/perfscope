@@ -4,5 +4,6 @@ config.log
 config.status
 configure.bak
 Makefile.common
+/Makefile
 .*\.swp$
 .hg
