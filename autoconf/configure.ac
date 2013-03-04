@@ -1,7 +1,7 @@
 dnl **************************************************************************
 dnl * Initialize
 dnl **************************************************************************
-AC_INIT([slicing],[0.11],[ryanhuang@cs.ucsd.edu])
+AC_INIT([perfscope],[1.0],[ryanhuang@cs.ucsd.edu])
 
 dnl Identify where LLVM source tree is
 LLVM_SRC_ROOT=
@@ -23,11 +23,10 @@ dnl Verify that the source directory is valid
 AC_CONFIG_SRCDIR(["Makefile.common.in"])
 
 dnl Configure a common Makefile
-AC_CONFIG_FILES(Makefile.common)
+AC_CONFIG_FILES(Makefile Makefile.common)
 
 dnl Configure project makefiles
 dnl List every Makefile that exists within your source tree
-AC_CONFIG_MAKEFILE(Makefile)
 AC_CONFIG_MAKEFILE(lib/Makefile)
 AC_CONFIG_MAKEFILE(tools/Makefile)
 AC_CONFIG_MAKEFILE(test/Makefile)

@@ -45,8 +45,9 @@ else
   src_tmp=$(grep "^LLVM_SRC_ROOT" configure.ac | awk -F"=" '{print $2}')
   obj_tmp=$(grep "^LLVM_OBJ_ROOT" configure.ac | awk -F"=" '{print $2}')
   if [ ! -z "$src_tmp" ] && [ ! -z "$obj_tmp" ]; then
-    src_tmp="${src_tmp//\"}"
-    obj_tmp="${obj_tmp//\"}"
+    src_tmp=$(echo "$src_tmp" | sed -e 's/^"//' -e 's/"$//')
+    obj_tmp=$(echo "$obj_tmp" | sed -e 's/^"//' -e 's/"$//')
+    echo $src_tmp $obj_tmp
     if [ -d $src_tmp ] && [ -d $obj_tmp ]; then
       echo "Found LLVM source root at: $src_tmp" 
       cd $src_tmp
