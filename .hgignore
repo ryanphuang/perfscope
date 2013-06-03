@@ -3,6 +3,7 @@ autom4te.cache
 configure.bak
 config.log
 config.status
+^Makefile$
 ^Makefile.common$
 .*\.swp$
 .git
