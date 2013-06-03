@@ -1,0 +1,16 @@
+Requirement:
+  * LLVM 3.0 Source Tree or llvm-dev package.
+
+To build PerfScope, use
+    $ ./configure --with-llvmsrc=/path/to/llvm/src
+    If your obj direction is not the same as source tree location, add
+    `--with-llvmobj=/path/to/llvm/obj' to the above
+    $ make
+
+To avoid typing the --with-llvmsrc each invocation of configure, you can
+first run:
+    $ autoconf/AutoRegen.sh 
+to customize the configure script.
+    
+  
+
