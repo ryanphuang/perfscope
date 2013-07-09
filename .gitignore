@@ -4,5 +4,5 @@ autoconf/configure.bak
 config.log
 config.status
 Makefile.common
-.*\.swp$
+*.swp
 .hg
