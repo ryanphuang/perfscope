@@ -45,10 +45,10 @@ namespace llvm {
 //
 //-----------------------------------------------------------------------------------
 template <typename T>
-T * ptr(T & obj) { return &obj; }
+T * myptr(T & obj) { return &obj; }
 
 template <typename T>
-T * ptr(T * obj) { return obj; }
+T * myptr(T * obj) { return obj; }
 
 template <typename Node>
 struct NodeConcept {
@@ -100,7 +100,7 @@ class Node {
 
     virtual inline void print(raw_ostream &OS)
     {
-      OS << *ptr(val) << "\n"; // use ptr to support both pointer and reference val
+      OS << *myptr(val) << "\n"; // use myptr to support both pointer and reference val
     }
 
     virtual void print_full(raw_ostream &OS)
@@ -136,7 +136,7 @@ class Node {
 // Note: The NodeValTy in the template could be reference like int, or pointer like
 //       Instruction *. Most times, it doesn't matter. But when it do, such as print
 //       the value, if it's pointer we want to print the actual obj's value instead
-//       of the pointer itself. That's why in these cases, we wrap val with ptr
+//       of the pointer itself. That's why in these cases, we wrap val with myptr
 //-----------------------------------------------------------------------------------
 
 
@@ -177,7 +177,7 @@ class GraphNode {
 
     virtual inline void print(raw_ostream &O, bool newline = true)
     {
-      O << *ptr(val); // use ptr to support both pointer and reference val
+      O << *myptr(val); // use myptr to support both pointer and reference val
       if (newline) 
         O << "\n";
     }

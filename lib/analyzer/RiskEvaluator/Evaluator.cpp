@@ -69,7 +69,7 @@ inline void errind(int addition = 0)
 #endif
 
 #ifdef EVALUATOR_DEBUG
-static void eval_debug(llvm::Instruction * I)
+static void eval_debug(const llvm::Instruction * I)
 {
   std::string str;
   llvm::raw_string_ostream OS(str);
@@ -79,7 +79,7 @@ static void eval_debug(llvm::Instruction * I)
   printf("%s", p);
 }
 #else
-static void eval_debug(llvm::Instruction * I)
+static void eval_debug(const llvm::Instruction * I)
 {
 }
 #endif
@@ -146,7 +146,7 @@ bool DummyLoopInfo::runOnFunction(Function &F)
   return false;
 }
 
-RiskLevel RiskEvaluator::assess(Instruction *I, 
+RiskLevel RiskEvaluator::assess(const Instruction *I, 
       std::map<Loop *, unsigned> & LoopDepthMap, Hotness FuncHotness)
 {
   eval_debug(I);
@@ -161,7 +161,7 @@ RiskLevel RiskEvaluator::assess(Instruction *I,
   errind(2);
   if (exp != Expensive) {
     if (isa<BranchInst>(I)) {
-      BranchInst *BI = dyn_cast<BranchInst>(I);
+      const BranchInst *BI = dyn_cast<BranchInst>(I);
       if (isPerfSensitive(BI)) {
         exp = Expensive;
         eval_debug("sensitive branch instruction\n");
@@ -206,7 +206,7 @@ unsigned RiskEvaluator::getLoopDepth(Loop *L, std::map<Loop *, unsigned> & LoopD
   return count;
 }
 
-Hotness RiskEvaluator::calcInstHotness(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap)
+Hotness RiskEvaluator::calcInstHotness(const Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap)
 {
   assert(LocalLI && SE && "Require Loop information and ScalarEvolution");
   const BasicBlock * BB = I->getParent();
@@ -246,19 +246,19 @@ Hotness RiskEvaluator::calcFuncHotness(const char * funcName)
   return Regular;
 }
 
-Hotness RiskEvaluator::calcFuncHotness(Function * func)
+Hotness RiskEvaluator::calcFuncHotness(const Function * func)
 {
   if (func)
     return calcFuncHotness(cpp_demangle(func->getName().data()));
   return Cold;
 }
 
-Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
+Hotness RiskEvaluator::calcCallerHotness(const Function * func, int level)
 {
   if (func == NULL || level <= 0)
     return Cold;
-  SmallPtrSet<Function *, 4> visited;
-  typedef std::pair<Function *, int> FuncDep;
+  SmallPtrSet<const Function *, 4> visited;
+  typedef std::pair<const Function *, int> FuncDep;
   std::queue<FuncDep> bfsQueue;
   bfsQueue.push(std::make_pair(func, 1));
   eval_debug("Callers:\n");
@@ -296,14 +296,14 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
     }
     // Push to the queue and increment the depth
     for (; ci != ce; ++ci) {
-      Function *caller = ci->first;
+      const Function *caller = ci->first;
       if (visited.count(caller))
         continue;
       //TODO test if CallInst is in loop
       if (!caller->isDeclaration() && ci->second) {
         if (!loop_analyzed.count(caller)) {
           if (func_manager) {
-            func_manager->run(*caller);
+            func_manager->run(*(const_cast<Function *>(caller)));
             loop_analyzed.insert(caller);
           }
         }
@@ -311,7 +311,7 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
         eval_debug("called from %s [", cpp_demangle(caller->getName().data()));
         eval_debug(ci->second);
         eval_debug("], ");
-        BasicBlock * BB = ci->second->getParent();
+        const BasicBlock * BB = ci->second->getParent();
         if (GlobalLI->inLoop(caller, BB)) {
           eval_debug("in loop\n");
           return Hot;
@@ -328,11 +328,11 @@ Hotness RiskEvaluator::calcCallerHotness(Function * func, int level)
   return Regular;
 }
 
-Expensiveness RiskEvaluator::calcInstExp(Instruction * I)
+Expensiveness RiskEvaluator::calcInstExp(const Instruction * I)
 {
   Expensiveness exp = Minor;
   if (isa<CallInst>(I) || isa<InvokeInst>(I)) {
-    CallSite cs(I);
+    CallSite cs(const_cast<Instruction *>(I));
     Function *func = cs.getCalledFunction();
     if (func == NULL || func->isIntrinsic()) {
       #ifdef EVALUATOR_DEBUG
@@ -376,14 +376,14 @@ Expensiveness RiskEvaluator::calcFuncExp(const char * funcName)
   return Normal;
 }
 
-Expensiveness RiskEvaluator::calcFuncExp(Function * func)
+Expensiveness RiskEvaluator::calcFuncExp(const Function * func)
 {
   if (func)
     return calcFuncExp(cpp_demangle(func->getName().data()));
   return Minor;
 }
 
-bool RiskEvaluator::isPerfSensitive(BranchInst *I)
+bool RiskEvaluator::isPerfSensitive(const BranchInst *I)
 {
   // Unconditional branch is not performance sensitive
   if (I->isUnconditional())
@@ -413,10 +413,13 @@ bool RiskEvaluator::runOnFunction(Function &F)
   INDENT = 4;
   InstVecTy &inst_vec = m_inst_map[&F];
   std::map<Loop *, unsigned> LoopDepthMap;
+#if 0
   DepGraph * graph = NULL;
-  OwningPtr<FunctionPassManager> FPasses;
   DepGraphBuilder * builder = NULL; // don't use OwnigPtr;
+  OwningPtr<FunctionPassManager> FPasses;
+#endif
   Hotness funcHot = calcCallerHotness(&F, depth);
+#if 0
   if (level > 1) {
     // TODO add DepGraphBuilder on the fly
     FPasses.reset(new FunctionPassManager(module));
@@ -427,11 +430,33 @@ bool RiskEvaluator::runOnFunction(Function &F)
     //DepGraphBuilder & builder = getAnalysis<DepGraphBuilder>();
     graph = builder->getDepGraph();
   }
+#endif
+  if (level > 1) {
+    InstVecIter I = inst_vec.begin(), E = inst_vec.end();
+    slicer->addCriteria(&F, I, E);
+    slicer->computeSlice();
+  }
   for (InstVecIter I = inst_vec.begin(), E = inst_vec.end(); I != E; I++) {
     Instruction* inst = *I;
     RiskLevel max = assess(inst, LoopDepthMap, funcHot);
     errind();
     eval_debug("%s\n", toRiskStr(max));
+
+    if (level > 1) {
+      const Instruction * propagate;
+      eval_debug("Evaluating slice...\n");
+      while ((propagate = slicer->next()) != NULL) {
+        RiskLevel r = assess(propagate, LoopDepthMap, funcHot);
+        //We could break once we reach ExtremeRisk
+        //But we just iterate all over it for now
+        if (r > max)
+          max = r;
+        errind();
+        eval_debug("%s\n", toRiskStr(r));
+      }
+      eval_debug("Slice evaluation done.\n");
+    }
+#if 0
     if (graph != NULL) {
       Slicer slicer(graph, Criterion(0, inst, true, AllDep));
       Instruction * propagate;
@@ -447,15 +472,19 @@ bool RiskEvaluator::runOnFunction(Function &F)
       }
       eval_debug("Slice evaluation done.\n");
     }
+#endif
+
     //We only count slice once, otherwise the output doesn't make
     //much sense.
     FuncRiskStat[max]++;
     AllRiskStat[max]++;
   }
   statFuncRisk(cpp_demangle(F.getName().data()));
+#if 0
   if (level > 1) {
     FPasses->doFinalization();
   }
+#endif
   return false;
 }
 

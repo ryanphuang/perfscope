@@ -55,6 +55,7 @@
 #include "commons/CallSiteFinder.h"
 #include "dependence/DepGraphBuilder.h"
 #include "slicer/Slicer.h"
+#include "llvmslicer/StaticSlicer.h"
 
 #include <map>
 
@@ -101,8 +102,8 @@ const char * toExpStr(Expensiveness exp);
 // Function's loop.
 struct DummyLoopInfo : public FunctionPass {
   private:
-    typedef SmallPtrSet<BasicBlock *, 4> LoopBBTy;
-    typedef std::map<Function *, LoopBBTy> LoopMapTy;
+    typedef SmallPtrSet<const BasicBlock *, 4> LoopBBTy;
+    typedef std::map<const Function *, LoopBBTy> LoopMapTy;
     typedef LoopMapTy::iterator iterator;
     typedef LoopMapTy::const_iterator const_iterator;
     LoopMapTy LoopMap;
@@ -115,7 +116,7 @@ struct DummyLoopInfo : public FunctionPass {
   DummyLoopInfo() : FunctionPass(ID) {
   }
 
-  bool inLoop(Function * F, BasicBlock * BB)
+  bool inLoop(const Function * F, const BasicBlock * BB)
   {
     iterator I = LoopMap.find(F);
     if (I == LoopMap.end())
@@ -134,16 +135,17 @@ struct DummyLoopInfo : public FunctionPass {
 class RiskEvaluator: public FunctionPass {
   public:
     typedef SmallVector<Instruction *, 8> InstVecTy;
+    typedef SmallVector<Instruction *, 8>::iterator InstVecIter;
     typedef std::map<Function *, InstVecTy> InstMapTy;
 
   private:
-    typedef SmallVector<Instruction *, 8>::iterator InstVecIter;
     InstMapTy m_inst_map;
+    slicing::StaticSlicer *slicer;
     CostModel * cost_model;
     Profile * profile;
     FunctionPassManager * func_manager;
     Module * module;
-    SmallPtrSet<Function *, 4> loop_analyzed;
+    SmallPtrSet<const Function *, 4> loop_analyzed;
     LoopInfo * LocalLI;
     //LoopInfo * GlobalLI;
     DummyLoopInfo * GlobalLI;
@@ -157,9 +159,9 @@ class RiskEvaluator: public FunctionPass {
     static char ID;
     static const char * PassName; 
 
-    RiskEvaluator(InstMapTy & inst_map, CostModel * model = NULL, 
+    RiskEvaluator(InstMapTy & inst_map, slicing::StaticSlicer * slicer = NULL, CostModel * model = NULL, 
         Profile * profile = NULL, Module * module = NULL, unsigned level = 1, 
-        unsigned depth = 2) : FunctionPass(ID), m_inst_map(inst_map), 
+        unsigned depth = 2) : FunctionPass(ID), m_inst_map(inst_map), slicer(slicer),
         cost_model(model), profile(profile), func_manager(NULL), 
         module(module), LocalLI(NULL), SE(NULL), level(level), depth(depth)
     {
@@ -187,20 +189,20 @@ class RiskEvaluator: public FunctionPass {
 
     virtual bool runOnFunction(Function &F); 
 
-    RiskLevel assess(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap, Hotness FuncHotness);
+    RiskLevel assess(const Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap, Hotness FuncHotness);
 
     unsigned getLoopDepth(Loop *L, std::map<Loop *, unsigned> & LoopDepthMap);
 
-    Hotness calcInstHotness(Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap);
-    Hotness calcFuncHotness(Function * func);
+    Hotness calcInstHotness(const Instruction *I, std::map<Loop *, unsigned> & LoopDepthMap);
+    Hotness calcFuncHotness(const Function * func);
     Hotness calcFuncHotness(const char * funcName);
-    Hotness calcCallerHotness(Function * func, int level = 3);
+    Hotness calcCallerHotness(const Function * func, int level = 3);
 
-    Expensiveness calcInstExp(Instruction *I);
-    Expensiveness calcFuncExp(Function * func);
+    Expensiveness calcInstExp(const Instruction *I);
+    Expensiveness calcFuncExp(const Function * func);
     Expensiveness calcFuncExp(const char * funcName);
 
-    bool isPerfSensitive(BranchInst *I);
+    bool isPerfSensitive(const BranchInst *I);
 
     void clearFuncStat();
     void statFuncRisk(const char * funcname);

@@ -694,7 +694,7 @@ void printFuncProtoType(Function *F)
   errs() << ")";
 }
 
-void FunctionStaticSlicer::dump(Matcher &matcher, bool outputline) {
+void FunctionStaticSlicer::dump(bool outputline) {
   if (forward)
     errs() << "forward ";
   else

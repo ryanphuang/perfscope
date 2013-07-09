@@ -11,8 +11,9 @@
 #include "llvm/Function.h"
 #include "llvm/Value.h"
 
-#include "LLVM.h"
-#include "PointsTo.h"
+#include "llvmslicer/LLVM.h"
+#include "llvmslicer/Callgraph.h"
+#include "llvmslicer/PointsTo.h"
 
 namespace llvm { namespace mods {
 
@@ -36,6 +37,7 @@ namespace llvm { namespace mods {
         iterator begin() { return C.begin(); }
         const_iterator end() const { return C.end(); }
         iterator end() { return C.end(); }
+        bool empty() const {return C.empty(); }
         Container const& getContainer() const { return C; }
         Container& getContainer() { return C; }
     private:

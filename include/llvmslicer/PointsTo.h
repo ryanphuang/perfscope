@@ -10,7 +10,7 @@
 
 #include "llvm/Value.h"
 
-#include "RuleExpressions.h"
+#include "llvmslicer/RuleExpressions.h"
 
 namespace llvm { namespace ptr {
 

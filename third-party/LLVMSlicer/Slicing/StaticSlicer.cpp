@@ -16,23 +16,6 @@
 
 using namespace llvm;
 
-static cl::opt<std::string>
-FileName("criterion-file", cl::desc("File name of slicing criterion"));
-
-static cl::opt<int>
-LineNumber("criterion-line", cl::desc("Line number of slicing criterion"));
-
-static cl::opt<std::string>
-SlicingVariable("criterion-variable", cl::desc("Variable name of slicing criterion"));
-
-static cl::opt<bool>
-OutputLine("output-line",
-           cl::desc("Instead of output the slice as instructions, output the line numbers."));
-
-static cl::opt<bool>
-ApplyForward("forward-slice",
-           cl::desc("Apply forward-slice (default is backward-slice)."));
-
 namespace llvm { namespace slicing { namespace detail {
 
   void fillParamsToArgs(CallInst const* const C,
@@ -63,14 +46,12 @@ namespace llvm { namespace slicing { namespace detail {
       if (!isConstantValue(A))
         toArgs[A] = P;
     }
-
   }
 
 }}}
 
-namespace llvm { namespace slicing {
-  typedef SmallVector<const Function *, 20> WorkList;
-  
+namespace llvm {namespace slicing {
+
   static bool setAdd(WorkList &list, const Function * elem)
   {
     bool included = false;
@@ -89,7 +70,7 @@ namespace llvm { namespace slicing {
   void StaticSlicer::buildDicts(const ptr::PointsToSets &PS)
   {
     typedef Module::iterator FunctionsIter;
-    for (FunctionsIter f = module.begin(); f != module.end(); ++f)
+    for (FunctionsIter f = m_module->begin(); f != m_module->end(); ++f)
       if (!f->isDeclaration() && !memoryManStuff(&*f))
         for (inst_iterator i = inst_begin(*f);
             i != inst_end(*f); i++)
@@ -108,53 +89,85 @@ namespace llvm { namespace slicing {
                 g != G.end(); ++g) {
               Function const* const h = *g;
               if (!memoryManStuff(h) && !h->isDeclaration()) {
-                funcsToCalls.insert(std::make_pair(h, c));
-                callsToFuncs.insert(std::make_pair(c, h));
+                m_funcsToCalls.insert(std::make_pair(h, c));
+                m_callsToFuncs.insert(std::make_pair(c, h));
               }
             }
           }
   }
 
-  StaticSlicer::StaticSlicer(ModulePass *MP, Module &M,
-      const ptr::PointsToSets &PS,
-      const callgraph::Callgraph &CG,
-      const mods::Modifies &MOD) : mp(MP), module(M), slicers(), initFuns(), 
-    funcsToCalls(), callsToFuncs(), ps(PS), cg(CG), mod(MOD), matcher(M) {
-    parseCriteria();
-    buildDicts(ps);
+  StaticSlicer::StaticSlicer(bool forward) : ModulePass(ID), m_module(NULL), 
+    m_forward(forward), m_slicers(), m_initFuns(), m_funcsToCalls(), 
+    m_callsToFuncs(), m_ps(NULL), m_cg(NULL), m_mod(NULL), m_criteriaInit(false) 
+  {
+    m_funci = m_sliceFuncs.begin();
+    m_instInit = false;
+  }
+  
+  bool StaticSlicer::runOnModule(Module &M) {
+    m_module = &M;
+    errs() << "Computing PointsToSet...\n";
+    m_ps = new ptr::PointsToSets();
+    {
+      ptr::ProgramStructure P(M);
+      computePointsToSets(P, *m_ps);
+    }
+
+    errs() << "Computing CallGraph...\n";
+    m_cg = new callgraph::Callgraph(M, *m_ps);
+
+    errs() << "Computing Modifies...\n";
+    m_mod = new mods::Modifies();
+    {
+      mods::ProgramStructure P1(M);
+      computeModifies(P1, *m_cg, *m_ps, *m_mod);
+    }
+
+    errs() << "Building CallDicts...\n";
+    buildDicts(*m_ps);
+    errs() << "Done.\n";
+
+    // errs() << "Slicing...\n";
+    // slicing::StaticSlicer SS(this, M, PS, CG, MOD);
+    // SS.computeSlice();
+    return false;
+    // return SS.sliceModule();
+  }
+  
+  StaticSlicer::~StaticSlicer() {
+    if (m_ps)
+      delete m_ps;
+    if (m_cg)
+      delete m_cg;
+    if (m_mod)
+      delete m_mod;
+    for (Slicers::const_iterator I = m_slicers.begin(), E = m_slicers.end();
+        I != E; ++I)
+      delete I->second;
   }
 
-  void StaticSlicer::parseCriteria()
+  FunctionStaticSlicer * StaticSlicer::getFSS(const Function * F) {
+    Slicers::iterator si;
+    si = m_slicers.find(F);
+    if (si == m_slicers.end()) {
+      Function *f = const_cast<Function *>(F);
+      FunctionStaticSlicer *FSS = new FunctionStaticSlicer(*f, this, *m_ps, *m_mod, m_forward);
+      m_slicers.insert(Slicers::value_type(F, FSS));
+      return FSS;
+    }
+    return si->second;
+  }
+  
+  void StaticSlicer::addInitRC(FunctionStaticSlicer *FSS, const Instruction *inst)
   {
-    Matcher::sp_iterator si = matcher.resetTarget(FileName);
-    if (si == matcher.sp_end()) {
-      errs() << "No matching subprogram at " << FileName << ":" << LineNumber << " found\n";
-      return;
-    }
-    Scope scope(LineNumber, LineNumber);
-    bool multiple;
-    Function * F = matcher.matchFunction(si, scope, multiple); 
-    if (F == NULL) {
-      errs() << "No matching function at " << FileName << ":" << LineNumber << " found\n";
-      return;
-    }
-    errs() << "Matching function: " << F->getName() << "\n";
-    FunctionStaticSlicer *FSS = new FunctionStaticSlicer(*F, mp, ps, mod, ApplyForward);
-    Instruction *inst;
-    inst_iterator ii = inst_begin(F);
-    bool found = false;
-    errs() << "Matching instruction: \n";
-    while ((inst = matcher.matchInstruction(ii, F, scope)) != NULL) {
-      InsInfo * insInfo = new InsInfo(inst, ps, mod);
-      if (ApplyForward) {
+      if (m_forward) {
+        InsInfo * insInfo = FSS->getInsInfo(inst);
+        if (insInfo == NULL)
+          return;
         ValSet::const_iterator ci, ce;
         for (ci = insInfo->DEF_begin(), ce = insInfo->DEF_end(); ci != ce; ci++) {
           const Value * val = *ci;
-          if (val->hasName() && val->getName().equals_lower(SlicingVariable)) {
-            inst->dump();
-            FSS->addInitialCriterion(inst, val);
-            found = true;
-          }
+          FSS->addInitialCriterion(inst, val);
         }
       } else {
         const Value *LHS = NULL;
@@ -163,44 +176,19 @@ namespace llvm { namespace slicing {
         } else if (const StoreInst * SI = dyn_cast<StoreInst>(inst)) {
           LHS = SI->getPointerOperand();
         }
-        if (LHS && LHS->hasName() && LHS->getName().equals_lower(SlicingVariable)) {
-          inst->dump();
+        if (LHS) {
           FSS->addInitialCriterion(inst, LHS);
-          found = true;
         }
       }
-    }
-    if (!found) {
-      errs() << "No matching instruction for variable " << SlicingVariable << "\n";
-      return;
-    }
-    initFuns.push_back(F);
-    slicers.insert(Slicers::value_type(F, FSS));
-  }
-
-
-  StaticSlicer::~StaticSlicer() {
-    for (Slicers::const_iterator I = slicers.begin(), E = slicers.end();
-        I != E; ++I)
-      delete I->second;
-  }
-
-  FunctionStaticSlicer * StaticSlicer::getFSS(const Function * F) {
-    Slicers::iterator si;
-    si = slicers.find(F);
-    if (si == slicers.end()) {
-      Function *f = const_cast<Function *>(F);
-      FunctionStaticSlicer *FSS = new FunctionStaticSlicer(*f, mp, ps, mod, ApplyForward);
-      slicers.insert(Slicers::value_type(F, FSS));
-      return FSS;
-    }
-    return si->second;
   }
 
   void StaticSlicer::computeSlice() {
-    WorkList Q(initFuns);
+    if (!m_criteriaInit) {
+      errs() << "No criteria is added to the slicer, call addCriteria\n";
+      return;
+    }
+    WorkList Q(m_initFuns);
     WorkList P;
-    WorkList ALL;
 
     // Backward:  DOWN*(UP*({C}))
     // Forward:   UP*(DOWN*({C}))
@@ -213,14 +201,14 @@ namespace llvm { namespace slicing {
       for (WorkList::iterator f = Q.begin(); f != Q.end(); ++f) {
         FunctionStaticSlicer *fss = getFSS(*f);
         fss->calculateStaticSlice();
-        // fss->dump(matcher, OutputLine);
+        fss->dump(false);
         if (setAdd(P, *f)) {
-          ALL.push_back(*f);
+          m_sliceFuncs.push_back(*f);
         }
       }
       WorkList tmp;
       for (WorkList::iterator f = Q.begin(); f != Q.end(); ++f) {
-        if (!ApplyForward)
+        if (!m_forward)
           emitToCalls(*f, std::inserter(tmp, tmp.end()));
         else
           emitToForwardExits(*f, std::inserter(tmp, tmp.end()));
@@ -235,12 +223,12 @@ namespace llvm { namespace slicing {
       for (WorkList::iterator f = P.begin(); f != P.end(); ++f) {
         FunctionStaticSlicer *fss = getFSS(*f);
         fss->calculateStaticSlice();
-        // fss->dump(matcher, OutputLine);
-        setAdd(ALL, *f);
+        fss->dump(true);
+        setAdd(m_sliceFuncs, *f);
       }
       WorkList tmp;
       for (WorkList::iterator f = P.begin(); f != P.end(); ++f) {
-        if (!ApplyForward)
+        if (!m_forward)
           emitToExits(*f, std::inserter(tmp, tmp.end()));
         else
           emitToForwardCalls(*f, std::inserter(tmp, tmp.end()));
@@ -248,68 +236,35 @@ namespace llvm { namespace slicing {
       std::swap(tmp,P);
     }
 
-    for (WorkList::iterator f = ALL.begin(); f != ALL.end(); ++f) {
-      FunctionStaticSlicer *fss = getFSS(*f);
-      fss->dump(matcher, OutputLine);
+    errs() << "sliced functions:\n";
+    m_funci = m_sliceFuncs.begin();
+    for (FuncIter fi = m_sliceFuncs.begin(), fe = m_sliceFuncs.end(); fi != fe; ++fi) {
+      errs() << (*fi)->getName() << "\n";
     }
   }
 
-  bool StaticSlicer::sliceModule() {
-    bool modified = false;
-    for (Slicers::iterator s = slicers.begin(); s != slicers.end(); ++s)
-      modified |= s->second->slice();
-    if (modified)
-      for (Module::iterator I = module.begin(), E = module.end(); I != E; ++I)
-        if (!I->isDeclaration())
-          FunctionStaticSlicer::removeUndefs(mp, *I);
-    return modified;
+  const Instruction * StaticSlicer::next()
+  {
+    for (; m_funci != m_sliceFuncs.end(); m_funci++) {
+      const Function * F = *m_funci;
+      if (!m_instInit) {
+        m_insti = inst_begin(F);
+        m_instInit = true;
+      }
+      const_inst_iterator ie = inst_end(F);
+      for (; m_insti != ie; ++m_insti) {
+        const Instruction *inst = &(*m_insti);
+        if (!getFSS(F)->isSliced(inst)) {
+          m_insti++;
+          return inst;
+        }
+      }
+      m_instInit = false;
+    }
+    return NULL;
   }
+
+  char StaticSlicer::ID = 0;
+  const char * StaticSlicer::PassName = "Inter-procedural slicer pass";
 }}
 
-namespace {
-  class Slicer : public ModulePass {
-    public:
-      static char ID;
-
-      Slicer() : ModulePass(ID) {}
-
-      virtual bool runOnModule(Module &M);
-
-      void getAnalysisUsage(AnalysisUsage &AU) const {
-        AU.addRequired<PostDominatorTree>();
-        AU.addRequired<PostDominanceFrontier>();
-        // AU.addRequiredTransitive<AliasAnalysis>();
-        // AU.addPreserved<AliasAnalysis>();
-      }
-  };
-}
-
-char Slicer::ID = 0;
-
-static RegisterPass<Slicer> X("slice-inter", "Slices the code interprocedurally");
-
-
-bool Slicer::runOnModule(Module &M) {
-  errs() << "Computing PointsToSet...\n";
-  ptr::PointsToSets PS;
-  {
-    ptr::ProgramStructure P(M);
-    computePointsToSets(P, PS);
-  }
-
-  errs() << "Computing CallGraph...\n";
-  callgraph::Callgraph CG(M, PS);
-
-  errs() << "Computing Modifies...\n";
-  mods::Modifies MOD;
-  {
-    mods::ProgramStructure P1(M);
-    computeModifies(P1, CG, PS, MOD);
-  }
-
-  errs() << "Slicing...\n";
-  slicing::StaticSlicer SS(this, M, PS, CG, MOD);
-  SS.computeSlice();
-  return false;
-  // return SS.sliceModule();
-}

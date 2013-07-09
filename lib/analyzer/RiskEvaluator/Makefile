@@ -3,7 +3,7 @@
 LEVEL = ../../..
 LIBRARYNAME = riskeval
 
-USEDLIBS = commons.a
+USEDLIBS = llvmslicer.a commons.a 
 
 include $(LEVEL)/Makefile.common
 

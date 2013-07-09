@@ -1,14 +1,13 @@
-#include <stdio.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include<stdio.h>
 
 int foo(int c)
 {
     for (int i = 0; i < 10; i++) {
-        for (int j = 0; j < 5; j++) {
+        for (int j = 0; j < 3; j++) {
+          for (int k = 0; k < 5; k++) {
             c += i;
             c *= j;
-            pid_t pid = getpid();
+          }
         }
         if (c > 100)
           return c;
@@ -21,7 +20,7 @@ int add()
 {
     int i;
     int sum = 0;
-    for (i = 1; i * i < 100; i++) {
+    for (i = 1; i * i < 81; i++) {
        sum += i; 
     }
     if (sum > 10000)
@@ -51,5 +50,5 @@ int bar(int n)
 int main()
 {
     foo(add());
-    mul(10);
+    mul(1000);
 }

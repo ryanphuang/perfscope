@@ -40,7 +40,7 @@ namespace llvm {
 class CallSiteFinder {
     public:
         // The caller and callsite instruction
-        typedef std::pair<Function *, Instruction *> CallInfo;
+        typedef std::pair<const Function *, const Instruction *> CallInfo;
 
     protected:
         SmallVector<CallInfo, 4> callsites;
@@ -50,7 +50,7 @@ class CallSiteFinder {
         typedef SmallVector<CallInfo, 4>::const_iterator const_cs_iterator;
 
     public:
-        CallSiteFinder(llvm::Function * func);
+        CallSiteFinder(const llvm::Function * func);
 
         inline cs_iterator begin() { return callsites.begin(); }
         inline const_cs_iterator begin() const { return callsites.begin(); }

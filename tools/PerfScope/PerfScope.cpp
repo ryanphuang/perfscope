@@ -42,6 +42,7 @@
 #include "mapper/Matcher.h"
 #include "analyzer/Evaluator.h"
 #include "analyzer/X86CostModel.h"
+#include "llvmslicer/StaticSlicer.h"
 
 
 using namespace std;
@@ -58,6 +59,8 @@ gen_dbg_impl(perf)
 #else
 gen_dbg_nop(perf)
 #endif
+
+// #define NEED_MEM2REG
 
 static int module_strip_len = -1;
 static int patch_strip_len = 0;
@@ -81,21 +84,21 @@ typedef RiskEvaluator::InstMapTy InstMapTy;
 static int objlen = MAX_PATH;
 static char objname[MAX_PATH];
 
-/// Apply mem2reg transformation to the whole module
-void mem2reg(Module * module)
-{
-  if (module == NULL)
-    return;
-  PassManager Passes;
-  Passes.add(createPromoteMemoryToRegisterPass());
-  Passes.run(*module);
-}
+X86CostModel * XCM = NULL;
 
-void runevaluator(Module * module, CostModel * model, InstMapTy & instmap)
+void runevaluator(Module * module, InstMapTy & instmap)
 {
+  slicing::StaticSlicer * slicer = NULL;
+  if (analysis_level > 1) {
+    PassManager Passes;
+    slicer = new slicing::StaticSlicer(true);
+    Passes.add(slicer);
+    Passes.run(*module);
+  }
+  assert(XCM && "requires cost model");
   if (instmap.size()) {
     OwningPtr<FunctionPassManager> FPasses(new FunctionPassManager(module));
-    FPasses->add(new RiskEvaluator(instmap, model, &profile, module, analysis_level));
+    FPasses->add(new RiskEvaluator(instmap, slicer, XCM, &profile, module, analysis_level));
     FPasses->doInitialization();
     for (InstMapTy::iterator map_it = instmap.begin(), map_ie = instmap.end();
         map_it != map_ie; ++map_it) {
@@ -139,13 +142,20 @@ void load(LLVMContext & context, vector<ModuleArg> & vec)
   }
 }
 
+void fixnastyname(Chapter *chap) 
+{
+  // add all nasty things here to avoid soft links 
+  if (chap->fullname == "src/backend/port/sysv_shmem.c") 
+    chap->fullname = "src/backend/port/pg_shmem.c";
+}
+
 void analyze(char *input)
 {
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
   initPassRegistry(Registry);
 
-  X86CostModel * XCM = new X86CostModel(getTargetMachine());
+  XCM = new X86CostModel(getTargetMachine());
   PatchDecoder * decoder = new PatchDecoder(input);
   assert(decoder);
   Patch *patch = NULL;
@@ -166,9 +176,7 @@ void analyze(char *input)
         if (it->module == NULL && load(Context, *it))
           continue;
         Matcher matcher(*(it->module), it->strips, patch_strip_len);
-        // nasty hack here to avoid soft link handling inconsistency between diff and debug info
-        if (chap->fullname == "src/backend/port/sysv_shmem.c") 
-          chap->fullname = "src/backend/port/pg_shmem.c";
+        fixnastyname(chap);
         Matcher::sp_iterator I  = matcher.resetTarget(chap->fullname);
         if (I != matcher.sp_end()) {
           found = true;
@@ -176,9 +184,11 @@ void analyze(char *input)
           Function *func = NULL;
           Function *prevfunc = NULL;
           InstMapTy instmap;
+#ifdef NEED_MEM2REG
           OwningPtr<FunctionPassManager> Mem2RegPass(new FunctionPassManager(it->module));
           Mem2RegPass->add(createPromoteMemoryToRegisterPass());
           Mem2RegPass->doInitialization();
+#endif
           while((hunk = chap->next_hunk())) {
             int s = 0;
             Scope scope = hunk->rep_enclosing_scope;
@@ -191,8 +201,10 @@ void analyze(char *input)
               func = matcher.matchFunction(I, scope, multiple);
               if (func == NULL)
                 break;
+#ifdef NEED_MEM2REG
               if (prevfunc != func) // Only transform the new functions
                 Mem2RegPass->run(*func);
+#endif
 
               // The enclosing scope is the min, max range:
               //        [Mods[first].begin, Mods[last].end]
@@ -214,7 +226,7 @@ void analyze(char *input)
 
               // Modification cross function boundary, this
               // happens when the function lies in gaps.
-              // But by definition, there's no gab between Mods.
+              // But by definition, there's no gap between Mods.
               if (((*HI)->rep_scope.begin > I->lastline)) {
                 fprintf(stderr, "Bad things happened in %s(%u-%u): [#%lu, #%lu]\n", 
                     I->name.c_str(),  I->linenumber, I->lastline, 
@@ -280,8 +292,10 @@ void analyze(char *input)
             else
               insignificant = false;
           }
-          runevaluator(it->module, XCM, instmap);
+          runevaluator(it->module, instmap);
+#ifdef NEED_MEM2REG
           Mem2RegPass->doFinalization();
+#endif
           break; // already found in existing module, no need to try loading others
         }
       }
@@ -292,6 +306,8 @@ void analyze(char *input)
   }
   if (insignificant)
     printf("trivial\n");
+  if (XCM)
+    delete XCM;
 }
 
 static char const * option_help[] =

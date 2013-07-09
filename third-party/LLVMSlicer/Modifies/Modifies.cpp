@@ -24,14 +24,18 @@ namespace llvm { namespace mods {
         for (inst_iterator i = inst_begin(*f); i != inst_end(*f); ++i)
           if (const StoreInst *s = dyn_cast<StoreInst>(&*i)) {
             const Value *l = elimConstExpr(s->getPointerOperand());
-	    this->getContainer()[&*f].push_back(ProgramStructure::Command(
-		  hasExtraReference(l) ? CMD_VAR : CMD_DREF_VAR, l));
+            this->getContainer()[&*f].push_back(ProgramStructure::Command(
+                  hasExtraReference(l) ? CMD_VAR : CMD_DREF_VAR, l));
           }
   }
 
   const Modifies::ModSet &getModSet(const llvm::Function *const &f,
-	    const Modifies &S) {
+      const Modifies &S) {
     static const Modifies::ModSet empty;
+    if (S.empty()) {
+      errs() << "Empty modifies!\n";
+      return empty;
+    }
     const Modifies::const_iterator it = S.find(f);
 
     return (it == S.end()) ? empty : it->second;
@@ -40,26 +44,26 @@ namespace llvm { namespace mods {
 }}
 
 void llvm::mods::computeModifies(const ProgramStructure &P,
-      const callgraph::Callgraph &CG, const ptr::PointsToSets &PS,
-      Modifies &MOD) {
+    const callgraph::Callgraph &CG, const ptr::PointsToSets &PS,
+    Modifies &MOD) {
 
   for (ProgramStructure::const_iterator f = P.begin(); f != P.end(); ++f)
     for (ProgramStructure::mapped_type::const_iterator c = f->second.begin();
-	 c != f->second.end(); ++c)
+        c != f->second.end(); ++c)
       if (c->getType() == CMD_VAR) {
-	if (!isLocalToFunction(c->getVar(),f->first))
-	    MOD[f->first].insert(c->getVar());
+        if (!isLocalToFunction(c->getVar(),f->first))
+          MOD[f->first].insert(c->getVar());
       } else if (c->getType() == CMD_DREF_VAR) {
-	typedef ptr::PointsToSets::PointsToSet PTSet;
-	const PTSet &S = ptr::getPointsToSet(c->getVar(),PS);
-	for (PTSet::const_iterator p = S.begin(); p != S.end(); ++p)
-	  if (!isLocalToFunction(*p,f->first) && !isConstantValue(*p))
-	    MOD[f->first].insert(*p);
+        typedef ptr::PointsToSets::PointsToSet PTSet;
+        const PTSet &S = ptr::getPointsToSet(c->getVar(),PS);
+        for (PTSet::const_iterator p = S.begin(); p != S.end(); ++p)
+          if (!isLocalToFunction(*p,f->first) && !isConstantValue(*p))
+            MOD[f->first].insert(*p);
       }
 
   typedef callgraph::Callgraph Callgraph;
   for (Callgraph::const_iterator i = CG.begin_closure();
-	i != CG.end_closure(); ++i) {
+      i != CG.end_closure(); ++i) {
     const Modifies::mapped_type &src = MOD[i->second];
     typedef Modifies::mapped_type dst_t;
     dst_t &dst = MOD[i->first];
@@ -70,14 +74,14 @@ void llvm::mods::computeModifies(const ProgramStructure &P,
     using std::tr1::placeholders::_1;
     using std::tr1::cref;
     dst.erase(std::remove_if(dst.begin(), dst.end(),
-	      bind(&ProgramStructure::isLocalToFunction, cref(P), _1, i->first)),
-	      dst.end());
+          bind(&ProgramStructure::isLocalToFunction, cref(P), _1, i->first)),
+        dst.end());
 #endif
     for (dst_t::iterator I = dst.begin(), E = dst.end(); I != E; ) {
       if (isLocalToFunction(*I, i->first))
-	dst.erase(I++);
+        dst.erase(I++);
       else
-	++I;
+        ++I;
     }
   }
 }

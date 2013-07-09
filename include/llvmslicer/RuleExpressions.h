@@ -11,7 +11,7 @@
 #include "llvm/Function.h"
 #include "llvm/Instructions.h"
 
-#include "LLVM.h"
+#include "llvmslicer/LLVM.h"
 
 //#define DEBUG_RULE
 

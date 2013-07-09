@@ -12,9 +12,9 @@
 #include "llvm/Function.h"
 #include "llvm/ADT/STLExtras.h" /* tie */
 
-#include "LLVM.h"
-#include "LLVMSupport.h"
-#include "PointsTo.h"
+#include "llvmslicer/LLVM.h"
+#include "llvmslicer/LLVMSupport.h"
+#include "llvmslicer/PointsTo.h"
 
 namespace llvm { namespace callgraph {
 

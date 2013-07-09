@@ -329,7 +329,6 @@ const char * stripname(const char *name, int strips)
     return p;
 }
 
-
 bool pathnmeq(const char *path1, const char *path2, int n, int m)
 {
     if (canonpath(path1, PBUF1) && canonpath(path2, PBUF2))

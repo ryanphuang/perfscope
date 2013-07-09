@@ -12,8 +12,9 @@
 #include "llvm/Support/InstIterator.h"
 
 #include "llvmslicer/PointsTo.h"
-#include "mapper/Matcher.h"
+#include "llvmslicer/Modifies.h"
 #include "llvmslicer/PostDominanceFrontier.h"
+#include "mapper/Matcher.h"
 
 namespace llvm { namespace slicing {
 
@@ -135,8 +136,18 @@ namespace llvm { namespace slicing {
         ii->deslice();
       }
       void calculateStaticSlice();
-      void dump(Matcher &matcher, bool outputline = false);
+      void dump(bool outputline = false);
       bool slice();
+
+      InsInfo *getInsInfo(const llvm::Instruction *i) const {
+        InsInfoMap::const_iterator I = insInfoMap.find(i);
+        if (I == insInfoMap.end()) {
+          return NULL;
+        }
+        // assert(I != insInfoMap.end());
+        return I->second;
+      }
+
       static void removeUndefs(ModulePass *MP, Function &F);
 
       void addSkipAssert(const llvm::CallInst *CI) {
@@ -167,15 +178,6 @@ namespace llvm { namespace slicing {
       bool updateRCSC(llvm::PostDominanceFrontier::DomSetType::const_iterator start,
           llvm::PostDominanceFrontier::DomSetType::const_iterator end);
 
-
-      InsInfo *getInsInfo(const llvm::Instruction *i) const {
-        InsInfoMap::const_iterator I = insInfoMap.find(i);
-        if (I == insInfoMap.end()) {
-          return NULL;
-        }
-        // assert(I != insInfoMap.end());
-        return I->second;
-      }
 
       static void removeUndefBranches(ModulePass *MP, Function &F);
       static void removeUndefCalls(ModulePass *MP, Function &F);

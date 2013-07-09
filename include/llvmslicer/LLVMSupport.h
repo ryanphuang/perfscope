@@ -7,7 +7,7 @@
 #include <llvm/Function.h>
 #include <llvm/Instructions.h>
 
-#include "PointsTo.h"
+#include "llvmslicer/PointsTo.h"
 
 namespace llvm {
 
