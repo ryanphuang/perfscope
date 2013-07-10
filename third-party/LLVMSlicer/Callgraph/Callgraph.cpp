@@ -12,8 +12,8 @@ Callgraph::Callgraph(Module &M, ptr::PointsToSets const& PS) {
   for (FunctionsIter f = M.begin(); f != M.end(); ++f)
     if (!f->isDeclaration() && !memoryManStuff(&*f))
       for (inst_iterator i = inst_begin(*f); i != inst_end(*f); i++)
-	if (const CallInst *CI = dyn_cast<CallInst const>(&*i))
-	  handleCall(&*f, CI, PS);
+        if (const CallInst *CI = dyn_cast<CallInst const>(&*i))
+          handleCall(&*f, CI, PS);
 
   detail::computeTransitiveClosure(directCallsMap, callsMap);
   for (const_iterator it = begin(); it != end(); ++it)
@@ -23,8 +23,8 @@ Callgraph::Callgraph(Module &M, ptr::PointsToSets const& PS) {
 }
 
 void Callgraph::handleCall(const Function *parent,
-			   const CallInst *CI,
-			   const ptr::PointsToSets &PS) {
+    const CallInst *CI,
+    const ptr::PointsToSets &PS) {
   if (isInlineAssembly(CI))
     return;
 
@@ -33,10 +33,10 @@ void Callgraph::handleCall(const Function *parent,
   getCalledFunctions(CI, PS, std::back_inserter(G));
 
   for (CalledFunctions::const_iterator I = G.begin(), E = G.end();
-       I != E; ++I) {
+      I != E; ++I) {
     const Function *called = dyn_cast<Function>(*I);
     if (!memoryManStuff(called) && !called->isDeclaration() &&
-	!contains(parent, called))
+        !contains(parent, called))
       insertDirectCall(value_type(parent, called));
   }
 }
