@@ -146,8 +146,7 @@ bool DummyLoopInfo::runOnFunction(Function &F)
   return false;
 }
 
-RiskLevel RiskEvaluator::assess(const Instruction *I, 
-      std::map<Loop *, unsigned> & LoopDepthMap, Hotness FuncHotness)
+RiskLevel RiskEvaluator::assess(const Instruction *I,  std::map<Loop *, unsigned> & LoopDepthMap, Hotness FuncHotness)
 {
   eval_debug(I);
   eval_debug("\n");
@@ -331,18 +330,14 @@ Hotness RiskEvaluator::calcCallerHotness(const Function * func, int level)
 Expensiveness RiskEvaluator::calcInstExp(const Instruction * I)
 {
   Expensiveness exp = Minor;
-  if (isa<CallInst>(I) || isa<InvokeInst>(I)) {
-    CallSite cs(const_cast<Instruction *>(I));
-    Function *func = cs.getCalledFunction();
-    if (func == NULL || func->isIntrinsic()) {
-      #ifdef EVALUATOR_DEBUG
-      if (func == NULL)
-        errs() << "Callee unknown\n";
-      #endif
-      return exp;
+  if (const CallInst * CI = dyn_cast<CallInst>(I)) {
+//  if (isa<CallInst>(I) || isa<InvokeInst>(I)) {
+    const Value * called = CI->getCalledValue();
+    if (const Function *F = dyn_cast<Function>(called)) { 
+      if (!F->isIntrinsic())
+        return calcFuncExp(F);
     }
-    //TODO better way
-    return calcFuncExp(func);
+    return exp;
   }
   if(cost_model) {
     unsigned cost = cost_model->getInstructionCost(I); 

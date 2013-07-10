@@ -128,9 +128,11 @@ namespace llvm { namespace slicing {
           const llvm::Value *cond = 0, bool deslice = true) {
         InsInfo *ii = getInsInfo(ins);
         if (cond) {
+#ifdef DEBUG_RC
           errs() << "Add initial RC: ";
           printVal(cond);
           errs() << "\n";
+#endif
           ii->addRC(cond);
         }
         ii->deslice();

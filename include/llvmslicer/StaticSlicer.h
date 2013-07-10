@@ -19,6 +19,7 @@
 #include "llvmslicer/LLVM.h"
 #include "llvmslicer/LLVMSupport.h"
 
+// #define DEBUG_SLICER
 // #define DEBUG_EMIT
 
 namespace llvm { namespace slicing {
@@ -50,13 +51,19 @@ namespace llvm { namespace slicing {
       }
 
       template<typename OutIterator>
-      void addCriteria(const Function *F, OutIterator I, OutIterator E)
+      void addCriteria(Function *F, OutIterator I, OutIterator E)
       {
-        errs() << "add criteria in " << F->getName() << "\n";
         m_criteriaInit = true;
+        if (F->isIntrinsic()) // don't do anything for intrinsic
+          return;
+#ifdef DEBUG_SLICER
+        errs() << "add criteria from " << F << "@" << F->getName() << "\n";
+#endif
         FunctionStaticSlicer *FSS = getFSS(F);
         for (OutIterator i = I; i != E; ++i) {
+#ifdef DEBUG_SLICER
           (*i)->dump(); 
+#endif
           addInitRC(FSS, *i);
         }
         m_initFuns.push_back(F);
@@ -74,6 +81,7 @@ namespace llvm { namespace slicing {
       void parseInitialCriterion();
 
       FunctionStaticSlicer * getFSS(const Function * F);
+      FunctionStaticSlicer * newFSS(Function * F);
       void buildDicts(const ptr::PointsToSets &PS);
 
       template<typename OutIterator>

@@ -216,12 +216,16 @@ if.end:                                           ; preds = %if.else, %if.then
 define i32 @main() nounwind uwtable {
 entry:
   %retval = alloca i32, align 4
+  %n = alloca i32, align 4
   store i32 0, i32* %retval
   %call = call i32 @add(), !dbg !95
   %call1 = call i32 @foo(i32 %call), !dbg !95
-  %call2 = call i32 @mul(i32 1000), !dbg !97
-  %0 = load i32* %retval, !dbg !98
-  ret i32 %0, !dbg !98
+  call void @llvm.dbg.declare(metadata !{i32* %n}, metadata !97), !dbg !98
+  store i32 1000, i32* %n, align 4, !dbg !99
+  %0 = load i32* %n, align 4, !dbg !100
+  %call2 = call i32 @mul(i32 %0), !dbg !100
+  %1 = load i32* %retval, !dbg !101
+  ret i32 %1, !dbg !101
 }
 
 !llvm.dbg.cu = !{!0}
@@ -323,5 +327,8 @@ entry:
 !94 = metadata !{i32 47, i32 3, metadata !89, null}
 !95 = metadata !{i32 52, i32 9, metadata !96, null}
 !96 = metadata !{i32 720907, metadata !21, i32 51, i32 1, metadata !6, i32 14} ; [ DW_TAG_lexical_block ]
-!97 = metadata !{i32 53, i32 5, metadata !96, null}
-!98 = metadata !{i32 54, i32 1, metadata !96, null}
+!97 = metadata !{i32 721152, metadata !96, metadata !"n", metadata !6, i32 53, metadata !9, i32 0, i32 0} ; [ DW_TAG_auto_variable ]
+!98 = metadata !{i32 53, i32 9, metadata !96, null}
+!99 = metadata !{i32 53, i32 17, metadata !96, null}
+!100 = metadata !{i32 54, i32 5, metadata !96, null}
+!101 = metadata !{i32 55, i32 1, metadata !96, null}

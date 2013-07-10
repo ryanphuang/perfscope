@@ -125,13 +125,17 @@ namespace llvm {namespace slicing {
 
     errs() << "Building CallDicts...\n";
     buildDicts(*m_ps);
-    errs() << "Done.\n";
 
-    // errs() << "Slicing...\n";
-    // slicing::StaticSlicer SS(this, M, PS, CG, MOD);
-    // SS.computeSlice();
+    errs() << "Building FSS...\n";
+    for (Module::iterator MI = M.begin(), ME = M.end(); MI != ME; ++MI) {
+      Function * f = MI;
+      if (f->isIntrinsic())
+        continue;
+      // errs() << "\t|" << f << "@" << f->getName() << "|\n";
+      newFSS(f);
+    }
+    errs() << "Done.\n";
     return false;
-    // return SS.sliceModule();
   }
   
   StaticSlicer::~StaticSlicer() {
@@ -144,21 +148,29 @@ namespace llvm {namespace slicing {
     for (Slicers::const_iterator I = m_slicers.begin(), E = m_slicers.end();
         I != E; ++I)
       delete I->second;
+#ifdef DEBUG_SLICER
+    errs() << "Slicer destructed!\n";
+#endif
+  }
+
+  FunctionStaticSlicer * StaticSlicer::newFSS(Function * F) {
+    FunctionStaticSlicer *FSS = new FunctionStaticSlicer(*F, this, *m_ps, *m_mod, m_forward);
+    m_slicers.insert(Slicers::value_type(F, FSS));
+    return FSS;
   }
 
   FunctionStaticSlicer * StaticSlicer::getFSS(const Function * F) {
     Slicers::iterator si;
     si = m_slicers.find(F);
     if (si == m_slicers.end()) {
-      Function *f = const_cast<Function *>(F);
-      FunctionStaticSlicer *FSS = new FunctionStaticSlicer(*f, this, *m_ps, *m_mod, m_forward);
-      m_slicers.insert(Slicers::value_type(F, FSS));
-      return FSS;
+      errs() << "No slicer for " << F << "@" << F->getName() << "\n";
+      return NULL;
     }
+    // assert(si != m_slicers.end());
     return si->second;
   }
   
-  void StaticSlicer::addInitRC(FunctionStaticSlicer *FSS, const Instruction *inst)
+  void StaticSlicer::addInitRC(FunctionStaticSlicer * FSS, const Instruction *inst)
   {
       if (m_forward) {
         InsInfo * insInfo = FSS->getInsInfo(inst);
@@ -198,20 +210,23 @@ namespace llvm {namespace slicing {
     //   Forward:   DOWN*({C})
 
     while (!Q.empty()) {
-      for (WorkList::iterator f = Q.begin(); f != Q.end(); ++f) {
-        FunctionStaticSlicer *fss = getFSS(*f);
+      for (WorkList::iterator WI = Q.begin(), WE = Q.end(); WI != WE; ++WI) {
+        const Function * F = *WI;
+        if (F->isIntrinsic()) // skip intrinsic
+          continue;
+        FunctionStaticSlicer *fss = getFSS(F);
         fss->calculateStaticSlice();
-        fss->dump(false);
-        if (setAdd(P, *f)) {
-          m_sliceFuncs.push_back(*f);
+        if (setAdd(P, F)) {
+          m_sliceFuncs.push_back(F);
         }
       }
       WorkList tmp;
-      for (WorkList::iterator f = Q.begin(); f != Q.end(); ++f) {
+      for (WorkList::iterator WI = Q.begin(), WE = Q.end(); WI != WE; ++WI) {
+        const Function * F = *WI;
         if (!m_forward)
-          emitToCalls(*f, std::inserter(tmp, tmp.end()));
+          emitToCalls(F, std::inserter(tmp, tmp.end()));
         else
-          emitToForwardExits(*f, std::inserter(tmp, tmp.end()));
+          emitToForwardExits(F, std::inserter(tmp, tmp.end()));
       }
       std::swap(tmp,Q);
     }
@@ -220,25 +235,29 @@ namespace llvm {namespace slicing {
     //     Backward: DOWN*(XXX)
     //     Forward:  UP*(XXX)
     while (!P.empty()) {
-      for (WorkList::iterator f = P.begin(); f != P.end(); ++f) {
-        FunctionStaticSlicer *fss = getFSS(*f);
+      for (WorkList::iterator WI = P.begin(), WE = P.end(); WI != WE; ++WI) {
+        const Function * F = *WI;
+        if (F->isIntrinsic()) // skip intrinsic
+          continue;
+        FunctionStaticSlicer *fss = getFSS(F);
         fss->calculateStaticSlice();
-        fss->dump(true);
-        setAdd(m_sliceFuncs, *f);
+        setAdd(m_sliceFuncs, F);
       }
       WorkList tmp;
-      for (WorkList::iterator f = P.begin(); f != P.end(); ++f) {
+      for (WorkList::iterator WI = P.begin(), WE = P.end(); WI != WE; ++WI) {
+        const Function * F = *WI;
         if (!m_forward)
-          emitToExits(*f, std::inserter(tmp, tmp.end()));
+          emitToExits(F, std::inserter(tmp, tmp.end()));
         else
-          emitToForwardCalls(*f, std::inserter(tmp, tmp.end()));
+          emitToForwardCalls(F, std::inserter(tmp, tmp.end()));
       }
       std::swap(tmp,P);
     }
-
     errs() << "sliced functions:\n";
-    m_funci = m_sliceFuncs.begin();
     for (FuncIter fi = m_sliceFuncs.begin(), fe = m_sliceFuncs.end(); fi != fe; ++fi) {
+// #ifdef DEBUG_SLICER
+// #endif
+      getFSS(*fi)->dump(true);
       errs() << (*fi)->getName() << "\n";
     }
   }

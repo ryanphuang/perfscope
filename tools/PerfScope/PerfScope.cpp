@@ -89,8 +89,8 @@ X86CostModel * XCM = NULL;
 void runevaluator(Module * module, InstMapTy & instmap)
 {
   slicing::StaticSlicer * slicer = NULL;
+  PassManager Passes;
   if (analysis_level > 1) {
-    PassManager Passes;
     slicer = new slicing::StaticSlicer(true);
     Passes.add(slicer);
     Passes.run(*module);

@@ -50,5 +50,6 @@ int bar(int n)
 int main()
 {
     foo(add());
-    mul(1000);
+    int n = 1000;
+    mul(n);
 }

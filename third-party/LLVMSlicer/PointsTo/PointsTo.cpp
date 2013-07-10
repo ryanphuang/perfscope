@@ -273,9 +273,9 @@ namespace llvm { namespace ptr {
         change |= applyRules(*i, S);
       }
       ++it;
-//#ifdef DEBUG_POINTS
+#ifdef DEBUG_POINTS
       errs() << "it #" << it << "\n";
-//#endif
+#endif
     } while (change && it < MAX_IT);
 
     return S;
