@@ -48,7 +48,7 @@
 using namespace std;
 using namespace llvm;
 
-#define PERFSCOPE_DEBUG
+//#define PERFSCOPE_DEBUG
 
 #define STRIP_LEN 7 // define number of components(slashes) to strip of the full path in debug info 
 

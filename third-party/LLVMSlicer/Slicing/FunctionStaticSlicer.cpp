@@ -31,6 +31,7 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #include "mapper/Matcher.h"
+#include "commons/handy.h"
 #include "llvmslicer/PostDominanceFrontier.h"
 #include "llvmslicer/Callgraph.h"
 #include "llvmslicer/Modifies.h"
@@ -682,7 +683,7 @@ static bool canSlice(const Instruction &i) {
 void printFuncProtoType(Function *F)
 {
   F->getReturnType()->dump();
-  errs() << " " << F->getName() << "(";
+  errs() << " " << cpp_demangle(F->getName().data()) << "(";
   FunctionType * FTY = F->getFunctionType();
   unsigned params = FTY->getNumParams();
   unsigned i;

@@ -37,6 +37,7 @@ namespace llvm { namespace ptr {
     iterator begin() { return C.begin(); }
     const_iterator end() const { return C.end(); }
     iterator end() { return C.end(); }
+    bool empty() const {return C.begin() == C.end();}
     Container const& getContainer() const { return C; }
     Container& getContainer() { return C; }
   private:

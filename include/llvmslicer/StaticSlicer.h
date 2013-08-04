@@ -11,6 +11,7 @@
 #include "llvm/Analysis/AliasSetTracker.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/PostDominators.h"
+#include "llvm/Analysis/CallGraph.h"
 
 #include "mapper/Matcher.h"
 #include "llvmslicer/FunctionStaticSlicer.h"
@@ -38,7 +39,7 @@ namespace llvm { namespace slicing {
         CallsToFuncs;
 
     public:
-      StaticSlicer(bool forward);
+      StaticSlicer(bool forward, bool sound = false);
 
       ~StaticSlicer();
 
@@ -48,6 +49,7 @@ namespace llvm { namespace slicing {
         AU.setPreservesAll();
         AU.addRequired<PostDominatorTree>();
         AU.addRequired<PostDominanceFrontier>();
+        AU.addRequired<CallGraph>();
       }
 
       template<typename OutIterator>
@@ -110,6 +112,8 @@ namespace llvm { namespace slicing {
       mods::Modifies * m_mod;
       bool m_criteriaInit;
       bool m_instInit;
+      bool m_funcInit;
+      bool m_sound;
   };
 
 

@@ -15,7 +15,7 @@ Callgraph::Callgraph(Module &M, ptr::PointsToSets const& PS) {
         if (const CallInst *CI = dyn_cast<CallInst const>(&*i))
           handleCall(&*f, CI, PS);
 
-  detail::computeTransitiveClosure(directCallsMap, callsMap);
+  // detail::computeTransitiveClosure(directCallsMap, callsMap);
   for (const_iterator it = begin(); it != end(); ++it)
     directCalleesMap.insert(value_type(it->second,it->first));
   for (const_iterator it = callsMap.begin(); it != callsMap.end(); ++it)

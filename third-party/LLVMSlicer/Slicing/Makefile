@@ -9,7 +9,7 @@ LEVEL=../../..
 # Give the name of a library.  This will build a dynamic version.
 #
 LIBRARYNAME = llvmslicer
-USEDLIBS = callgraph.a language.a mods.a points.a mappercore.a
+USEDLIBS = callgraph.a language.a mods.a points.a commons.a mappercore.a
 BUILD_ARCHIVE = 1
 #LOADABLE_MODULE = 1
 

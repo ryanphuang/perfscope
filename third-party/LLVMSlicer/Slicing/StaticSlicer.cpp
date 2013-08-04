@@ -1,13 +1,17 @@
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
 
+#include <sys/time.h>
+
 #include "llvm/LLVMContext.h"
 #include "llvm/Instructions.h"
+#include "llvm/Analysis/CallGraph.h"
 #include "llvm/Function.h"
 #include "llvm/Pass.h"
 #include "llvm/Value.h"
 #include "llvm/Support/CommandLine.h"
 
+#include "commons/handy.h"
 #include "llvmslicer/Callgraph.h"
 #include "llvmslicer/Modifies.h"
 #include "llvmslicer/PointsTo.h"
@@ -15,6 +19,8 @@
 #include "mapper/Matcher.h"
 
 using namespace llvm;
+
+#define DEBUG_STATIC_SLICER
 
 namespace llvm { namespace slicing { namespace detail {
 
@@ -96,37 +102,88 @@ namespace llvm {namespace slicing {
           }
   }
 
-  StaticSlicer::StaticSlicer(bool forward) : ModulePass(ID), m_module(NULL), 
+  StaticSlicer::StaticSlicer(bool forward, bool sound) : ModulePass(ID), m_module(NULL), 
     m_forward(forward), m_slicers(), m_initFuns(), m_funcsToCalls(), 
     m_callsToFuncs(), m_ps(NULL), m_cg(NULL), m_mod(NULL), m_criteriaInit(false) 
   {
-    m_funci = m_sliceFuncs.begin();
+    m_sound = sound;
     m_instInit = false;
+    m_funcInit = false;
   }
   
   bool StaticSlicer::runOnModule(Module &M) {
+    struct timeval atim;
+    double at1,at2;
+
+    errs() << "Building Default CallGraph...\n";
+    gettimeofday(&atim, NULL);
+    at1 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
+
+    CallGraph * tcg = &getAnalysis<CallGraph>();
+
+    gettimeofday(&atim, NULL);
+    at2 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
+    fprintf(stderr, "%.4f ms\n", at2-at1);
+
     m_module = &M;
-    errs() << "Computing PointsToSet...\n";
+    gettimeofday(&atim, NULL);
+    at1 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
     m_ps = new ptr::PointsToSets();
     {
-      ptr::ProgramStructure P(M);
-      computePointsToSets(P, *m_ps);
+      if (m_sound) {
+#ifdef DEBUG_STATIC_SLICER
+        errs() << "Computing PointsToSet...\n";
+#endif
+        ptr::ProgramStructure P(M);
+        computePointsToSets(P, *m_ps);
+      }
+      else {
+#ifdef DEBUG_STATIC_SLICER
+        errs() << "Skip Building PointsToSet. Quick and Dirty!\n";
+#endif
+      }
     }
+    gettimeofday(&atim, NULL);
+    at2 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
+    fprintf(stderr, "%.4f ms\n", at2-at1);
 
+#ifdef DEBUG_STATIC_SLICER
     errs() << "Computing CallGraph...\n";
+#endif
+    gettimeofday(&atim, NULL);
+    at1 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
     m_cg = new callgraph::Callgraph(M, *m_ps);
+    gettimeofday(&atim, NULL);
+    at2 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
+    fprintf(stderr, "%.4f ms\n", at2-at1);
 
+#ifdef DEBUG_STATIC_SLICER
     errs() << "Computing Modifies...\n";
+#endif
+    gettimeofday(&atim, NULL);
+    at1 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
     m_mod = new mods::Modifies();
     {
       mods::ProgramStructure P1(M);
       computeModifies(P1, *m_cg, *m_ps, *m_mod);
     }
+    at2 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
+    fprintf(stderr, "%.4f ms\n", at2-at1);
 
+#ifdef DEBUG_STATIC_SLICER
     errs() << "Building CallDicts...\n";
+#endif
+    gettimeofday(&atim, NULL);
+    at1 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
     buildDicts(*m_ps);
+    at2 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
+    fprintf(stderr, "%.4f ms\n", at2-at1);
 
+#ifdef DEBUG_STATIC_SLICER
     errs() << "Building FSS...\n";
+#endif
+    gettimeofday(&atim, NULL);
+    at1 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
     for (Module::iterator MI = M.begin(), ME = M.end(); MI != ME; ++MI) {
       Function * f = MI;
       if (f->isIntrinsic())
@@ -134,7 +191,12 @@ namespace llvm {namespace slicing {
       // errs() << "\t|" << f << "@" << f->getName() << "|\n";
       newFSS(f);
     }
-    errs() << "Done.\n";
+    at2 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
+    fprintf(stderr, "%.4f ms\n", at2-at1);
+
+#ifdef DEBUG_STATIC_SLICER
+    errs() << "Initialized.\n";
+#endif
     return false;
   }
   
@@ -199,6 +261,15 @@ namespace llvm {namespace slicing {
       errs() << "No criteria is added to the slicer, call addCriteria\n";
       return;
     }
+#ifdef DEBUG_STATIC_SLICER
+    errs() << "Computing slice..\n";
+#endif
+
+    errs() << "Phase 1...\n";
+    struct timeval atim;
+    gettimeofday(&atim, NULL);
+    double at1 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
+
     WorkList Q(m_initFuns);
     WorkList P;
 
@@ -230,7 +301,13 @@ namespace llvm {namespace slicing {
       }
       std::swap(tmp,Q);
     }
-    
+    gettimeofday(&atim, NULL);
+    double at2 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
+    fprintf(stderr, "%.4f ms\n", at2-at1);
+
+    errs() << "Phase 2...\n";
+    gettimeofday(&atim, NULL);
+    at1 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
     // Phase 2
     //     Backward: DOWN*(XXX)
     //     Forward:  UP*(XXX)
@@ -253,17 +330,25 @@ namespace llvm {namespace slicing {
       }
       std::swap(tmp,P);
     }
-    errs() << "sliced functions:\n";
-    for (FuncIter fi = m_sliceFuncs.begin(), fe = m_sliceFuncs.end(); fi != fe; ++fi) {
-// #ifdef DEBUG_SLICER
-// #endif
-      getFSS(*fi)->dump(true);
-      errs() << (*fi)->getName() << "\n";
-    }
+    gettimeofday(&atim, NULL);
+    at2 = atim.tv_sec * 1000.0 + (atim.tv_usec/1000.0);
+    fprintf(stderr, "%.4f ms\n", at2-at1);
+#ifdef DEBUG_STATIC_SLICER
+//    errs() << "sliced functions:\n";
+//    for (FuncIter fi = m_sliceFuncs.begin(), fe = m_sliceFuncs.end(); fi != fe; ++fi) {
+//      errs() << cpp_demangle((*fi)->getName().data()) << "\n";
+//      getFSS(*fi)->dump(true);
+//    }
+//    errs() << "sliced done.\n";
+#endif
   }
 
   const Instruction * StaticSlicer::next()
   {
+    if (!m_funcInit) {
+      m_funci = m_sliceFuncs.begin();
+      m_funcInit = true;
+    }
     for (; m_funci != m_sliceFuncs.end(); m_funci++) {
       const Function * F = *m_funci;
       if (!m_instInit) {

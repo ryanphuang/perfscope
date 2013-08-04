@@ -69,14 +69,6 @@ void llvm::mods::computeModifies(const ProgramStructure &P,
     dst_t &dst = MOD[i->first];
 
     std::copy(src.begin(), src.end(), std::inserter(dst, dst.end()));
-#if 0 /* original boost+STL uncompilable crap */
-    using std::tr1::bind;
-    using std::tr1::placeholders::_1;
-    using std::tr1::cref;
-    dst.erase(std::remove_if(dst.begin(), dst.end(),
-          bind(&ProgramStructure::isLocalToFunction, cref(P), _1, i->first)),
-        dst.end());
-#endif
     for (dst_t::iterator I = dst.begin(), E = dst.end(); I != E; ) {
       if (isLocalToFunction(*I, i->first))
         dst.erase(I++);
