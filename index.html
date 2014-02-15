@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Perfscope : A tool that statically evaluates source code commit&#39;s risk of introducing performance regression" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Perfscope</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/stormspirit/perfscope">View on GitHub</a>
+
+          <h1 id="project_title">Perfscope</h1>
+          <h2 id="project_tagline">A tool that statically evaluates source code commit&#39;s risk of introducing performance regression</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/stormspirit/perfscope/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/stormspirit/perfscope/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <p>This is the source tree for PerfScope, a neat tool for analyzing 
+given patch's performance impact to existing source repository. </p>
+
+<p>PerfScope is a research project from the <a href="http://opera.ucsd.edu">Opera Research Group</a> in University of California, San Diego. It 
+consists of several parts to operate:</p>
+
+<ul>
+<li><p>Parser: parses the patch file for information like what file(s) 
+are modified, which location does it lie, etc.
+Located: 
+  -- lib/parser/PatchCompiler, Debug+Asserts/bin/patch-c
+  -- lib/parser/PatchIRDecoder, library</p></li>
+<li><p>Mapper: maps the change location in source file to the 
+corresponding programming constructs.
+Located: 
+  -- lib/mapper, library</p></li>
+<li><p>Filter: prunes out insignificant changes such as stylish changes 
+or renaming. 
+Located: 
+  -- tools/PerfDiff, Debug+Asserts/bin/perfdiff</p></li>
+<li><p>Profile Database: contains a list of frequent or expensive functions. 
+White-list functions can also be added to the profile.
+Located: 
+  -- data</p></li>
+<li><p>Analyzer: performs Performance Risk Analysis (PRA) on given commit.
+Located:
+  -- tools/PerfScope, Debug+Asserts/bin/perfscope</p></li>
+<li><p>TestDB: tracks performance test cases execution information to 
+further recommend which test case may be useful to uncover the 
+performance regression issues. (work in progress)</p></li>
+</ul><p>Two auxiliary tools:</p>
+
+<ul>
+<li>ListFiles: list the file names and paths in a given module.
+Located:
+  -- tools/ListFiles, Debug+Asserts/lib/LLVMListFiles.so</li>
+<li>StaticProfiler: generate a list of expensive and frequent functions based
+on static analysis.
+Located:
+  -- tools/StaticProfiler, Debug+Asserts/bin/staticprofiler</li>
+</ul><p>Most of the tools have a separate README in their location and its
+usages can be found using -h option.</p>
+
+<p>For bug report or any other suggestion, please contact <a href="mailto:ryanhuang@cs.ucsd.edu">ryanhuang@cs.ucsd.edu</a>.</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Perfscope maintained by <a href="https://github.com/stormspirit">stormspirit</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
