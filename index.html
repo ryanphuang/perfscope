@@ -11,7 +11,7 @@
   <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
   <script type="text/javascript" src="javascripts/script.js"></script>
 
-  <title>Perfscope</title>
+  <title>PerfScope</title>
   <meta name="description" content="A tool that statically evaluates source code commit&#39;s risk of introducing performance regression">
 
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -22,7 +22,7 @@
 
   <div class="wrapper">
     <header>
-      <h1 class="title">Perfscope</h1>
+      <h1 class="title">PerfScope</h1>
     </header>
     <div id="container">
       <p class="tagline">A tool that statically evaluates source code commit&#39;s risk of introducing performance regression</p>
@@ -31,15 +31,12 @@
         <div class="inner">
           <a href="https://github.com/stormspirit/perfscope/tarball/master" class="download-button tar"><span>Download</span></a>
           <a href="https://github.com/stormspirit/perfscope/zipball/master" class="download-button zip"><span>Download</span></a>
-          <a href="https://github.com/stormspirit/perfscope" class="code">View Perfscope on GitHub</a>
+          <a href="https://github.com/stormspirit/perfscope" class="code">View PerfScope on GitHub</a>
         </div>
         <span class="blc"></span><span class="trc"></span>
         </div>
         <article class="markdown-body">
-          <h1>
-<a name="performance-regression-testing-target-prioritization-via-performance-risk-analysis" class="anchor" href="#performance-regression-testing-target-prioritization-via-performance-risk-analysis"><span class="octicon octicon-link"></span></a>Performance Regression Testing Target Prioritization via Performance Risk Analysis</h1>
-
-<h2>
+          <h2>
 <a name="problem-overview" class="anchor" href="#problem-overview"><span class="octicon octicon-link"></span></a>Problem Overview</h2>
 
 <p>As software evolves, problematic changes can significantly degrade software performance, i.e., introducing performance regression. Performance regression testing is an effective way 
@@ -55,7 +52,21 @@ efforts try to improve performance regression testing efficiency through test ca
 <p>We propose a new lightweight and white-box approach, performance risk analysis (PRA), to improve performance regression testing efficiency via testing target prioritization. The analysis statically evaluates a given source code commit’s risk in introducing performance regression. Performance regression testing can leverage the analysis result to test commits with high risks first while delaying or skipping testing on low-risk commits.</p>
 
 <p>We present <strong>PerfScope</strong>, a tool that statically analyzes a given patch's performance impact 
-to existing source repository. It consists of several parts to operate:</p>
+to existing source repository. Running PerfScope on 600 randomly picked new commits from six 
+large-scale software, with our tool, developers just need to test only 14-24% of the 600 commits
+and will still be able to alert 87-95% of the new problematic ones.</p>
+
+<h2>
+<a name="publication" class="anchor" href="#publication"><span class="octicon octicon-link"></span></a>Publication</h2>
+
+<ul>
+<li>
+<strong>Performance Regression Testing Target Prioritization via Performance Risk Analysis</strong><br><a href="http://cseweb.ucsd.edu/%7Epeh003">Peng Huang</a>, Xiao Ma, <a href="http://cseweb.ucsd.edu/%7Edoshen">Dongcai Shen</a>, and <a href="http://cseweb.ucsd.edu/%7Eyyzhou">Yuanyuan Zhou</a>.<br><em>Proceedings of the 36th International Conference on Software Engineering (ICSE’14), Hyderabad, India.</em>
+</li>
+</ul><h2>
+<a name="tool-details" class="anchor" href="#tool-details"><span class="octicon octicon-link"></span></a>Tool Details</h2>
+
+<p>PerfScope consists of several parts to operate:</p>
 
 <ul>
 <li><p>Parser: parses the patch file for information like what file(s) 
@@ -94,13 +105,16 @@ Located:
 </ul><p>Most of the tools have a separate README in their location and its
 usages can be found using -h option.</p>
 
+<h2>
+<a name="contact" class="anchor" href="#contact"><span class="octicon octicon-link"></span></a>Contact</h2>
+
 <p>For bug report or any other suggestion, please contact <a href="mailto:ryanhuang@cs.ucsd.edu">ryanhuang@cs.ucsd.edu</a>.</p>
         </article>
       </div>
     </div>
     <footer>
       <div class="owner">
-      <p><a href="https://github.com/stormspirit" class="avatar"><img src="https://2.gravatar.com/avatar/a19eca55cd8a4e79c86702bf4f238473?d=https%3A%2F%2Fidenticons.github.com%2F959c4f3721413e135e102a9c8ebf09df.png&amp;r=x&amp;s=60" width="48" height="48"/></a> <a href="https://github.com/stormspirit">stormspirit</a> maintains <a href="https://github.com/stormspirit/perfscope">Perfscope</a></p>
+      <p><a href="https://github.com/stormspirit" class="avatar"><img src="https://2.gravatar.com/avatar/a19eca55cd8a4e79c86702bf4f238473?d=https%3A%2F%2Fidenticons.github.com%2F959c4f3721413e135e102a9c8ebf09df.png&amp;r=x&amp;s=60" width="48" height="48"/></a> <a href="https://github.com/stormspirit">stormspirit</a> maintains <a href="https://github.com/stormspirit/perfscope">PerfScope</a></p>
 
 
       </div>
