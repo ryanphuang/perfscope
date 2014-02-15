@@ -1,41 +1,61 @@
-<!DOCTYPE html>
+<!doctype html>
+<!-- The Time Machine GitHub pages theme was designed and developed by Jon Rohan, on Feb 7, 2012. -->
+<!-- Follow him for fun. http://twitter.com/jonrohan. Tail his code on http://github.com/jonrohan -->
 <html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 
-  <head>
-    <meta charset='utf-8' />
-    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
-    <meta name="description" content="Perfscope : A tool that statically evaluates source code commit&#39;s risk of introducing performance regression" />
+  <link rel="stylesheet" href="stylesheets/stylesheet.css" media="screen"/>
+  <link rel="stylesheet" href="stylesheets/pygment_trac.css"/>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+  <script type="text/javascript" src="javascripts/script.js"></script>
 
-    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+  <title>Perfscope</title>
+  <meta name="description" content="A tool that statically evaluates source code commit&#39;s risk of introducing performance regression">
 
-    <title>Perfscope</title>
-  </head>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
 
-  <body>
+</head>
 
-    <!-- HEADER -->
-    <div id="header_wrap" class="outer">
-        <header class="inner">
-          <a id="forkme_banner" href="https://github.com/stormspirit/perfscope">View on GitHub</a>
+<body>
 
-          <h1 id="project_title">Perfscope</h1>
-          <h2 id="project_tagline">A tool that statically evaluates source code commit&#39;s risk of introducing performance regression</h2>
+  <div class="wrapper">
+    <header>
+      <h1 class="title">Perfscope</h1>
+    </header>
+    <div id="container">
+      <p class="tagline">A tool that statically evaluates source code commit&#39;s risk of introducing performance regression</p>
+      <div id="main" role="main">
+        <div class="download-bar">
+        <div class="inner">
+          <a href="https://github.com/stormspirit/perfscope/tarball/master" class="download-button tar"><span>Download</span></a>
+          <a href="https://github.com/stormspirit/perfscope/zipball/master" class="download-button zip"><span>Download</span></a>
+          <a href="https://github.com/stormspirit/perfscope" class="code">View Perfscope on GitHub</a>
+        </div>
+        <span class="blc"></span><span class="trc"></span>
+        </div>
+        <article class="markdown-body">
+          <h1>
+<a name="performance-regression-testing-target-prioritization-via-performance-risk-analysis" class="anchor" href="#performance-regression-testing-target-prioritization-via-performance-risk-analysis"><span class="octicon octicon-link"></span></a>Performance Regression Testing Target Prioritization via Performance Risk Analysis</h1>
 
-            <section id="downloads">
-              <a class="zip_download_link" href="https://github.com/stormspirit/perfscope/zipball/master">Download this project as a .zip file</a>
-              <a class="tar_download_link" href="https://github.com/stormspirit/perfscope/tarball/master">Download this project as a tar.gz file</a>
-            </section>
-        </header>
-    </div>
+<h2>
+<a name="problem-overview" class="anchor" href="#problem-overview"><span class="octicon octicon-link"></span></a>Problem Overview</h2>
 
-    <!-- MAIN CONTENT -->
-    <div id="main_content_wrap" class="outer">
-      <section id="main_content" class="inner">
-        <p>This is the source tree for PerfScope, a neat tool for analyzing 
-given patch's performance impact to existing source repository. </p>
+<p>As software evolves, problematic changes can significantly degrade software performance, i.e., introducing performance regression. Performance regression testing is an effective way 
+to reveal such issues in an early stage. Yet because of its high overhead, this activity 
+is usually performed infrequently. Consequently, when a regression problem is spotted at a
+certain point, multiple commits might have been merged since last testing. Developers have 
+to spend extra time and efforts narrowing down which commit caused the problem. Existing 
+efforts try to improve performance regression testing efficiency through test case reduction or prioritization.</p>
 
-<p>PerfScope is a research project from the <a href="http://opera.ucsd.edu">Opera Research Group</a> in University of California, San Diego. It 
-consists of several parts to operate:</p>
+<h2>
+<a name="solution-overview" class="anchor" href="#solution-overview"><span class="octicon octicon-link"></span></a>Solution Overview</h2>
+
+<p>We propose a new lightweight and white-box approach, performance risk analysis (PRA), to improve performance regression testing efficiency via testing target prioritization. The analysis statically evaluates a given source code commit’s risk in introducing performance regression. Performance regression testing can leverage the analysis result to test commits with high risks first while delaying or skipping testing on low-risk commits.</p>
+
+<p>We present <strong>PerfScope</strong>, a tool that statically analyzes a given patch's performance impact 
+to existing source repository. It consists of several parts to operate:</p>
 
 <ul>
 <li><p>Parser: parses the patch file for information like what file(s) 
@@ -75,18 +95,26 @@ Located:
 usages can be found using -h option.</p>
 
 <p>For bug report or any other suggestion, please contact <a href="mailto:ryanhuang@cs.ucsd.edu">ryanhuang@cs.ucsd.edu</a>.</p>
-      </section>
+        </article>
+      </div>
     </div>
+    <footer>
+      <div class="owner">
+      <p><a href="https://github.com/stormspirit" class="avatar"><img src="https://2.gravatar.com/avatar/a19eca55cd8a4e79c86702bf4f238473?d=https%3A%2F%2Fidenticons.github.com%2F959c4f3721413e135e102a9c8ebf09df.png&amp;r=x&amp;s=60" width="48" height="48"/></a> <a href="https://github.com/stormspirit">stormspirit</a> maintains <a href="https://github.com/stormspirit/perfscope">Perfscope</a></p>
 
-    <!-- FOOTER  -->
-    <div id="footer_wrap" class="outer">
-      <footer class="inner">
-        <p class="copyright">Perfscope maintained by <a href="https://github.com/stormspirit">stormspirit</a></p>
-        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
-      </footer>
-    </div>
 
-    
+      </div>
+      <div class="creds">
+        <small>This page generated using <a href="http://pages.github.com/">GitHub Pages</a><br/>theme by <a href="https://twitter.com/jonrohan/">Jon Rohan</a></small>
+      </div>
+    </footer>
+  </div>
+  <div class="current-section">
+    <a href="#top">Scroll to top</a>
+    <a href="https://github.com/stormspirit/perfscope/tarball/master" class="tar">tar</a><a href="https://github.com/stormspirit/perfscope/zipball/master" class="zip">zip</a><a href="" class="code">source code</a>
+    <p class="name"></p>
+  </div>
 
-  </body>
+  
+</body>
 </html>
