@@ -1,3 +1,5 @@
+NOTE: This repository is an unstable version to be cleaned/refactored.
+
 This is the source tree for PerfScope, a neat tool for analyzing 
 given patch's performance impact to existing source repository. 
 
